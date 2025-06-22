@@ -232,9 +232,7 @@ class TestDirectAPIIntegration:
 
         shutil.copy2(sample_pdf_path, second_pdf_path)
 
-        result = client.merge_pdfs(
-            [sample_pdf_path, second_pdf_path], output_path=output_path
-        )
+        result = client.merge_pdfs([sample_pdf_path, second_pdf_path], output_path=output_path)
 
         assert result is None
         assert (tmp_path / "merged.pdf").exists()
@@ -586,4 +584,3 @@ class TestDirectAPIIntegration:
         # Invalid pages format
         with pytest.raises(ValueError, match="'pages' must be a dict with 'start' key"):
             client.set_page_label(sample_pdf_path, labels=[{"pages": "invalid", "label": "test"}])
-
