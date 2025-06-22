@@ -244,9 +244,11 @@ class DirectAPIMixin:
         Args:
             input_file: Input PDF file.
             page_ranges: List of page range dictionaries. Each dict can contain:
-                - 'start': Starting page index (0-based, inclusive)
-                - 'end': Ending page index (0-based, exclusive)
-                - If not provided, splits into individual pages
+                - 'start': Starting page index (0-based, inclusive). 0 = first page.
+                - 'end': Ending page index (0-based, exclusive). 
+                        For example: {"start": 0, "end": 2} extracts pages 0-1 (first two pages).
+                - If 'end' is omitted from dict, extracts from 'start' to end of document.
+                Required parameter - must provide at least one range
             output_paths: Optional list of paths to save output files.
                           Must match length of page_ranges if provided.
 
@@ -259,8 +261,11 @@ class DirectAPIMixin:
             ValueError: If page_ranges and output_paths length mismatch.
 
         Examples:
-            # Split into individual pages
-            pages = client.split_pdf("document.pdf")
+            # Split first two pages into separate files
+            pages = client.split_pdf(
+                "document.pdf",
+                page_ranges=[{"start": 0, "end": 1}, {"start": 1, "end": 2}]
+            )
 
             # Split by custom ranges
             parts = client.split_pdf(
@@ -282,13 +287,15 @@ class DirectAPIMixin:
         from nutrient_dws.file_handler import prepare_file_for_upload, save_file_output
 
         # Validate inputs
-        if output_paths and page_ranges and len(output_paths) != len(page_ranges):
-            raise ValueError("output_paths length must match page_ranges length")
-
-        # Default to splitting into individual pages if no ranges specified
         if not page_ranges:
-            # We'll need to determine page count first - for now, assume single page split
-            page_ranges = [{"start": 0, "end": 1}]
+            raise ValueError("page_ranges is required - must provide at least one range")
+            
+        # Limit number of ranges to prevent excessive API calls
+        if len(page_ranges) > 50:
+            raise ValueError("Maximum 50 page ranges allowed per split operation")
+            
+        if output_paths and len(output_paths) != len(page_ranges):
+            raise ValueError("output_paths length must match page_ranges length")
 
         results: List[bytes] = []
 
@@ -394,9 +401,10 @@ class DirectAPIMixin:
 
         Args:
             input_file: Input PDF file.
-            page_indexes: List of page indexes to include (0-based).
+            page_indexes: List of page indexes to include (0-based). 0 = first page.
                          Pages can be repeated to create duplicates.
                          Negative indexes are supported (-1 for last page).
+                         For example: [0, 0, 1] duplicates the first page then includes the second.
             output_path: Optional path to save the output file.
 
         Returns:
@@ -444,8 +452,8 @@ class DirectAPIMixin:
                 # For negative indexes, use the index directly (API supports negative indexes)
                 parts.append({"file": "file", "pages": {"start": page_index, "end": page_index}})
             else:
-                # For positive indexes, create single-page range
-                parts.append({"file": "file", "pages": {"start": page_index, "end": page_index}})
+                # For positive indexes, create single-page range with exclusive end
+                parts.append({"file": "file", "pages": {"start": page_index, "end": page_index + 1}})
 
         # Build instructions for duplication
         instructions = {"parts": parts, "actions": []}
@@ -478,8 +486,9 @@ class DirectAPIMixin:
 
         Args:
             input_file: Input PDF file.
-            page_indexes: List of page indexes to delete (0-based).
-                         Negative indexes are not currently supported.
+            page_indexes: List of page indexes to delete (0-based). 0 = first page.
+                         Must be unique, sorted in ascending order.
+                         Negative indexes are NOT supported.
             output_path: Optional path to save the output file.
 
         Returns:
@@ -633,6 +642,8 @@ class DirectAPIMixin:
         # Validate inputs
         if page_count < 1:
             raise ValueError("page_count must be at least 1")
+        if page_count > 100:
+            raise ValueError("page_count cannot exceed 100 pages")
         if insert_index < -1:
             raise ValueError("insert_index must be -1 (for end) or a non-negative insertion index")
 

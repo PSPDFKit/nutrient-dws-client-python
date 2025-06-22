@@ -291,18 +291,11 @@ class TestDirectAPIIntegration:
         assert (tmp_path / "remaining.pdf").stat().st_size > 0
         assert_is_pdf(str(tmp_path / "remaining.pdf"))
 
-    def test_split_pdf_single_page_default(self, client, sample_pdf_path):
-        """Test split_pdf with default behavior (single page)."""
-        # Test default splitting (should extract first page)
-        result = client.split_pdf(sample_pdf_path)
-
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert isinstance(result[0], bytes)
-        assert len(result[0]) > 0
-
-        # Verify result is a valid PDF
-        assert_is_pdf(result[0])
+    def test_split_pdf_no_ranges_error(self, client, sample_pdf_path):
+        """Test split_pdf with no ranges raises error."""
+        # Test that page_ranges is required
+        with pytest.raises(ValueError, match="page_ranges is required"):
+            client.split_pdf(sample_pdf_path)
 
     def test_split_pdf_output_paths_length_mismatch_error(self, client, sample_pdf_path):
         """Test split_pdf method with mismatched output_paths and page_ranges lengths."""
@@ -311,6 +304,14 @@ class TestDirectAPIIntegration:
 
         with pytest.raises(ValueError, match="output_paths length must match page_ranges length"):
             client.split_pdf(sample_pdf_path, page_ranges=page_ranges, output_paths=output_paths)
+    
+    def test_split_pdf_too_many_ranges_error(self, client, sample_pdf_path):
+        """Test split_pdf method with too many ranges raises error."""
+        # Create 51 ranges (exceeds the 50 limit)
+        page_ranges = [{"start": i, "end": i + 1} for i in range(51)]
+        
+        with pytest.raises(ValueError, match="Maximum 50 page ranges allowed"):
+            client.split_pdf(sample_pdf_path, page_ranges=page_ranges)
 
     # Tests for duplicate_pdf_pages
     def test_duplicate_pdf_pages_basic(self, client, sample_pdf_path):
@@ -506,6 +507,10 @@ class TestDirectAPIIntegration:
         # Test negative page count
         with pytest.raises(ValueError, match="page_count must be at least 1"):
             client.add_page(sample_pdf_path, insert_index=0, page_count=-1)
+            
+        # Test excessive page count
+        with pytest.raises(ValueError, match="page_count cannot exceed 100"):
+            client.add_page(sample_pdf_path, insert_index=0, page_count=101)
 
     def test_add_page_invalid_position_error(self, client, sample_pdf_path):
         """Test add_page method with invalid insert_index raises error."""
