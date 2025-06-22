@@ -245,7 +245,7 @@ class DirectAPIMixin:
             input_file: Input PDF file.
             page_ranges: List of page range dictionaries. Each dict can contain:
                 - 'start': Starting page index (0-based, inclusive). 0 = first page.
-                - 'end': Ending page index (0-based, exclusive). 
+                - 'end': Ending page index (0-based, exclusive).
                         For example: {"start": 0, "end": 2} extracts pages 0-1 (first two pages).
                 - If 'end' is omitted from dict, extracts from 'start' to end of document.
                 Required parameter - must provide at least one range
@@ -289,11 +289,11 @@ class DirectAPIMixin:
         # Validate inputs
         if not page_ranges:
             raise ValueError("page_ranges is required - must provide at least one range")
-            
+
         # Limit number of ranges to prevent excessive API calls
         if len(page_ranges) > 50:
             raise ValueError("Maximum 50 page ranges allowed per split operation")
-            
+
         if output_paths and len(output_paths) != len(page_ranges):
             raise ValueError("output_paths length must match page_ranges length")
 
@@ -453,7 +453,10 @@ class DirectAPIMixin:
                 parts.append({"file": "file", "pages": {"start": page_index, "end": page_index}})
             else:
                 # For positive indexes, create single-page range with exclusive end
-                parts.append({"file": "file", "pages": {"start": page_index, "end": page_index + 1}})
+                parts.append({
+                    "file": "file",
+                    "pages": {"start": page_index, "end": page_index + 1}
+                })
 
         # Build instructions for duplication
         instructions = {"parts": parts, "actions": []}
