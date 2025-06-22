@@ -320,7 +320,7 @@ class DirectAPIMixin:
             if output_paths and i < len(output_paths):
                 save_file_output(result, output_paths[i])
             else:
-                results.append(result)  # type: ignore[arg-type]
+                results.append(result)
 
         return results if not output_paths else []
 
@@ -453,10 +453,9 @@ class DirectAPIMixin:
                 parts.append({"file": "file", "pages": {"start": page_index, "end": page_index}})
             else:
                 # For positive indexes, create single-page range with exclusive end
-                parts.append({
-                    "file": "file",
-                    "pages": {"start": page_index, "end": page_index + 1}
-                })
+                parts.append(
+                    {"file": "file", "pages": {"start": page_index, "end": page_index + 1}}
+                )
 
         # Build instructions for duplication
         instructions = {"parts": parts, "actions": []}
