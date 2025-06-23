@@ -45,7 +45,10 @@ Always run the quality checks above to ensure code meets standards.
 3. Write tests alongside implementation
 4. Update documentation/docstrings
 5. Run quality checks before marking tasks complete
-6. Use `gh` cli tool for GitHub operations
+6. Use `gh` cli tool for GitHub operations.
+7. Always check out a feature branch when beginning work.
+8. When sending a PR, always wait for tests to run and if it fails, read the logs to fix it.
+9. Use `gh run list` with branch filter to not get confused.
 
 **PR Strategy**: All GitHub PRs are squash merged to maintain clean commit history.
 
