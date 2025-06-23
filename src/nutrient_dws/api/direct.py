@@ -284,10 +284,10 @@ class DirectAPIMixin:
         # Validate inputs
         if not page_ranges:
             raise ValueError("page_ranges is required")
-        
+
         if len(page_ranges) > 50:
             raise ValueError("Maximum 50 page ranges allowed")
-            
+
         if output_paths and len(output_paths) != len(page_ranges):
             raise ValueError("output_paths length must match page_ranges length")
 
@@ -488,17 +488,17 @@ class DirectAPIMixin:
         # For remaining pages, we need to be very careful not to reference non-existent pages
         # The safest approach is to NOT add remaining pages automatically
         # Instead, we'll only add them if we're confident they exist
-        
+
         # However, we can't know the document page count without another API call
         # Let's use a different approach: if there are existing parts, we might be done
         # If there are no parts yet, we need to add something
-        
+
         if len(sorted_indexes) > 0:
             # We've processed some deletions
             # Only add remaining pages if we haven't deleted the very last possible pages
             # A very conservative approach: don't add remaining if we deleted a high-numbered page
             max_deleted_page = max(sorted_indexes)
-            
+
             # If we're deleting page 2 or higher, and current_page is beyond that,
             # we're probably at or past the end of the document
             # Only add remaining if the max deleted page is 0 or 1 (suggesting more pages exist)
