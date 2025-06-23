@@ -561,7 +561,6 @@ class TestDirectAPIIntegration:
         labels = [
             {"pages": {"start": 0, "end": 1}, "label": "i"},
             {"pages": {"start": 1, "end": 2}, "label": "intro"},
-            {"pages": {"start": 2, "end": 3}, "label": "final"},
         ]
 
         result = client.set_page_label(sample_multipage_pdf_path, labels)

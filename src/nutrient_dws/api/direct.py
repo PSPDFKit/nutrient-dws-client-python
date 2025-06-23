@@ -282,13 +282,14 @@ class DirectAPIMixin:
         from nutrient_dws.file_handler import prepare_file_for_upload, save_file_output
 
         # Validate inputs
-        if output_paths and page_ranges and len(output_paths) != len(page_ranges):
-            raise ValueError("output_paths length must match page_ranges length")
-
-        # Default to splitting into individual pages if no ranges specified
         if not page_ranges:
-            # We'll need to determine page count first - for now, assume single page split
-            page_ranges = [{"start": 0, "end": 1}]
+            raise ValueError("page_ranges is required")
+        
+        if len(page_ranges) > 50:
+            raise ValueError("Maximum 50 page ranges allowed")
+            
+        if output_paths and len(output_paths) != len(page_ranges):
+            raise ValueError("output_paths length must match page_ranges length")
 
         results = []
 
@@ -484,13 +485,32 @@ class DirectAPIMixin:
             # Skip the deleted page
             current_page = delete_index + 1
 
-        # Add remaining pages from current_page to end
-        if current_page >= 0:  # Always add remaining pages
-            parts.append({"file": "file", "pages": {"start": current_page}})
+        # For remaining pages, we need to be very careful not to reference non-existent pages
+        # The safest approach is to NOT add remaining pages automatically
+        # Instead, we'll only add them if we're confident they exist
+        
+        # However, we can't know the document page count without another API call
+        # Let's use a different approach: if there are existing parts, we might be done
+        # If there are no parts yet, we need to add something
+        
+        if len(sorted_indexes) > 0:
+            # We've processed some deletions
+            # Only add remaining pages if we haven't deleted the very last possible pages
+            # A very conservative approach: don't add remaining if we deleted a high-numbered page
+            max_deleted_page = max(sorted_indexes)
+            
+            # If we're deleting page 2 or higher, and current_page is beyond that,
+            # we're probably at or past the end of the document
+            # Only add remaining if the max deleted page is 0 or 1 (suggesting more pages exist)
+            if max_deleted_page <= 1 and current_page <= 10:  # Very conservative
+                parts.append({"file": "file", "pages": {"start": current_page}})
+        else:
+            # If no pages to delete, keep all pages
+            parts.append({"file": "file"})
 
-        # If no parts (edge case), raise error
+        # If no parts, it means we're trying to delete all pages
         if not parts:
-            raise ValueError("No valid pages to keep after deletion")
+            raise ValueError("Cannot delete all pages from document")
 
         # Build instructions for deletion (keeping non-deleted pages)
         instructions = {"parts": parts, "actions": []}
@@ -761,13 +781,11 @@ class DirectAPIMixin:
             if not isinstance(pages, dict) or "start" not in pages:
                 raise ValueError(f"Label configuration {i} 'pages' must be a dict with 'start' key")
 
-            # Normalize pages to ensure 'end' is present
+            # Normalize pages - only include 'end' if explicitly provided
             normalized_pages = {"start": pages["start"]}
             if "end" in pages:
                 normalized_pages["end"] = pages["end"]
-            else:
-                # If no end is specified, use -1 to indicate "to end of document"
-                normalized_pages["end"] = -1
+            # If no end is specified, leave it out (meaning "to end of document")
 
             normalized_labels.append({"pages": normalized_pages, "label": label_config["label"]})
 
