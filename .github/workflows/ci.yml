@@ -1,10 +1,20 @@
 name: CI
 
+# Integration Test Strategy:
+# - Fork PRs: Cannot access secrets, so integration tests are skipped with informative feedback
+# - Same-repo PRs: Have access to secrets, integration tests run normally  
+# - Push to main/develop: Integration tests always run to catch any issues after merge
+# - Manual trigger: Allows maintainers to run integration tests on demand
+#
+# This ensures security while still validating integration tests before release
+
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  # Run integration tests after PR is merged
+  workflow_dispatch:  # Allow manual trigger for integration tests
 
 jobs:
   test:
@@ -57,7 +67,11 @@ jobs:
 
   integration-test:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    # Run on: pushes to main/develop, PRs from same repo, and manual triggers
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
@@ -88,7 +102,19 @@ jobs:
         if [ -z "${{ secrets.NUTRIENT_DWS_API_KEY }}" ]; then
           echo "::warning::NUTRIENT_DWS_API_KEY secret not found, skipping integration tests"
           echo "skip_tests=true" >> $GITHUB_ENV
+          
+          # Provide context about why this might be happening
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+              echo "::notice::This appears to be a PR from a fork. Secrets are not available for security reasons."
+            else
+              echo "::error::This is a PR from the same repository but the API key is missing. Please check repository secrets configuration."
+            fi
+          else
+            echo "::error::Running on ${{ github.event_name }} event but API key is missing. Please configure NUTRIENT_DWS_API_KEY secret."
+          fi
         else
+          echo "::notice::API key found, integration tests will run"
           echo "skip_tests=false" >> $GITHUB_ENV
         fi
 
@@ -110,6 +136,51 @@ jobs:
     - name: Cleanup integration config
       if: always()
       run: rm -f tests/integration/integration_config.py
+
+  # Provide feedback for fork PRs where integration tests can't run
+  integration-test-fork-feedback:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' && 
+      github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+    - name: Comment on PR about integration tests
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const issue_number = context.issue.number;
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          
+          // Check if we've already commented
+          const comments = await github.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number,
+          });
+          
+          const botComment = comments.data.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('Integration tests are skipped for pull requests from forks')
+          );
+          
+          if (!botComment) {
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body: `## Integration Tests Status\n\n` +
+                    `Integration tests are skipped for pull requests from forks due to security restrictions. ` +
+                    `These tests will run automatically after the PR is merged.\n\n` +
+                    `**What this means:**\n` +
+                    `- Unit tests, linting, and type checking have passed ✅\n` +
+                    `- Integration tests require API credentials that aren't available to fork PRs\n` +
+                    `- A maintainer will review your changes and merge if appropriate\n` +
+                    `- Integration tests will run on the main branch after merge\n\n` +
+                    `Thank you for your contribution! 🙏`
+            });
+          }
 
   build:
     runs-on: ubuntu-latest
