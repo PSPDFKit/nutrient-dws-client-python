@@ -6,6 +6,7 @@ platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
 [dependencies]
 python = ">=3.10,<3.13"
 requests = ">=2.25.0,<3.0.0"
+python-semantic-release = ">=10.1.0,<11"
 
 [feature.dev.dependencies]
 pytest = ">=7.0.0"
