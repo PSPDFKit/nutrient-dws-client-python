@@ -1,5 +1,6 @@
 # Claude Development Guide for Nutrient DWS Python Client
 
+
 ## Critical Reference
 **ALWAYS** refer to `SPECIFICATION.md` before implementing any features. This document contains the complete design specification for the Nutrient DWS Python Client library.
 
