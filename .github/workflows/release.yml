@@ -14,8 +14,13 @@ on:
           - major
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
   release:
     runs-on: ubuntu-latest
+    needs: ci
     concurrency: release
     permissions:
       id-token: write
@@ -27,52 +32,10 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
     - name: Install Pixi
       uses: prefix-dev/setup-pixi@v0.8.1
       with:
         pixi-version: v0.29.0
-
-    - name: Run linting with ruff
-      run: |
-        pixi run python -m ruff check .
-        pixi run python -m ruff format --check .
-
-    - name: Run type checking with mypy
-      run: pixi run python -m mypy src tests
-
-    - name: Run unit tests with pytest
-      run: pixi run python -m pytest tests/unit/ -v --cov=nutrient_dws --cov-report=xml --cov-report=term
-
-    - name: Run integration tests
-      if: github.repository == 'jdrhyne/nutrient-dws-client-python'
-      run: |
-        pixi run python -c "
-        import os
-        with open('tests/integration/integration_config.py', 'w') as f:
-            f.write(f'API_KEY = \"{os.environ[\"NUTRIENT_DWS_API_KEY\"]}\"\n')
-        "
-        pixi run python -m pytest tests/integration/ -v
-      env:
-        NUTRIENT_DWS_API_KEY: ${{ secrets.NUTRIENT_DWS_API_KEY }}
-
-    - name: Build package
-      run: pixi run python -m build
-
-    - name: Check package with twine
-      run: pixi run twine check dist/*
 
     - name: Semantic Release
       run: pixi run python -m semantic_release version --${{ inputs.level }}
