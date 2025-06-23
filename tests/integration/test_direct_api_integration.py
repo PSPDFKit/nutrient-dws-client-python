@@ -339,7 +339,9 @@ class TestDirectAPIIntegration:
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_duplicate_pdf_pages_with_output_file(self, client, sample_multipage_pdf_path, tmp_path):
+    def test_duplicate_pdf_pages_with_output_file(
+        self, client, sample_multipage_pdf_path, tmp_path
+    ):
         """Test duplicate_pdf_pages method saving to output file."""
         output_path = str(tmp_path / "duplicated.pdf")
 
@@ -394,7 +396,9 @@ class TestDirectAPIIntegration:
         output_path = str(tmp_path / "pages_deleted.pdf")
 
         # Test deleting pages and saving to file
-        result = client.delete_pdf_pages(sample_multipage_pdf_path, page_indexes=[1], output_path=output_path)
+        result = client.delete_pdf_pages(
+            sample_multipage_pdf_path, page_indexes=[1], output_path=output_path
+        )
 
         # Should return None when saving to file
         assert result is None
