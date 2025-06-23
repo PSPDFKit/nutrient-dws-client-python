@@ -414,8 +414,9 @@ class DirectAPIMixin:
 
         Args:
             input_file: Input PDF file.
-            page_indexes: List of page indexes to delete (0-based).
-                         Negative indexes are supported (-1 for last page).
+            page_indexes: List of page indexes to delete (0-based). 0 = first page.
+                         Must be unique, sorted in ascending order.
+                         Negative indexes are NOT supported.
             output_path: Optional path to save the output file.
 
         Returns:
@@ -424,13 +425,13 @@ class DirectAPIMixin:
         Raises:
             AuthenticationError: If API key is missing or invalid.
             APIError: For other API errors.
-            ValueError: If page_indexes is empty.
+            ValueError: If page_indexes is empty or contains negative indexes.
 
         Examples:
-            # Delete first and last pages
+            # Delete first and last pages (Note: negative indexes not supported)
             result = client.delete_pdf_pages(
                 "document.pdf",
-                page_indexes=[0, -1]
+                page_indexes=[0, 2]  # Delete pages 1 and 3
             )
 
             # Delete specific pages (2nd and 4th pages)
@@ -452,12 +453,16 @@ class DirectAPIMixin:
         if not page_indexes:
             raise ValueError("page_indexes cannot be empty")
 
+        # Check for negative indexes
+        if any(idx < 0 for idx in page_indexes):
+            negative_indexes = [idx for idx in page_indexes if idx < 0]
+            raise ValueError(
+                f"Negative page indexes not yet supported for deletion: {negative_indexes}"
+            )
+
         # Prepare file for upload
         file_field, file_data = prepare_file_for_upload(input_file, "file")
         files = {file_field: file_data}
-
-        # Convert negative indexes to positive (we need to get document info first)
-        # For now, we'll create the parts structure and let the API handle negative indexes
 
         # Sort page indexes to handle ranges efficiently
         sorted_indexes = sorted(set(page_indexes))  # Remove duplicates and sort
@@ -470,13 +475,6 @@ class DirectAPIMixin:
         current_page = 0
 
         for delete_index in sorted_indexes:
-            # Handle negative indexes by letting API process them
-            if delete_index < 0:
-                # For negative indexes, we can't easily calculate ranges without knowing total pages
-                # We'll use a different approach - create parts for everything and let API handle it
-                # This is a simplified approach that may need refinement
-                continue
-
             # Add range from current_page to delete_index (exclusive)
             if current_page < delete_index:
                 parts.append(
@@ -487,38 +485,8 @@ class DirectAPIMixin:
             current_page = delete_index + 1
 
         # Add remaining pages from current_page to end
-        if current_page >= 0:  # Always add remaining pages unless we handled negative indexes
+        if current_page >= 0:  # Always add remaining pages
             parts.append({"file": "file", "pages": {"start": current_page}})
-
-        # Handle case where we have negative indexes - use a simpler approach
-        if any(idx < 0 for idx in page_indexes):
-            # If we have negative indexes, we need a different strategy
-            # For now, we'll create a request that includes all positive ranges
-            # and excludes negative ones - this is a limitation that would need
-            # API documentation clarification
-            parts = []
-
-            # Positive indexes only for now
-            positive_indexes = [idx for idx in sorted_indexes if idx >= 0]
-            if positive_indexes:
-                current_page = 0
-                for delete_index in positive_indexes:
-                    if current_page < delete_index:
-                        parts.append(
-                            {"file": "file", "pages": {"start": current_page, "end": delete_index}}
-                        )
-                    current_page = delete_index + 1
-
-                # Add remaining pages
-                parts.append({"file": "file", "pages": {"start": current_page}})
-
-            # Handle negative indexes separately by including a warning
-            if any(idx < 0 for idx in page_indexes):
-                # For now, raise an error for negative indexes as they need special handling
-                negative_indexes = [idx for idx in page_indexes if idx < 0]
-                raise ValueError(
-                    f"Negative page indexes not yet supported for deletion: {negative_indexes}"
-                )
 
         # If no parts (edge case), raise error
         if not parts:
@@ -667,6 +635,8 @@ class DirectAPIMixin:
         # Validate inputs
         if page_count < 1:
             raise ValueError("page_count must be at least 1")
+        if page_count > 100:
+            raise ValueError("page_count cannot exceed 100 pages")
         if insert_index < -1:
             raise ValueError("insert_index must be -1 (for end) or a non-negative insertion index")
 

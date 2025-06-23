@@ -22,7 +22,6 @@ keywords = ["nutrient", "pdf", "document", "processing", "api", "client"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -53,10 +52,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jdrhyne/nutrient-dws-client-python"
+Homepage = "https://github.com/PSPDFKit/nutrient-dws-client-python"
 Documentation = "https://nutrient-dws-client-python.readthedocs.io"
-Repository = "https://github.com/jdrhyne/nutrient-dws-client-python"
-"Bug Tracker" = "https://github.com/jdrhyne/nutrient-dws-client-python/issues"
+Repository = "https://github.com/PSPDFKit/nutrient-dws-client-python"
+"Bug Tracker" = "https://github.com/PSPDFKit/nutrient-dws-client-python/issues"
 
 [tool.setuptools.package-data]
 nutrient_dws = ["py.typed"]

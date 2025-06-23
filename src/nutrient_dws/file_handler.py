@@ -1,5 +1,6 @@
 """File handling utilities for input/output operations."""
 
+import contextlib
 import io
 import os
 from collections.abc import Generator
@@ -40,11 +41,30 @@ def prepare_file_input(file_input: FileInput) -> tuple[bytes, str]:
             return file_input, "document"
         case _ if hasattr(file_input, "read"):
             # Handle file-like objects
+            # Save current position if seekable
+            current_pos = None
+            if hasattr(file_input, "seek") and hasattr(file_input, "tell"):
+                try:
+                    current_pos = file_input.tell()
+                    file_input.seek(0)  # Read from beginning
+                except (OSError, io.UnsupportedOperation):
+                    pass
+
             content = file_input.read()
             if isinstance(content, str):
                 content = content.encode()
+
+            # Restore position if we saved it
+            if current_pos is not None:
+                with contextlib.suppress(OSError, io.UnsupportedOperation):
+                    file_input.seek(current_pos)
+
             filename = getattr(file_input, "name", "document")
-            if hasattr(filename, "__fspath__") or isinstance(filename, str | bytes):
+            if hasattr(filename, "__fspath__"):
+                filename = os.path.basename(os.fspath(filename))
+            elif isinstance(filename, bytes):
+                filename = os.path.basename(filename.decode())
+            elif isinstance(filename, str):
                 filename = os.path.basename(filename)
             return content, str(filename)
         case _:
@@ -102,6 +122,10 @@ def prepare_file_for_upload(
         case _ if hasattr(file_input, "read"):
             filename = getattr(file_input, "name", "document")
             if hasattr(filename, "__fspath__"):
+                filename = os.path.basename(os.fspath(filename))
+            elif isinstance(filename, bytes):
+                filename = os.path.basename(filename.decode())
+            elif isinstance(filename, str):
                 filename = os.path.basename(filename)
             return field_name, (str(filename), file_input, content_type)  # type: ignore[return-value]
         case _:
@@ -158,7 +182,10 @@ def get_file_size(file_input: FileInput) -> int | None:
     Returns:
         File size in bytes, or None if size cannot be determined.
     """
-    if isinstance(file_input, str):
+    if isinstance(file_input, Path):
+        if file_input.exists():
+            return file_input.stat().st_size
+    elif isinstance(file_input, str):
         path = Path(file_input)
         if path.exists():
             return path.stat().st_size
