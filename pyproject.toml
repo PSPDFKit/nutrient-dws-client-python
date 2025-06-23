@@ -10,7 +10,7 @@ where = ["src"]
 
 [project]
 name = "nutrient-dws"
-version = "1.0.0"
+version = "1.0.2"
 description = "Python client library for Nutrient Document Web Services API"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -43,6 +43,7 @@ dev = [
     "mypy>=1.0.0",
     "ruff>=0.1.0",
     "types-requests>=2.25.0",
+    "twine>=4.0.0",
 ]
 docs = [
     "sphinx>=5.0.0",

@@ -24,3 +24,7 @@ lint = "ruff check ."
 format = "ruff format ."
 typecheck = "mypy src/"
 dev = "python -m pip install -e ."
+
+[pypi-dependencies]
+build = ">=1.2.2.post1, <2"
+twine = ">=6.1.0, <7"
