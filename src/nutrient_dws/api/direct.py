@@ -159,6 +159,7 @@ class DirectAPIMixin:
         output_path: str | None = None,
         text: str | None = None,
         image_url: str | None = None,
+        image_file: FileInput | None = None,
         width: int = 200,
         height: int = 100,
         opacity: float = 1.0,
@@ -172,8 +173,10 @@ class DirectAPIMixin:
         Args:
             input_file: Input file (PDF or Office document).
             output_path: Optional path to save the output file.
-            text: Text to use as watermark. Either text or image_url required.
+            text: Text to use as watermark. One of text, image_url, or image_file required.
             image_url: URL of image to use as watermark.
+            image_file: Local image file to use as watermark (path, bytes, or file-like object).
+                       Supported formats: PNG, JPEG, TIFF.
             width: Width of the watermark in points (required).
             height: Height of the watermark in points (required).
             opacity: Opacity of the watermark (0.0 to 1.0).
@@ -187,11 +190,57 @@ class DirectAPIMixin:
         Raises:
             AuthenticationError: If API key is missing or invalid.
             APIError: For other API errors.
-            ValueError: If neither text nor image_url is provided.
+            ValueError: If none of text, image_url, or image_file is provided.
         """
-        if not text and not image_url:
-            raise ValueError("Either text or image_url must be provided")
+        if not text and not image_url and not image_file:
+            raise ValueError("Either text, image_url, or image_file must be provided")
 
+        # For image file uploads, we need to use the builder directly
+        if image_file:
+            from nutrient_dws.file_handler import prepare_file_for_upload, save_file_output
+
+            # Prepare files for upload
+            files = {}
+
+            # Main PDF file
+            file_field, file_data = prepare_file_for_upload(input_file, "file")
+            files[file_field] = file_data
+
+            # Watermark image file
+            image_field, image_data = prepare_file_for_upload(image_file, "watermark")
+            files[image_field] = image_data
+
+            # Build instructions with watermark action
+            action = {
+                "type": "watermark",
+                "width": width,
+                "height": height,
+                "opacity": opacity,
+                "position": position,
+                "image": "watermark"  # Reference to the uploaded image file
+            }
+
+            instructions = {
+                "parts": [{"file": "file"}],
+                "actions": [action]
+            }
+
+            # Make API request
+            # Type checking: at runtime, self is NutrientClient which has _http_client
+            result = self._http_client.post(  # type: ignore[attr-defined]
+                "/build",
+                files=files,
+                json_data=instructions,
+            )
+
+            # Handle output
+            if output_path:
+                save_file_output(result, output_path)
+                return None
+            else:
+                return result  # type: ignore[no-any-return]
+
+        # For text and URL watermarks, use the existing _process_file approach
         options = {
             "width": width,
             "height": height,

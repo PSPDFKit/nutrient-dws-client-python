@@ -162,7 +162,7 @@ class TestDirectAPIMethods:
 
     def test_watermark_pdf_no_text_or_image_raises_error(self):
         """Test watermark_pdf raises ValueError when neither text nor image_url provided."""
-        with pytest.raises(ValueError, match="Either text or image_url must be provided"):
+        with pytest.raises(ValueError, match="Either text, image_url, or image_file must be provided"):
             self.client.watermark_pdf("test.pdf")
 
     @patch("nutrient_dws.client.NutrientClient._process_file")
@@ -314,16 +314,16 @@ class TestDirectAPIErrorHandling:
 
     def test_watermark_pdf_validation_error(self):
         """Test watermark_pdf parameter validation."""
-        # Test missing text and image_url
-        with pytest.raises(ValueError, match="Either text or image_url must be provided"):
+        # Test missing text, image_url, and image_file
+        with pytest.raises(ValueError, match="Either text, image_url, or image_file must be provided"):
             self.client.watermark_pdf("test.pdf")
 
-        # Test empty text and no image_url
-        with pytest.raises(ValueError, match="Either text or image_url must be provided"):
+        # Test empty text and no image_url or image_file
+        with pytest.raises(ValueError, match="Either text, image_url, or image_file must be provided"):
             self.client.watermark_pdf("test.pdf", text="")
 
-        # Test None text and no image_url
-        with pytest.raises(ValueError, match="Either text or image_url must be provided"):
+        # Test None text and no image_url or image_file
+        with pytest.raises(ValueError, match="Either text, image_url, or image_file must be provided"):
             self.client.watermark_pdf("test.pdf", text=None)
 
     def test_merge_pdfs_validation_error(self):

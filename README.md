@@ -128,6 +128,28 @@ client.watermark_pdf(
     opacity=0.5,
     position="center"
 )
+
+# Add image watermark from URL
+client.watermark_pdf(
+    input_file="document.pdf",
+    output_path="watermarked.pdf",
+    image_url="https://example.com/logo.png",
+    width=150,
+    height=75,
+    opacity=0.8,
+    position="bottom-right"
+)
+
+# Add image watermark from local file (NEW!)
+client.watermark_pdf(
+    input_file="document.pdf",
+    output_path="watermarked.pdf",
+    image_file="logo.png",  # Can be path, bytes, or file-like object
+    width=150,
+    height=75,
+    opacity=0.8,
+    position="bottom-right"
+)
 ```
 
 ## Builder API Examples
@@ -150,6 +172,17 @@ result = client.build(input_file="raw-scan.pdf") \
         optimize=True
     ) \
     .execute(output_path="final.pdf")
+
+# Using image file in builder API
+result = client.build(input_file="document.pdf") \
+    .add_step("watermark-pdf", {
+        "image_file": "company-logo.png",  # Local file
+        "width": 100,
+        "height": 50,
+        "opacity": 0.5,
+        "position": "bottom-left"
+    }) \
+    .execute()
 ```
 
 ## File Input Options

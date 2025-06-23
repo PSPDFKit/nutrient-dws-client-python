@@ -211,6 +211,14 @@ class BuildAPIWrapper:
                     action["text"] = options["text"]
                 elif "image_url" in options:
                     action["image"] = {"url": options["image_url"]}  # type: ignore
+                elif "image_file" in options:
+                    # Handle image file upload
+                    image_file = options["image_file"]
+                    # Add the image as a file part
+                    watermark_name = f"watermark_{len(self._files)}"
+                    self._files[watermark_name] = image_file
+                    # Reference the uploaded file
+                    action["image"] = watermark_name  # type: ignore
                 else:
                     # Default to text watermark if neither specified
                     action["text"] = "WATERMARK"
