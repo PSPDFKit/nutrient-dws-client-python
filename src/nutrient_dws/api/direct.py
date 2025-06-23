@@ -217,13 +217,10 @@ class DirectAPIMixin:
                 "height": height,
                 "opacity": opacity,
                 "position": position,
-                "image": "watermark"  # Reference to the uploaded image file
+                "image": "watermark",  # Reference to the uploaded image file
             }
 
-            instructions = {
-                "parts": [{"file": "file"}],
-                "actions": [action]
-            }
+            instructions = {"parts": [{"file": "file"}], "actions": [action]}
 
             # Make API request
             # Type checking: at runtime, self is NutrientClient which has _http_client

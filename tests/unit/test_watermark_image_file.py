@@ -35,7 +35,7 @@ class TestWatermarkImageFile:
             width=150,
             height=75,
             opacity=0.8,
-            position="top-right"
+            position="top-right",
         )
 
         assert result == b"PDF content"
@@ -70,12 +70,7 @@ class TestWatermarkImageFile:
         pdf_file = BytesIO(b"PDF file content")
         image_file = BytesIO(b"PNG image data")
 
-        result = client.watermark_pdf(
-            pdf_file,
-            image_file=image_file,
-            width=200,
-            height=100
-        )
+        result = client.watermark_pdf(pdf_file, image_file=image_file, width=200, height=100)
 
         assert result == b"PDF content"
 
@@ -91,9 +86,7 @@ class TestWatermarkImageFile:
 
         with patch("nutrient_dws.file_handler.save_file_output") as mock_save:
             result = client.watermark_pdf(
-                pdf_bytes,
-                image_file=image_bytes,
-                output_path="output.pdf"
+                pdf_bytes, image_file=image_bytes, output_path="output.pdf"
             )
 
             assert result is None
@@ -110,10 +103,7 @@ class TestWatermarkImageFile:
         # Mock _process_file method
         with patch.object(client, "_process_file", return_value=b"PDF content") as mock_process:
             result = client.watermark_pdf(
-                b"PDF content",
-                text="CONFIDENTIAL",
-                width=200,
-                height=100
+                b"PDF content", text="CONFIDENTIAL", width=200, height=100
             )
 
             assert result == b"PDF content"
@@ -125,7 +115,7 @@ class TestWatermarkImageFile:
                 height=100,
                 opacity=1.0,
                 position="center",
-                text="CONFIDENTIAL"
+                text="CONFIDENTIAL",
             )
 
     def test_watermark_pdf_url_still_works(self, client, mock_http_client):
@@ -133,10 +123,7 @@ class TestWatermarkImageFile:
         # Mock _process_file method
         with patch.object(client, "_process_file", return_value=b"PDF content") as mock_process:
             result = client.watermark_pdf(
-                b"PDF content",
-                image_url="https://example.com/logo.png",
-                width=200,
-                height=100
+                b"PDF content", image_url="https://example.com/logo.png", width=200, height=100
             )
 
             assert result == b"PDF content"
@@ -148,7 +135,7 @@ class TestWatermarkImageFile:
                 height=100,
                 opacity=1.0,
                 position="center",
-                image_url="https://example.com/logo.png"
+                image_url="https://example.com/logo.png",
             )
 
     def test_builder_api_with_image_file(self, client, mock_http_client):
@@ -157,13 +144,16 @@ class TestWatermarkImageFile:
         image_bytes = b"PNG image data"
 
         builder = client.build(pdf_bytes)
-        builder.add_step("watermark-pdf", options={
-            "image_file": image_bytes,
-            "width": 150,
-            "height": 75,
-            "opacity": 0.5,
-            "position": "bottom-right"
-        })
+        builder.add_step(
+            "watermark-pdf",
+            options={
+                "image_file": image_bytes,
+                "width": 150,
+                "height": 75,
+                "opacity": 0.5,
+                "position": "bottom-right",
+            },
+        )
 
         result = builder.execute()
 
@@ -197,16 +187,10 @@ class TestWatermarkImageFile:
         # But for clarity, let's test that providing text uses text watermark
         with patch.object(client, "_process_file", return_value=b"PDF content") as mock_process:
             # Test with text - should use _process_file
-            client.watermark_pdf(
-                b"PDF content",
-                text="TEXT",
-                width=100,
-                height=50
-            )
+            client.watermark_pdf(b"PDF content", text="TEXT", width=100, height=50)
 
             # Should use text path
             mock_process.assert_called_once()
             call_args = mock_process.call_args[1]
             assert "text" in call_args
             assert call_args["text"] == "TEXT"
-

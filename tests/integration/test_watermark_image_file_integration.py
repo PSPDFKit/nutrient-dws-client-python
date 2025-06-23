@@ -1,7 +1,8 @@
 """Integration tests for image file watermark functionality."""
 
 import os
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union
 
 import pytest
 
@@ -19,7 +20,7 @@ except ImportError:
     TIMEOUT = 60
 
 
-def assert_is_pdf(file_path_or_bytes):
+def assert_is_pdf(file_path_or_bytes: Union[str, bytes]) -> None:
     """Assert that a file or bytes is a valid PDF."""
     if isinstance(file_path_or_bytes, str):
         with open(file_path_or_bytes, "rb") as f:
@@ -32,13 +33,13 @@ def assert_is_pdf(file_path_or_bytes):
     )
 
 
-def create_test_image(tmp_path, filename="watermark.png"):
+def create_test_image(tmp_path: Path, filename: str = "watermark.png") -> str:
     """Create a simple test PNG image."""
     # PNG header for a 1x1 transparent pixel
     png_data = (
-        b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
-        b'\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f'
-        b'\x00\x00\x01\x01\x00\x00\xcb\xd6\x8e\n\x00\x00\x00\x00IEND\xaeB`\x82'
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f"
+        b"\x00\x00\x01\x01\x00\x00\xcb\xd6\x8e\n\x00\x00\x00\x00IEND\xaeB`\x82"
     )
 
     image_path = tmp_path / filename
@@ -73,7 +74,7 @@ class TestWatermarkImageFileIntegration:
             width=100,
             height=50,
             opacity=0.5,
-            position="bottom-right"
+            position="bottom-right",
         )
 
         assert isinstance(result, bytes)
@@ -84,9 +85,9 @@ class TestWatermarkImageFileIntegration:
         """Test watermark_pdf with image as bytes."""
         # PNG header for a 1x1 transparent pixel
         png_bytes = (
-            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
-            b'\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f'
-            b'\x00\x00\x01\x01\x00\x00\xcb\xd6\x8e\n\x00\x00\x00\x00IEND\xaeB`\x82'
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f"
+            b"\x00\x00\x01\x01\x00\x00\xcb\xd6\x8e\n\x00\x00\x00\x00IEND\xaeB`\x82"
         )
 
         result = client.watermark_pdf(
@@ -95,7 +96,7 @@ class TestWatermarkImageFileIntegration:
             width=150,
             height=75,
             opacity=0.8,
-            position="top-left"
+            position="top-left",
         )
 
         assert isinstance(result, bytes)
@@ -115,7 +116,7 @@ class TestWatermarkImageFileIntegration:
             height=100,
             opacity=0.7,
             position="center",
-            output_path=output_path
+            output_path=output_path,
         )
 
         assert result is None
@@ -136,7 +137,7 @@ class TestWatermarkImageFileIntegration:
                 width=120,
                 height=60,
                 opacity=0.6,
-                position="top-center"
+                position="top-center",
             )
 
         assert isinstance(result, bytes)
@@ -151,13 +152,16 @@ class TestWatermarkImageFileIntegration:
         # Use builder API
         result = (
             client.build(sample_pdf_path)
-            .add_step("watermark-pdf", options={
-                "image_file": image_path,
-                "width": 180,
-                "height": 90,
-                "opacity": 0.4,
-                "position": "bottom-left"
-            })
+            .add_step(
+                "watermark-pdf",
+                options={
+                    "image_file": image_path,
+                    "width": 180,
+                    "height": 90,
+                    "opacity": 0.4,
+                    "position": "bottom-left",
+                },
+            )
             .execute()
         )
 
@@ -173,24 +177,29 @@ class TestWatermarkImageFileIntegration:
         # Chain multiple watermark operations
         result = (
             client.build(sample_pdf_path)
-            .add_step("watermark-pdf", options={
-                "text": "DRAFT",
-                "width": 200,
-                "height": 100,
-                "opacity": 0.3,
-                "position": "center"
-            })
-            .add_step("watermark-pdf", options={
-                "image_file": image1_path,
-                "width": 100,
-                "height": 50,
-                "opacity": 0.5,
-                "position": "top-right"
-            })
+            .add_step(
+                "watermark-pdf",
+                options={
+                    "text": "DRAFT",
+                    "width": 200,
+                    "height": 100,
+                    "opacity": 0.3,
+                    "position": "center",
+                },
+            )
+            .add_step(
+                "watermark-pdf",
+                options={
+                    "image_file": image1_path,
+                    "width": 100,
+                    "height": 50,
+                    "opacity": 0.5,
+                    "position": "top-right",
+                },
+            )
             .execute()
         )
 
         assert isinstance(result, bytes)
         assert len(result) > 0
         assert_is_pdf(result)
-
