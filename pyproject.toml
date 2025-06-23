@@ -45,7 +45,6 @@ dev = [
     "types-requests>=2.25.0",
     "build>=1.0.0",
     "twine>=4.0.0",
-    "python-semantic-release>=9.0.0",
 ]
 docs = [
     "sphinx>=5.0.0",
@@ -127,14 +126,3 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
-
-[tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
-build_command = "python -m build"
-dist_path = "dist/"
-upload_to_pypi = false
-upload_to_release = false
-commit_message = "chore: release v{version}"
-tag_format = "v{version}"
-changelog_file = "CHANGELOG.md"
-commit_author = "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"

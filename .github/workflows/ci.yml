@@ -5,7 +5,6 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
-  workflow_call:
 
 jobs:
   test:
@@ -58,7 +57,7 @@ jobs:
 
   integration-test:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_call'
+    if: github.event_name == 'pull_request'
     
     steps:
     - uses: actions/checkout@v4
