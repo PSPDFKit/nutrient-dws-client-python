@@ -68,6 +68,13 @@ class TestDirectAPIIntegration:
 
         return os.path.join(os.path.dirname(__file__), "..", "data", "sample.docx")
 
+    @pytest.fixture
+    def sample_multipage_pdf_path(self):
+        """Get path to multi-page sample PDF file for testing."""
+        import os
+
+        return os.path.join(os.path.dirname(__file__), "..", "data", "sample_multipage.pdf")
+
     # Tests for convert_to_pdf
     def test_convert_to_pdf_from_docx(self, client, sample_docx_path):
         """Test convert_to_pdf method with DOCX input."""
@@ -244,16 +251,16 @@ class TestDirectAPIIntegration:
             client.merge_pdfs([sample_pdf_path])
 
     # Tests for split_pdf
-    def test_split_pdf_integration(self, client, sample_pdf_path, tmp_path):
+    def test_split_pdf_integration(self, client, sample_multipage_pdf_path, tmp_path):
         """Test split_pdf method with live API."""
-        # Test splitting PDF into two parts - sample PDF should have multiple pages
+        # Test splitting PDF into two parts - multi-page PDF has 3 pages
         page_ranges = [
             {"start": 0, "end": 1},  # First page
             {"start": 1},  # Remaining pages
         ]
 
         # Test getting bytes back
-        result = client.split_pdf(sample_pdf_path, page_ranges=page_ranges)
+        result = client.split_pdf(sample_multipage_pdf_path, page_ranges=page_ranges)
 
         assert isinstance(result, list)
         assert len(result) == 2  # Should return exactly 2 parts
@@ -264,7 +271,7 @@ class TestDirectAPIIntegration:
         for pdf_bytes in result:
             assert_is_pdf(pdf_bytes)
 
-    def test_split_pdf_with_output_files(self, client, sample_pdf_path, tmp_path):
+    def test_split_pdf_with_output_files(self, client, sample_multipage_pdf_path, tmp_path):
         """Test split_pdf method saving to output files."""
         output_paths = [str(tmp_path / "page1.pdf"), str(tmp_path / "remaining.pdf")]
 
@@ -275,7 +282,7 @@ class TestDirectAPIIntegration:
 
         # Test saving to files
         result = client.split_pdf(
-            sample_pdf_path, page_ranges=page_ranges, output_paths=output_paths
+            sample_multipage_pdf_path, page_ranges=page_ranges, output_paths=output_paths
         )
 
         # Should return empty list when saving to files
@@ -316,29 +323,29 @@ class TestDirectAPIIntegration:
     # Tests for duplicate_pdf_pages
     def test_duplicate_pdf_pages_basic(self, client, sample_pdf_path):
         """Test duplicate_pdf_pages method with basic duplication."""
-        # Test duplicating first page twice
+        # Test duplicating first page twice (works with single-page PDF)
         result = client.duplicate_pdf_pages(sample_pdf_path, page_indexes=[0, 0])
 
         assert isinstance(result, bytes)
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_duplicate_pdf_pages_reorder(self, client, sample_pdf_path):
+    def test_duplicate_pdf_pages_reorder(self, client, sample_multipage_pdf_path):
         """Test duplicate_pdf_pages method with page reordering."""
-        # Test reordering pages (assumes sample PDF has at least 2 pages)
-        result = client.duplicate_pdf_pages(sample_pdf_path, page_indexes=[1, 0])
+        # Test reordering pages (multi-page PDF has 3 pages)
+        result = client.duplicate_pdf_pages(sample_multipage_pdf_path, page_indexes=[1, 0])
 
         assert isinstance(result, bytes)
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_duplicate_pdf_pages_with_output_file(self, client, sample_pdf_path, tmp_path):
+    def test_duplicate_pdf_pages_with_output_file(self, client, sample_multipage_pdf_path, tmp_path):
         """Test duplicate_pdf_pages method saving to output file."""
         output_path = str(tmp_path / "duplicated.pdf")
 
-        # Test duplicating and saving to file
+        # Test duplicating and saving to file (multi-page PDF has 3 pages)
         result = client.duplicate_pdf_pages(
-            sample_pdf_path, page_indexes=[0, 0, 1], output_path=output_path
+            sample_multipage_pdf_path, page_indexes=[0, 0, 1], output_path=output_path
         )
 
         # Should return None when saving to file
@@ -351,7 +358,7 @@ class TestDirectAPIIntegration:
 
     def test_duplicate_pdf_pages_negative_indexes(self, client, sample_pdf_path):
         """Test duplicate_pdf_pages method with negative indexes."""
-        # Test using negative indexes (last page)
+        # Test using negative indexes (last page - works with single-page PDF)
         result = client.duplicate_pdf_pages(sample_pdf_path, page_indexes=[-1, 0, -1])
 
         assert isinstance(result, bytes)
@@ -364,30 +371,30 @@ class TestDirectAPIIntegration:
             client.duplicate_pdf_pages(sample_pdf_path, page_indexes=[])
 
     # Tests for delete_pdf_pages
-    def test_delete_pdf_pages_basic(self, client, sample_pdf_path):
+    def test_delete_pdf_pages_basic(self, client, sample_multipage_pdf_path):
         """Test delete_pdf_pages method with basic page deletion."""
-        # Test deleting first page (assuming sample PDF has at least 2 pages)
-        result = client.delete_pdf_pages(sample_pdf_path, page_indexes=[0])
+        # Test deleting first page (multi-page PDF has 3 pages)
+        result = client.delete_pdf_pages(sample_multipage_pdf_path, page_indexes=[0])
 
         assert isinstance(result, bytes)
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_delete_pdf_pages_multiple(self, client, sample_pdf_path):
+    def test_delete_pdf_pages_multiple(self, client, sample_multipage_pdf_path):
         """Test delete_pdf_pages method with multiple page deletion."""
-        # Test deleting multiple pages
-        result = client.delete_pdf_pages(sample_pdf_path, page_indexes=[0, 2])
+        # Test deleting multiple pages (deleting pages 1 and 3 from 3-page PDF)
+        result = client.delete_pdf_pages(sample_multipage_pdf_path, page_indexes=[0, 2])
 
         assert isinstance(result, bytes)
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_delete_pdf_pages_with_output_file(self, client, sample_pdf_path, tmp_path):
+    def test_delete_pdf_pages_with_output_file(self, client, sample_multipage_pdf_path, tmp_path):
         """Test delete_pdf_pages method saving to output file."""
         output_path = str(tmp_path / "pages_deleted.pdf")
 
         # Test deleting pages and saving to file
-        result = client.delete_pdf_pages(sample_pdf_path, page_indexes=[1], output_path=output_path)
+        result = client.delete_pdf_pages(sample_multipage_pdf_path, page_indexes=[1], output_path=output_path)
 
         # Should return None when saving to file
         assert result is None
@@ -408,10 +415,10 @@ class TestDirectAPIIntegration:
         with pytest.raises(ValueError, match="page_indexes cannot be empty"):
             client.delete_pdf_pages(sample_pdf_path, page_indexes=[])
 
-    def test_delete_pdf_pages_duplicate_indexes(self, client, sample_pdf_path):
+    def test_delete_pdf_pages_duplicate_indexes(self, client, sample_multipage_pdf_path):
         """Test delete_pdf_pages method with duplicate page indexes."""
         # Test that duplicate indexes are handled correctly (should remove duplicates)
-        result = client.delete_pdf_pages(sample_pdf_path, page_indexes=[0, 0, 1])
+        result = client.delete_pdf_pages(sample_multipage_pdf_path, page_indexes=[0, 0, 1])
 
         assert isinstance(result, bytes)
         assert len(result) > 0
@@ -427,10 +434,10 @@ class TestDirectAPIIntegration:
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_add_page_multiple_pages(self, client, sample_pdf_path):
+    def test_add_page_multiple_pages(self, client, sample_multipage_pdf_path):
         """Test add_page method with multiple pages."""
         # Test adding multiple blank pages before second page
-        result = client.add_page(sample_pdf_path, insert_index=1, page_count=3)
+        result = client.add_page(sample_multipage_pdf_path, insert_index=1, page_count=3)
 
         assert isinstance(result, bytes)
         assert len(result) > 0
@@ -445,10 +452,10 @@ class TestDirectAPIIntegration:
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_add_page_before_specific_page(self, client, sample_pdf_path):
+    def test_add_page_before_specific_page(self, client, sample_multipage_pdf_path):
         """Test add_page method inserting before a specific page."""
         # Test inserting before page 3 (insert_index=2)
-        result = client.add_page(sample_pdf_path, insert_index=2, page_count=1)
+        result = client.add_page(sample_multipage_pdf_path, insert_index=2, page_count=1)
 
         assert isinstance(result, bytes)
         assert len(result) > 0
@@ -469,13 +476,13 @@ class TestDirectAPIIntegration:
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_add_page_with_output_file(self, client, sample_pdf_path, tmp_path):
+    def test_add_page_with_output_file(self, client, sample_multipage_pdf_path, tmp_path):
         """Test add_page method saving to output file."""
         output_path = str(tmp_path / "with_blank_pages.pdf")
 
         # Test adding pages and saving to file
         result = client.add_page(
-            sample_pdf_path, insert_index=1, page_count=2, output_path=output_path
+            sample_multipage_pdf_path, insert_index=1, page_count=2, output_path=output_path
         )
 
         # Should return None when saving to file
@@ -547,7 +554,7 @@ class TestDirectAPIIntegration:
         assert len(result) > 0
         assert_is_pdf(result)
 
-    def test_set_page_label_multiple_ranges(self, client, sample_pdf_path):
+    def test_set_page_label_multiple_ranges(self, client, sample_multipage_pdf_path):
         """Test set_page_label method with multiple page ranges."""
         labels = [
             {"pages": {"start": 0, "end": 1}, "label": "i"},
@@ -555,7 +562,7 @@ class TestDirectAPIIntegration:
             {"pages": {"start": 2, "end": 3}, "label": "final"},
         ]
 
-        result = client.set_page_label(sample_pdf_path, labels)
+        result = client.set_page_label(sample_multipage_pdf_path, labels)
 
         assert isinstance(result, bytes)
         assert len(result) > 0
