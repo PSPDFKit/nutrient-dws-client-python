@@ -159,10 +159,10 @@ def test_set_page_label_valid_config():
 
         result = client.set_page_label("test.pdf", labels)
 
-        # Expected normalized labels (implementation adds 'end': -1 when missing)
+        # Expected normalized labels (implementation only includes 'end' if explicitly provided)
         expected_normalized_labels = [
             {"pages": {"start": 0, "end": 3}, "label": "Introduction"},
-            {"pages": {"start": 3, "end": -1}, "label": "Content"},
+            {"pages": {"start": 3}, "label": "Content"},  # No 'end' means to end of document
         ]
 
         # Verify the API call was made with correct parameters
