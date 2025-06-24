@@ -300,7 +300,7 @@ class TestDirectAPIIntegration:
         """Test split_pdf with no ranges returns first page by default."""
         # When no page_ranges provided, should default to first page
         result = client.split_pdf(sample_pdf_path)
-        
+
         assert isinstance(result, list)
         assert len(result) == 1  # Should return single PDF (first page)
         assert isinstance(result[0], bytes)
