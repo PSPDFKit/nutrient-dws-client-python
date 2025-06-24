@@ -297,10 +297,15 @@ class TestDirectAPIIntegration:
         assert_is_pdf(str(tmp_path / "remaining.pdf"))
 
     def test_split_pdf_no_ranges_error(self, client, sample_pdf_path):
-        """Test split_pdf with no ranges raises error."""
-        # Test that page_ranges is required
-        with pytest.raises(ValueError, match="page_ranges is required"):
-            client.split_pdf(sample_pdf_path)
+        """Test split_pdf with no ranges returns first page by default."""
+        # When no page_ranges provided, should default to first page
+        result = client.split_pdf(sample_pdf_path)
+        
+        assert isinstance(result, list)
+        assert len(result) == 1  # Should return single PDF (first page)
+        assert isinstance(result[0], bytes)
+        assert len(result[0]) > 0
+        assert_is_pdf(result[0])
 
     def test_split_pdf_output_paths_length_mismatch_error(self, client, sample_pdf_path):
         """Test split_pdf method with mismatched output_paths and page_ranges lengths."""
