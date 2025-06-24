@@ -283,7 +283,8 @@ class DirectAPIMixin:
 
         # Validate inputs
         if not page_ranges:
-            raise ValueError("page_ranges is required")
+            # Default behavior: extract first page only
+            page_ranges = [{"start": 0, "end": 1}]
 
         if len(page_ranges) > 50:
             raise ValueError("Maximum 50 page ranges allowed")
