@@ -261,6 +261,16 @@ class BuildAPIWrapper:
                         )
                         action[camel_key] = value
 
+            case "optimize":
+                # Handle optimize action with camelCase conversion
+                for key, value in options.items():
+                    # Convert snake_case to camelCase for API
+                    camel_key = "".join(
+                        word.capitalize() if i else word
+                        for i, word in enumerate(key.split("_"))
+                    )
+                    action[camel_key] = value
+
             case _:
                 # For other actions, pass options directly
                 action.update(options)

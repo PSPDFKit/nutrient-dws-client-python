@@ -809,11 +809,18 @@ class DirectAPIMixin:
         parts = []
         for page_index in page_indexes:
             if page_index < 0:
-                # For negative indexes, use the index directly (API supports negative indexes)
-                parts.append({"file": "file", "pages": {"start": page_index, "end": page_index}})
+                # For negative indexes, we can't use end+1 (would be 0 for -1)
+                # The API might handle negative indexes differently
+                parts.append({
+                    "file": "file",
+                    "pages": {"start": page_index, "end": page_index + 1}
+                })
             else:
-                # For positive indexes, create single-page range
-                parts.append({"file": "file", "pages": {"start": page_index, "end": page_index}})
+                # For positive indexes, create single-page range (end is exclusive)
+                parts.append({
+                    "file": "file",
+                    "pages": {"start": page_index, "end": page_index + 1}
+                })
 
         # Build instructions for duplication
         instructions = {"parts": parts, "actions": []}
@@ -916,28 +923,12 @@ class DirectAPIMixin:
             # Skip the deleted page
             current_page = delete_index + 1
 
-        # For remaining pages, we need to be very careful not to reference non-existent pages
-        # The safest approach is to NOT add remaining pages automatically
-        # Instead, we'll only add them if we're confident they exist
-
-        # However, we can't know the document page count without another API call
-        # Let's use a different approach: if there are existing parts, we might be done
-        # If there are no parts yet, we need to add something
-
-        if len(sorted_indexes) > 0:
-            # We've processed some deletions
-            # Only add remaining pages if we haven't deleted the very last possible pages
-            # A very conservative approach: don't add remaining if we deleted a high-numbered page
-            max_deleted_page = max(sorted_indexes)
-
-            # If we're deleting page 2 or higher, and current_page is beyond that,
-            # we're probably at or past the end of the document
-            # Only add remaining if the max deleted page is 0 or 1 (suggesting more pages exist)
-            if max_deleted_page <= 1 and current_page <= 10:  # Very conservative
-                parts.append({"file": "file", "pages": {"start": current_page}})
-        else:
-            # If no pages to delete, keep all pages
-            parts.append({"file": "file"})
+        # Add remaining pages after the last deleted page
+        # Since we don't know the total page count, we use an open-ended range
+        # The API should handle this correctly even if current_page is beyond the document length
+        if current_page > 0 or (current_page == 0 and len(sorted_indexes) == 0):
+            # Add all remaining pages from current_page onwards
+            parts.append({"file": "file", "pages": {"start": current_page}})
 
         # If no parts, it means we're trying to delete all pages
         if not parts:
