@@ -1192,7 +1192,7 @@ class DirectAPIMixin:
         ):
             # Use URL approach
             action = {
-                "type": "apply-instant-json",
+                "type": "applyInstantJson",
                 "instant_json": {"url": instant_json},
             }
 
@@ -1214,9 +1214,9 @@ class DirectAPIMixin:
             json_field, json_data = prepare_file_for_upload(instant_json, "instant_json")
             files[json_field] = json_data
 
-            # Build instructions with apply-instant-json action
+            # Build instructions with applyInstantJson action
             action = {
-                "type": "apply-instant-json",
+                "type": "applyInstantJson",
                 "instant_json": "instant_json",  # Reference to the uploaded file
             }
 
@@ -1281,7 +1281,7 @@ class DirectAPIMixin:
         if isinstance(xfdf, str) and (xfdf.startswith("http://") or xfdf.startswith("https://")):
             # Use URL approach
             action = {
-                "type": "apply-xfdf",
+                "type": "applyXfdf",
                 "xfdf": {"url": xfdf},
             }
 
@@ -1303,9 +1303,9 @@ class DirectAPIMixin:
             xfdf_field, xfdf_data = prepare_file_for_upload(xfdf, "xfdf")
             files[xfdf_field] = xfdf_data
 
-            # Build instructions with apply-xfdf action
+            # Build instructions with applyXfdf action
             action = {
-                "type": "apply-xfdf",
+                "type": "applyXfdf",
                 "xfdf": "xfdf",  # Reference to the uploaded file
             }
 

@@ -4,13 +4,11 @@ These tests require a valid API key configured in integration_config.py and
 test the new Direct API methods against the live Nutrient DWS API.
 """
 
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
 
-from nutrient_dws import APIError, NutrientClient
+from nutrient_dws import NutrientClient
 
 try:
     from . import integration_config  # type: ignore[attr-defined]
@@ -73,7 +71,9 @@ class TestCreateRedactionsIntegration:
         assert_is_pdf(result)
         assert len(result) > 0
 
-    def test_create_redactions_preset_with_output_file(self, client, sample_pdf_with_sensitive_data, tmp_path):
+    def test_create_redactions_preset_with_output_file(
+        self, client, sample_pdf_with_sensitive_data, tmp_path
+    ):
         """Test creating redactions with preset and saving to file."""
         output_path = tmp_path / "redacted_preset.pdf"
         result = client.create_redactions_preset(
@@ -262,7 +262,9 @@ class TestPasswordProtectPDFIntegration:
 
     def test_password_protect_no_password_raises_error(self, client, sample_pdf_path):
         """Test that no password raises ValueError."""
-        with pytest.raises(ValueError, match="At least one of user_password or owner_password must be provided"):
+        with pytest.raises(
+            ValueError, match="At least one of user_password or owner_password must be provided"
+        ):
             client.password_protect_pdf(sample_pdf_path)
 
 
@@ -387,7 +389,9 @@ class TestApplyInstantJSONIntegration:
         assert_is_pdf(result)
         assert len(result) > 0
 
-    def test_apply_instant_json_with_output_file(self, client, sample_pdf_path, sample_instant_json, tmp_path):
+    def test_apply_instant_json_with_output_file(
+        self, client, sample_pdf_path, sample_instant_json, tmp_path
+    ):
         """Test applying Instant JSON with output file."""
         output_path = tmp_path / "annotated.pdf"
         result = client.apply_instant_json(
@@ -479,3 +483,4 @@ class TestApplyXFDFIntegration:
         """Test applying XFDF from URL."""
         # This test would require a valid URL with XFDF content
         pass
+

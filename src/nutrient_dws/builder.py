@@ -175,6 +175,7 @@ class BuildAPIWrapper:
             "apply-xfdf": "applyXfdf",
             "create-redactions": "createRedactions",
             "apply-redactions": "applyRedactions",
+            "optimize-pdf": "optimize",
         }
 
         action_type = tool_mapping.get(tool, tool)
@@ -227,6 +228,38 @@ class BuildAPIWrapper:
                     action["opacity"] = options["opacity"]
                 if "position" in options:
                     action["position"] = options["position"]
+
+            case "createRedactions":
+                # Handle create redactions with strategy options
+                if "strategy" in options:
+                    action["strategy"] = options["strategy"]
+                if "strategy_options" in options:
+                    # Map strategy_options based on strategy type
+                    strategy = options.get("strategy", "")
+                    if strategy == "preset":
+                        action["preset"] = options["strategy_options"].get("preset")
+                    elif strategy == "regex":
+                        action["pattern"] = options["strategy_options"].get("pattern")
+                        if "case_sensitive" in options["strategy_options"]:
+                            action["caseSensitive"] = options["strategy_options"]["case_sensitive"]
+                    elif strategy == "text":
+                        action["text"] = options["strategy_options"].get("text")
+                        if "case_sensitive" in options["strategy_options"]:
+                            action["caseSensitive"] = options["strategy_options"]["case_sensitive"]
+                        if "whole_words_only" in options["strategy_options"]:
+                            action["wholeWordsOnly"] = options["strategy_options"][
+                                "whole_words_only"
+                            ]
+
+                # Copy over other options
+                for key, value in options.items():
+                    if key not in ["strategy", "strategy_options"]:
+                        # Convert snake_case to camelCase for API
+                        camel_key = "".join(
+                            word.capitalize() if i else word
+                            for i, word in enumerate(key.split("_"))
+                        )
+                        action[camel_key] = value
 
             case _:
                 # For other actions, pass options directly
