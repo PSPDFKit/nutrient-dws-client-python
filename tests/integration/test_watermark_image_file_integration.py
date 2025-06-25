@@ -34,16 +34,24 @@ def assert_is_pdf(file_path_or_bytes: str | bytes) -> None:
 
 def create_test_image(tmp_path: Path, filename: str = "watermark.png") -> str:
     """Create a simple test PNG image."""
-    # PNG header for a 1x1 transparent pixel
-    png_data = (
-        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
-        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f"
-        b"\x00\x00\x01\x01\x00\x00\xcb\xd6\x8e\n\x00\x00\x00\x00IEND\xaeB`\x82"
-    )
-
-    image_path = tmp_path / filename
-    image_path.write_bytes(png_data)
-    return str(image_path)
+    try:
+        # Try to use PIL to create a proper image
+        from PIL import Image
+        img = Image.new('RGB', (100, 100), color='red')
+        image_path = tmp_path / filename
+        img.save(str(image_path))
+        return str(image_path)
+    except ImportError:
+        # Fallback to a simple but valid PNG if PIL is not available
+        # This is a 2x2 red PNG image
+        png_data = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x02\x00\x00\x00\x02'
+            b'\x08\x02\x00\x00\x00\xfd\xd4\x9as\x00\x00\x00\x0cIDATx\x9cc\xf8\xcf'
+            b'\xc0\x00\x00\x03\x01\x01\x00\x18\xdd\x8d\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        image_path = tmp_path / filename
+        image_path.write_bytes(png_data)
+        return str(image_path)
 
 
 @pytest.mark.skipif(not API_KEY, reason="No API key configured in integration_config.py")
@@ -82,12 +90,21 @@ class TestWatermarkImageFileIntegration:
 
     def test_watermark_pdf_with_image_bytes(self, client, sample_pdf_path):
         """Test watermark_pdf with image as bytes."""
-        # PNG header for a 1x1 transparent pixel
-        png_bytes = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
-            b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f"
-            b"\x00\x00\x01\x01\x00\x00\xcb\xd6\x8e\n\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
+        # Create a proper PNG image as bytes
+        try:
+            from PIL import Image
+            import io
+            img = Image.new('RGB', (100, 100), color='blue')
+            img_buffer = io.BytesIO()
+            img.save(img_buffer, format='PNG')
+            png_bytes = img_buffer.getvalue()
+        except ImportError:
+            # Fallback to a 2x2 blue PNG if PIL is not available
+            png_bytes = (
+                b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x02\x00\x00\x00\x02'
+                b'\x08\x02\x00\x00\x00\xfd\xd4\x9as\x00\x00\x00\x0cIDATx\x9cc\x98\x00'
+                b'\x00\x00\x05\x00\x01\x85\xb7\xb2\xf3\x00\x00\x00\x00IEND\xaeB`\x82'
+            )
 
         result = client.watermark_pdf(
             sample_pdf_path,
