@@ -104,6 +104,7 @@ disallow_any_unimported = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+disallow_any_unimported = false
 
 [[tool.mypy.overrides]]
 module = "PIL.*"
