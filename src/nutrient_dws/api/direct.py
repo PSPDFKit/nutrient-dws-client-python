@@ -321,18 +321,23 @@ class DirectAPIMixin:
         """
         options = {
             "strategy": "preset",
-            "strategy_options": {"preset": preset},
-            "include_annotations": include_annotations,
-            "include_text": include_text,
+            "strategy_options": {
+                "preset": preset,
+                "includeAnnotations": include_annotations,
+                "includeText": include_text,
+            },
         }
 
         # Add appearance options if provided
+        content = {}
         if appearance_fill_color:
-            options["appearance_fill_color"] = appearance_fill_color
+            content["fillColor"] = appearance_fill_color
         if appearance_stroke_color:
-            options["appearance_stroke_color"] = appearance_stroke_color
-        if appearance_stroke_width is not None:
-            options["appearance_stroke_width"] = appearance_stroke_width
+            content["outlineColor"] = appearance_stroke_color
+        # Note: stroke width is not supported by the API
+
+        if content:
+            options["content"] = content
 
         return self._process_file("create-redactions", input_file, output_path, **options)
 
@@ -378,19 +383,22 @@ class DirectAPIMixin:
             "strategy": "regex",
             "strategy_options": {
                 "pattern": pattern,
-                "case_sensitive": case_sensitive,
+                "caseSensitive": case_sensitive,
+                "includeAnnotations": include_annotations,
+                "includeText": include_text,
             },
-            "include_annotations": include_annotations,
-            "include_text": include_text,
         }
 
         # Add appearance options if provided
+        content = {}
         if appearance_fill_color:
-            options["appearance_fill_color"] = appearance_fill_color
+            content["fillColor"] = appearance_fill_color
         if appearance_stroke_color:
-            options["appearance_stroke_color"] = appearance_stroke_color
-        if appearance_stroke_width is not None:
-            options["appearance_stroke_width"] = appearance_stroke_width
+            content["outlineColor"] = appearance_stroke_color
+        # Note: stroke width is not supported by the API
+
+        if content:
+            options["content"] = content
 
         return self._process_file("create-redactions", input_file, output_path, **options)
 
@@ -438,20 +446,23 @@ class DirectAPIMixin:
             "strategy": "text",
             "strategy_options": {
                 "text": text,
-                "case_sensitive": case_sensitive,
-                "whole_words_only": whole_words_only,
+                "caseSensitive": case_sensitive,
+                "wholeWordsOnly": whole_words_only,
+                "includeAnnotations": include_annotations,
+                "includeText": include_text,
             },
-            "include_annotations": include_annotations,
-            "include_text": include_text,
         }
 
         # Add appearance options if provided
+        content = {}
         if appearance_fill_color:
-            options["appearance_fill_color"] = appearance_fill_color
+            content["fillColor"] = appearance_fill_color
         if appearance_stroke_color:
-            options["appearance_stroke_color"] = appearance_stroke_color
-        if appearance_stroke_width is not None:
-            options["appearance_stroke_width"] = appearance_stroke_width
+            content["outlineColor"] = appearance_stroke_color
+        # Note: stroke width is not supported by the API
+
+        if content:
+            options["content"] = content
 
         return self._process_file("create-redactions", input_file, output_path, **options)
 
