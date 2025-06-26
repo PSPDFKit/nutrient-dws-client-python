@@ -1,6 +1,6 @@
 """Builder API implementation for multi-step workflows."""
 
-from typing import Any
+from typing import Any, Optional
 
 from nutrient_dws.file_handler import FileInput, prepare_file_for_upload, save_file_output
 
@@ -43,7 +43,7 @@ class BuildAPIWrapper:
         self._parts.append({"file": name})
         self._files[name] = file
 
-    def add_step(self, tool: str, options: dict[str, Any] | None = None) -> "BuildAPIWrapper":
+    def add_step(self, tool: str, options: Optional[dict[str, Any]] = None) -> "BuildAPIWrapper":
         """Add a processing step to the workflow.
 
         Args:
@@ -102,7 +102,7 @@ class BuildAPIWrapper:
         self._output_options["labels"] = labels
         return self
 
-    def execute(self, output_path: str | None = None) -> bytes | None:
+    def execute(self, output_path: Optional[str] = None) -> Optional[bytes]:
         """Execute the workflow.
 
         Args:
@@ -183,75 +183,74 @@ class BuildAPIWrapper:
         # Build action dictionary
         action = {"type": action_type}
 
-        # Handle special cases for different action types using pattern matching
-        match action_type:
-            case "rotate":
-                action["rotateBy"] = options.get("degrees", 0)
-                if "page_indexes" in options:
-                    action["pageIndexes"] = options["page_indexes"]
+        # Handle special cases for different action types
+        if action_type == "rotate":
+            action["rotateBy"] = options.get("degrees", 0)
+            if "page_indexes" in options:
+                action["pageIndexes"] = options["page_indexes"]
 
-            case "ocr":
-                if "language" in options:
-                    # Map common language codes to API format
-                    lang_map = {
-                        "en": "english",
-                        "de": "deu",
-                        "eng": "eng",
-                        "deu": "deu",
-                        "german": "deu",
-                    }
-                    lang = options["language"]
-                    action["language"] = lang_map.get(lang, lang)
+        elif action_type == "ocr":
+            if "language" in options:
+                # Map common language codes to API format
+                lang_map = {
+                    "en": "english",
+                    "de": "deu",
+                    "eng": "eng",
+                    "deu": "deu",
+                    "german": "deu",
+                }
+                lang = options["language"]
+                action["language"] = lang_map.get(lang, lang)
 
-            case "watermark":
-                # Watermark requires width/height
-                action["width"] = options.get("width", 200)  # Default width
-                action["height"] = options.get("height", 100)  # Default height
+        elif action_type == "watermark":
+            # Watermark requires width/height
+            action["width"] = options.get("width", 200)  # Default width
+            action["height"] = options.get("height", 100)  # Default height
 
-                if "text" in options:
-                    action["text"] = options["text"]
-                elif "image_url" in options:
-                    action["image"] = {"url": options["image_url"]}  # type: ignore
-                elif "image_file" in options:
-                    # Handle image file upload
-                    image_file = options["image_file"]
-                    # Add the image as a file part
-                    watermark_name = f"watermark_{len(self._files)}"
-                    self._files[watermark_name] = image_file
-                    # Reference the uploaded file
-                    action["image"] = watermark_name  # type: ignore
-                else:
-                    # Default to text watermark if neither specified
-                    action["text"] = "WATERMARK"
+            if "text" in options:
+                action["text"] = options["text"]
+            elif "image_url" in options:
+                action["image"] = {"url": options["image_url"]}  # type: ignore
+            elif "image_file" in options:
+                # Handle image file upload
+                image_file = options["image_file"]
+                # Add the image as a file part
+                watermark_name = f"watermark_{len(self._files)}"
+                self._files[watermark_name] = image_file
+                # Reference the uploaded file
+                action["image"] = watermark_name  # type: ignore
+            else:
+                # Default to text watermark if neither specified
+                action["text"] = "WATERMARK"
 
-                if "opacity" in options:
-                    action["opacity"] = options["opacity"]
-                if "position" in options:
-                    action["position"] = options["position"]
+            if "opacity" in options:
+                action["opacity"] = options["opacity"]
+            if "position" in options:
+                action["position"] = options["position"]
 
-            case "createRedactions":
-                # Handle create redactions - pass through directly
-                # The direct.py already formats everything correctly
-                if "strategy" in options:
-                    action["strategy"] = options["strategy"]
-                if "strategy_options" in options:
-                    action["strategyOptions"] = options["strategy_options"]
-                if "content" in options:
-                    action["content"] = options["content"]
+        elif action_type == "createRedactions":
+            # Handle create redactions - pass through directly
+            # The direct.py already formats everything correctly
+            if "strategy" in options:
+                action["strategy"] = options["strategy"]
+            if "strategy_options" in options:
+                action["strategyOptions"] = options["strategy_options"]
+            if "content" in options:
+                action["content"] = options["content"]
 
-            case "optimize":
-                # Handle optimize action with camelCase conversion
-                for key, value in options.items():
-                    # Convert snake_case to camelCase for API
-                    camel_key = "".join(
-                        word.capitalize() if i else word
-                        for i, word in enumerate(key.split("_"))
-                    )
-                    action[camel_key] = value
+        elif action_type == "optimize":
+            # Handle optimize action with camelCase conversion
+            for key, value in options.items():
+                # Convert snake_case to camelCase for API
+                camel_key = "".join(
+                    word.capitalize() if i else word
+                    for i, word in enumerate(key.split("_"))
+                )
+                action[camel_key] = value
 
-            case _:
-                # For other actions, pass options directly
-                action.update(options)
+        else:
+            # For other actions, pass options directly
+            action.update(options)
 
         return action
 

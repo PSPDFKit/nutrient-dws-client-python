@@ -4,7 +4,7 @@ This file provides convenient methods that wrap the Nutrient Build API
 for supported document processing operations.
 """
 
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, Optional, Union
 
 from nutrient_dws.file_handler import FileInput
 
@@ -40,17 +40,17 @@ class DirectAPIMixin:
         self,
         tool: str,
         input_file: FileInput,
-        output_path: str | None = None,
+        output_path: Optional[str] = None,
         **options: Any,
-    ) -> bytes | None:
+    ) -> Optional[bytes]:
         """Process file method that will be provided by NutrientClient."""
         raise NotImplementedError("This method is provided by NutrientClient")
 
     def convert_to_pdf(
         self,
         input_file: FileInput,
-        output_path: str | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Convert a document to PDF.
 
         Converts Office documents (DOCX, XLSX, PPTX) to PDF format.
@@ -76,8 +76,8 @@ class DirectAPIMixin:
         return self.build(input_file).execute(output_path)  # type: ignore[attr-defined,no-any-return]
 
     def flatten_annotations(
-        self, input_file: FileInput, output_path: str | None = None
-    ) -> bytes | None:
+        self, input_file: FileInput, output_path: Optional[str] = None
+    ) -> Optional[bytes]:
         """Flatten annotations and form fields in a PDF.
 
         Converts all annotations and form fields into static page content.
@@ -99,10 +99,10 @@ class DirectAPIMixin:
     def rotate_pages(
         self,
         input_file: FileInput,
-        output_path: str | None = None,
+        output_path: Optional[str] = None,
         degrees: int = 0,
-        page_indexes: list[int] | None = None,
-    ) -> bytes | None:
+        page_indexes: Optional[list[int]] = None,
+    ) -> Optional[bytes]:
         """Rotate pages in a PDF.
 
         Rotate all pages or specific pages by the specified degrees.
@@ -129,9 +129,9 @@ class DirectAPIMixin:
     def ocr_pdf(
         self,
         input_file: FileInput,
-        output_path: str | None = None,
+        output_path: Optional[str] = None,
         language: str = "english",
-    ) -> bytes | None:
+    ) -> Optional[bytes]:
         """Apply OCR to a PDF to make it searchable.
 
         Performs optical character recognition on the PDF to extract text
@@ -156,15 +156,15 @@ class DirectAPIMixin:
     def watermark_pdf(
         self,
         input_file: FileInput,
-        output_path: str | None = None,
-        text: str | None = None,
-        image_url: str | None = None,
-        image_file: FileInput | None = None,
+        output_path: Optional[str] = None,
+        text: Optional[str] = None,
+        image_url: Optional[str] = None,
+        image_file: Optional[FileInput] = None,
         width: int = 200,
         height: int = 100,
         opacity: float = 1.0,
         position: str = "center",
-    ) -> bytes | None:
+    ) -> Optional[bytes]:
         """Add a watermark to a PDF.
 
         Adds a text or image watermark to all pages of the PDF.
@@ -255,8 +255,8 @@ class DirectAPIMixin:
     def apply_redactions(
         self,
         input_file: FileInput,
-        output_path: str | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Apply redaction annotations to permanently remove content.
 
         Applies any redaction annotations in the PDF to permanently remove
@@ -280,13 +280,13 @@ class DirectAPIMixin:
         self,
         input_file: FileInput,
         preset: str,
-        output_path: str | None = None,
+        output_path: Optional[str] = None,
         include_annotations: bool = False,
         include_text: bool = True,
-        appearance_fill_color: str | None = None,
-        appearance_stroke_color: str | None = None,
-        appearance_stroke_width: int | None = None,
-    ) -> bytes | None:
+        appearance_fill_color: Optional[str] = None,
+        appearance_stroke_color: Optional[str] = None,
+        appearance_stroke_width: Optional[int] = None,
+    ) -> Optional[bytes]:
         """Create redaction annotations using a preset pattern.
 
         Creates redaction annotations for common sensitive data patterns
@@ -345,14 +345,14 @@ class DirectAPIMixin:
         self,
         input_file: FileInput,
         pattern: str,
-        output_path: str | None = None,
+        output_path: Optional[str] = None,
         case_sensitive: bool = False,
         include_annotations: bool = False,
         include_text: bool = True,
-        appearance_fill_color: str | None = None,
-        appearance_stroke_color: str | None = None,
-        appearance_stroke_width: int | None = None,
-    ) -> bytes | None:
+        appearance_fill_color: Optional[str] = None,
+        appearance_stroke_color: Optional[str] = None,
+        appearance_stroke_width: Optional[int] = None,
+    ) -> Optional[bytes]:
         """Create redaction annotations using a regex pattern.
 
         Creates redaction annotations for text matching a regular expression.
@@ -406,15 +406,15 @@ class DirectAPIMixin:
         self,
         input_file: FileInput,
         text: str,
-        output_path: str | None = None,
+        output_path: Optional[str] = None,
         case_sensitive: bool = True,
         whole_words_only: bool = False,
         include_annotations: bool = False,
         include_text: bool = True,
-        appearance_fill_color: str | None = None,
-        appearance_stroke_color: str | None = None,
-        appearance_stroke_width: int | None = None,
-    ) -> bytes | None:
+        appearance_fill_color: Optional[str] = None,
+        appearance_stroke_color: Optional[str] = None,
+        appearance_stroke_width: Optional[int] = None,
+    ) -> Optional[bytes]:
         """Create redaction annotations for exact text matches.
 
         Creates redaction annotations for all occurrences of specific text.
@@ -469,14 +469,14 @@ class DirectAPIMixin:
     def optimize_pdf(
         self,
         input_file: FileInput,
-        output_path: str | None = None,
+        output_path: Optional[str] = None,
         grayscale_text: bool = False,
         grayscale_graphics: bool = False,
         grayscale_images: bool = False,
         disable_images: bool = False,
-        reduce_image_quality: int | None = None,
+        reduce_image_quality: Optional[int] = None,
         linearize: bool = False,
-    ) -> bytes | None:
+    ) -> Optional[bytes]:
         """Optimize a PDF to reduce file size.
 
         Applies various optimization techniques to reduce the file size of a PDF
@@ -538,11 +538,11 @@ class DirectAPIMixin:
     def password_protect_pdf(
         self,
         input_file: FileInput,
-        output_path: str | None = None,
-        user_password: str | None = None,
-        owner_password: str | None = None,
-        permissions: dict[str, bool] | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+        user_password: Optional[str] = None,
+        owner_password: Optional[str] = None,
+        permissions: Optional[dict[str, bool]] = None,
+    ) -> Optional[bytes]:
         """Add password protection and permissions to a PDF.
 
         Secures a PDF with password protection and optional permission restrictions.
@@ -609,14 +609,14 @@ class DirectAPIMixin:
     def set_pdf_metadata(
         self,
         input_file: FileInput,
-        output_path: str | None = None,
-        title: str | None = None,
-        author: str | None = None,
-        subject: str | None = None,
-        keywords: str | None = None,
-        creator: str | None = None,
-        producer: str | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+        title: Optional[str] = None,
+        author: Optional[str] = None,
+        subject: Optional[str] = None,
+        keywords: Optional[str] = None,
+        creator: Optional[str] = None,
+        producer: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Set metadata properties of a PDF.
 
         Updates the metadata/document properties of a PDF file.
@@ -674,8 +674,8 @@ class DirectAPIMixin:
     def split_pdf(
         self,
         input_file: FileInput,
-        page_ranges: list[dict[str, int]] | None = None,
-        output_paths: list[str] | None = None,
+        page_ranges: Optional[list[dict[str, int]]] = None,
+        output_paths: Optional[list[str]] = None,
     ) -> list[bytes]:
         """Split a PDF into multiple documents by page ranges.
 
@@ -764,8 +764,8 @@ class DirectAPIMixin:
         self,
         input_file: FileInput,
         page_indexes: list[int],
-        output_path: str | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Duplicate specific pages within a PDF document.
 
         Creates a new PDF containing the specified pages in the order provided.
@@ -855,8 +855,8 @@ class DirectAPIMixin:
         self,
         input_file: FileInput,
         page_indexes: list[int],
-        output_path: str | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Delete specific pages from a PDF document.
 
         Creates a new PDF with the specified pages removed. The API approach
@@ -966,8 +966,8 @@ class DirectAPIMixin:
     def merge_pdfs(
         self,
         input_files: list[FileInput],
-        output_path: str | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Merge multiple PDF files into one.
 
         Combines multiple files into a single PDF in the order provided.
@@ -1034,8 +1034,8 @@ class DirectAPIMixin:
         page_count: int = 1,
         page_size: str = "A4",
         orientation: str = "portrait",
-        output_path: str | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Add blank pages to a PDF document.
 
         Inserts blank pages at the specified insertion index in the document.
@@ -1150,9 +1150,9 @@ class DirectAPIMixin:
     def apply_instant_json(
         self,
         input_file: FileInput,
-        instant_json: FileInput | str,
-        output_path: str | None = None,
-    ) -> bytes | None:
+        instant_json: Union[FileInput, str],
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Apply Nutrient Instant JSON annotations to a PDF.
 
         Applies annotations from a Nutrient Instant JSON file or URL to a PDF.
@@ -1242,9 +1242,9 @@ class DirectAPIMixin:
     def apply_xfdf(
         self,
         input_file: FileInput,
-        xfdf: FileInput | str,
-        output_path: str | None = None,
-    ) -> bytes | None:
+        xfdf: Union[FileInput, str],
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Apply XFDF annotations to a PDF.
 
         Applies annotations from an XFDF (XML Forms Data Format) file or URL
@@ -1332,8 +1332,8 @@ class DirectAPIMixin:
         self,
         input_file: FileInput,
         labels: list[dict[str, Any]],
-        output_path: str | None = None,
-    ) -> bytes | None:
+        output_path: Optional[str] = None,
+    ) -> Optional[bytes]:
         """Set labels for specific pages in a PDF.
 
         Assigns custom labels/numbering to specific page ranges in a PDF document.

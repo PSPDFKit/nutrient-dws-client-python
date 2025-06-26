@@ -5,9 +5,9 @@ import io
 import os
 from collections.abc import Generator
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Union, Optional
 
-FileInput = str | Path | bytes | BinaryIO
+FileInput = Union[str, Path, bytes, BinaryIO]
 
 # Default chunk size for streaming operations (1MB)
 DEFAULT_CHUNK_SIZE = 1024 * 1024
@@ -26,55 +26,54 @@ def prepare_file_input(file_input: FileInput) -> tuple[bytes, str]:
         FileNotFoundError: If file path doesn't exist.
         ValueError: If input type is not supported.
     """
-    # Handle different file input types using pattern matching
-    match file_input:
-        case Path() if not file_input.exists():
+    # Handle different file input types
+    if isinstance(file_input, Path):
+        if not file_input.exists():
             raise FileNotFoundError(f"File not found: {file_input}")
-        case Path():
-            return file_input.read_bytes(), file_input.name
-        case str():
-            path = Path(file_input)
-            if not path.exists():
-                raise FileNotFoundError(f"File not found: {file_input}")
-            return path.read_bytes(), path.name
-        case bytes():
-            return file_input, "document"
-        case _ if hasattr(file_input, "read"):
-            # Handle file-like objects
-            # Save current position if seekable
-            current_pos = None
-            if hasattr(file_input, "seek") and hasattr(file_input, "tell"):
-                try:
-                    current_pos = file_input.tell()
-                    file_input.seek(0)  # Read from beginning
-                except (OSError, io.UnsupportedOperation):
-                    pass
+        return file_input.read_bytes(), file_input.name
+    elif isinstance(file_input, str):
+        path = Path(file_input)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {file_input}")
+        return path.read_bytes(), path.name
+    elif isinstance(file_input, bytes):
+        return file_input, "document"
+    elif hasattr(file_input, "read"):
+        # Handle file-like objects
+        # Save current position if seekable
+        current_pos = None
+        if hasattr(file_input, "seek") and hasattr(file_input, "tell"):
+            try:
+                current_pos = file_input.tell()
+                file_input.seek(0)  # Read from beginning
+            except (OSError, io.UnsupportedOperation):
+                pass
 
-            content = file_input.read()
-            if isinstance(content, str):
-                content = content.encode()
+        content = file_input.read()
+        if isinstance(content, str):
+            content = content.encode()
 
-            # Restore position if we saved it
-            if current_pos is not None:
-                with contextlib.suppress(OSError, io.UnsupportedOperation):
-                    file_input.seek(current_pos)
+        # Restore position if we saved it
+        if current_pos is not None:
+            with contextlib.suppress(OSError, io.UnsupportedOperation):
+                file_input.seek(current_pos)
 
-            filename = getattr(file_input, "name", "document")
-            if hasattr(filename, "__fspath__"):
-                filename = os.path.basename(os.fspath(filename))
-            elif isinstance(filename, bytes):
-                filename = os.path.basename(filename.decode())
-            elif isinstance(filename, str):
-                filename = os.path.basename(filename)
-            return content, str(filename)
-        case _:
-            raise ValueError(f"Unsupported file input type: {type(file_input)}")
+        filename = getattr(file_input, "name", "document")
+        if hasattr(filename, "__fspath__"):
+            filename = os.path.basename(os.fspath(filename))
+        elif isinstance(filename, bytes):
+            filename = os.path.basename(filename.decode())
+        elif isinstance(filename, str):
+            filename = os.path.basename(filename)
+        return content, str(filename)
+    else:
+        raise ValueError(f"Unsupported file input type: {type(file_input)}")
 
 
 def prepare_file_for_upload(
     file_input: FileInput,
     field_name: str = "file",
-) -> tuple[str, tuple[str, bytes | BinaryIO, str]]:
+) -> tuple[str, tuple[str, Union[bytes, BinaryIO], str]]:
     """Prepare file for multipart upload.
 
     Args:
@@ -90,15 +89,14 @@ def prepare_file_for_upload(
     """
     content_type = "application/octet-stream"
 
-    # Handle different file input types using pattern matching
-    path: Path | None
-    match file_input:
-        case Path():
-            path = file_input
-        case str():
-            path = Path(file_input)
-        case _:
-            path = None
+    # Handle different file input types
+    path: Optional[Path]
+    if isinstance(file_input, Path):
+        path = file_input
+    elif isinstance(file_input, str):
+        path = Path(file_input)
+    else:
+        path = None
 
     # Handle path-based inputs
     if path is not None:
@@ -116,20 +114,19 @@ def prepare_file_for_upload(
             return field_name, (path.name, path.read_bytes(), content_type)
 
     # Handle non-path inputs
-    match file_input:
-        case bytes():
-            return field_name, ("document", file_input, content_type)
-        case _ if hasattr(file_input, "read"):
-            filename = getattr(file_input, "name", "document")
-            if hasattr(filename, "__fspath__"):
-                filename = os.path.basename(os.fspath(filename))
-            elif isinstance(filename, bytes):
-                filename = os.path.basename(filename.decode())
-            elif isinstance(filename, str):
-                filename = os.path.basename(filename)
-            return field_name, (str(filename), file_input, content_type)  # type: ignore[return-value]
-        case _:
-            raise ValueError(f"Unsupported file input type: {type(file_input)}")
+    if isinstance(file_input, bytes):
+        return field_name, ("document", file_input, content_type)
+    elif hasattr(file_input, "read"):
+        filename = getattr(file_input, "name", "document")
+        if hasattr(filename, "__fspath__"):
+            filename = os.path.basename(os.fspath(filename))
+        elif isinstance(filename, bytes):
+            filename = os.path.basename(filename.decode())
+        elif isinstance(filename, str):
+            filename = os.path.basename(filename)
+        return field_name, (str(filename), file_input, content_type)  # type: ignore[return-value]
+    else:
+        raise ValueError(f"Unsupported file input type: {type(file_input)}")
 
 
 def save_file_output(content: bytes, output_path: str) -> None:
@@ -173,7 +170,7 @@ def stream_file_content(
             yield chunk
 
 
-def get_file_size(file_input: FileInput) -> int | None:
+def get_file_size(file_input: FileInput) -> Optional[int]:
     """Get size of file input if available.
 
     Args:
