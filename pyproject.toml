@@ -13,7 +13,7 @@ name = "nutrient-dws"
 version = "1.0.2"
 description = "Python client library for Nutrient Document Web Services API"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "Nutrient", email = "support@nutrient.io"},
@@ -24,6 +24,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -61,7 +62,7 @@ Repository = "https://github.com/PSPDFKit/nutrient-dws-client-python"
 nutrient_dws = ["py.typed"]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py39"
 line-length = 100
 
 [tool.ruff.lint]
@@ -83,6 +84,9 @@ ignore = [
     "D100",  # Missing docstring in public module
     "D104",  # Missing docstring in public package
     "D107",  # Missing docstring in __init__
+    "UP007", # Use X | Y for type annotations (requires Python 3.10+)
+    "UP038", # Use X | Y in isinstance call (requires Python 3.10+)
+    "UP045", # Use X | None for type annotations (requires Python 3.10+)
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -92,7 +96,7 @@ convention = "google"
 "tests/*" = ["D", "S101"]  # Don't require docstrings in tests, allow asserts
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.9"
 strict = true
 warn_return_any = true
 warn_unused_ignores = false

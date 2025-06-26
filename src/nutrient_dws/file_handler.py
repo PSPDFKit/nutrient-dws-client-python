@@ -5,7 +5,7 @@ import io
 import os
 from collections.abc import Generator
 from pathlib import Path
-from typing import BinaryIO, Union, Optional
+from typing import BinaryIO, Optional, Union
 
 FileInput = Union[str, Path, bytes, BinaryIO]
 

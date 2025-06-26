@@ -5,7 +5,7 @@ test the new Direct API methods against the live Nutrient DWS API.
 """
 
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 import pytest
 

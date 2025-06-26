@@ -4,7 +4,7 @@ This file provides convenient methods that wrap the Nutrient Build API
 for supported document processing operations.
 """
 
-from typing import TYPE_CHECKING, Any, Protocol, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Protocol, Union
 
 from nutrient_dws.file_handler import FileInput
 

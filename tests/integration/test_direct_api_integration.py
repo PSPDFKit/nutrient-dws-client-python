@@ -4,7 +4,7 @@ These tests require a valid API key configured in integration_config.py and
 test all Direct API methods against the live Nutrient DWS API.
 """
 
-from typing import Union, Optional
+from typing import Optional, Union
 
 import pytest
 
