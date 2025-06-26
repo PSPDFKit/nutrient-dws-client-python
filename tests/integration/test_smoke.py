@@ -1,11 +1,13 @@
 """Basic smoke test to validate integration test setup."""
 
+from typing import Optional
+
 import pytest
 
 from nutrient_dws import NutrientClient
 
 # Type annotation for mypy
-API_KEY: str | None = None
+API_KEY: Optional[str] = None
 
 try:
     from . import integration_config  # type: ignore[attr-defined]

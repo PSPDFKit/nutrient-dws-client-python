@@ -5,6 +5,8 @@ These tests require a valid API key configured in integration_config.py.
 
 from __future__ import annotations
 
+from typing import Optional, Union
+
 import pytest
 
 from nutrient_dws import NutrientClient
@@ -12,8 +14,8 @@ from nutrient_dws import NutrientClient
 try:
     from . import integration_config  # type: ignore[attr-defined]
 
-    API_KEY: str | None = integration_config.API_KEY
-    BASE_URL: str | None = getattr(integration_config, "BASE_URL", None)
+    API_KEY: Optional[str] = integration_config.API_KEY
+    BASE_URL: Optional[str] = getattr(integration_config, "BASE_URL", None)
     TIMEOUT: int = getattr(integration_config, "TIMEOUT", 60)
 except ImportError:
     API_KEY = None
@@ -21,13 +23,13 @@ except ImportError:
     TIMEOUT = 60
 
 
-def assert_is_pdf(file_path_or_bytes: str | bytes) -> None:
+def assert_is_pdf(file_path_or_bytes: Union[str, bytes]) -> None:
     """Assert that a file or bytes is a valid PDF.
 
     Args:
         file_path_or_bytes: Path to file or bytes content to check.
     """
-    if isinstance(file_path_or_bytes, str | bytes):
+    if isinstance(file_path_or_bytes, (str, bytes)):
         if isinstance(file_path_or_bytes, str):
             with open(file_path_or_bytes, "rb") as f:
                 content = f.read(8)
