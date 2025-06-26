@@ -339,7 +339,7 @@ class DirectAPIMixin:
         if content:
             options["content"] = content
 
-        return self._process_file("createRedactions", input_file, output_path, **options)
+        return self._process_file("create-redactions", input_file, output_path, **options)
 
     def create_redactions_regex(
         self,
@@ -400,7 +400,7 @@ class DirectAPIMixin:
         if content:
             options["content"] = content
 
-        return self._process_file("createRedactions", input_file, output_path, **options)
+        return self._process_file("create-redactions", input_file, output_path, **options)
 
     def create_redactions_text(
         self,
@@ -464,7 +464,7 @@ class DirectAPIMixin:
         if content:
             options["content"] = content
 
-        return self._process_file("createRedactions", input_file, output_path, **options)
+        return self._process_file("create-redactions", input_file, output_path, **options)
 
     def optimize_pdf(
         self,
@@ -535,7 +535,7 @@ class DirectAPIMixin:
 
         # Build using the Builder API with output options
         builder = self.build(input_file)  # type: ignore[attr-defined]
-        
+
         # Apply optimization via output options
         output_options = {"optimize": options if options else True}
         builder.set_output_options(**output_options)
