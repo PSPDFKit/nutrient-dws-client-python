@@ -228,6 +228,25 @@ class BuildAPIWrapper:
                 if "position" in options:
                     action["position"] = options["position"]
 
+            case "createRedactions":
+                # Handle create redactions - pass through directly
+                # The direct.py already formats everything correctly
+                if "strategy" in options:
+                    action["strategy"] = options["strategy"]
+                if "strategy_options" in options:
+                    action["strategyOptions"] = options["strategy_options"]
+                if "content" in options:
+                    action["content"] = options["content"]
+
+            case "optimize":
+                # Handle optimize action with camelCase conversion
+                for key, value in options.items():
+                    # Convert snake_case to camelCase for API
+                    camel_key = "".join(
+                        word.capitalize() if i else word for i, word in enumerate(key.split("_"))
+                    )
+                    action[camel_key] = value
+
             case _:
                 # For other actions, pass options directly
                 action.update(options)
