@@ -1,6 +1,6 @@
 """Custom exceptions for Nutrient DWS client."""
 
-from typing import Any, Optional
+from typing import Any
 
 
 class NutrientError(Exception):
@@ -36,9 +36,9 @@ class APIError(NutrientError):
     def __init__(
         self,
         message: str,
-        status_code: Optional[int] = None,
-        response_body: Optional[str] = None,
-        request_id: Optional[str] = None,
+        status_code: int | None = None,
+        response_body: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Initialize APIError with status code and response body."""
         super().__init__(message)
@@ -65,7 +65,7 @@ class APIError(NutrientError):
 class ValidationError(NutrientError):
     """Raised when request validation fails."""
 
-    def __init__(self, message: str, errors: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, message: str, errors: dict[str, Any] | None = None) -> None:
         """Initialize ValidationError with validation details."""
         super().__init__(message)
         self.errors = errors or {}

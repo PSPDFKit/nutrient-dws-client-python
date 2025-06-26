@@ -1,7 +1,7 @@
 """Main client module for Nutrient DWS API."""
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 from nutrient_dws.api.direct import DirectAPIMixin
 from nutrient_dws.builder import BuildAPIWrapper
@@ -40,7 +40,7 @@ class NutrientClient(DirectAPIMixin):
         ...       .execute(output_path="output.pdf")
     """
 
-    def __init__(self, api_key: Optional[str] = None, timeout: int = 300) -> None:
+    def __init__(self, api_key: str | None = None, timeout: int = 300) -> None:
         """Initialize the Nutrient client."""
         # Get API key from parameter or environment
         self._api_key = api_key or os.environ.get("NUTRIENT_API_KEY")
@@ -71,9 +71,9 @@ class NutrientClient(DirectAPIMixin):
         self,
         tool: str,
         input_file: FileInput,
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
         **options: Any,
-    ) -> Optional[bytes]:
+    ) -> bytes | None:
         """Process a file using the Direct API.
 
         This is the internal method used by all Direct API methods.
