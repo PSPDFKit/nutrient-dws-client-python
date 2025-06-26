@@ -295,10 +295,10 @@ class DirectAPIMixin:
         Args:
             input_file: Input PDF file.
             preset: Preset pattern to use. Common options include:
-                - "socialSecurityNumber": US SSN pattern
-                - "creditCardNumber": Credit card numbers
+                - "social-security-number": US SSN pattern
+                - "credit-card-number": Credit card numbers
                 - "email": Email addresses
-                - "phoneNumber": Phone numbers
+                - "phone-number": Phone numbers
                 - "date": Date patterns
                 - "currency": Currency amounts
             output_path: Optional path to save the output file.
@@ -533,7 +533,13 @@ class DirectAPIMixin:
         if linearize:
             options["linearize"] = True
 
-        return self._process_file("optimize", input_file, output_path, **options)
+        # Build using the Builder API with output options
+        builder = self.build(input_file)  # type: ignore[attr-defined]
+        
+        # Apply optimization via output options
+        output_options = {"optimize": options if options else True}
+        builder.set_output_options(**output_options)
+        return builder.execute(output_path)  # type: ignore[no-any-return]
 
     def password_protect_pdf(
         self,
