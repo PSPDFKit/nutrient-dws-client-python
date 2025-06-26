@@ -50,10 +50,7 @@ class TestCreateRedactionsIntegration:
     @pytest.fixture
     def client(self):
         """Create a client with the configured API key."""
-        kwargs = {"api_key": API_KEY, "timeout": TIMEOUT}
-        if BASE_URL:
-            kwargs["base_url"] = BASE_URL
-        return NutrientClient(**kwargs)
+        return NutrientClient(api_key=API_KEY, timeout=TIMEOUT)
 
     @pytest.fixture
     def sample_pdf_with_sensitive_data(self, tmp_path):
@@ -120,10 +117,7 @@ class TestOptimizePDFIntegration:
     @pytest.fixture
     def client(self):
         """Create a client with the configured API key."""
-        kwargs = {"api_key": API_KEY, "timeout": TIMEOUT}
-        if BASE_URL:
-            kwargs["base_url"] = BASE_URL
-        return NutrientClient(**kwargs)
+        return NutrientClient(api_key=API_KEY, timeout=TIMEOUT)
 
     @pytest.fixture
     def sample_pdf_path(self):
@@ -185,10 +179,7 @@ class TestPasswordProtectPDFIntegration:
     @pytest.fixture
     def client(self):
         """Create a client with the configured API key."""
-        kwargs = {"api_key": API_KEY, "timeout": TIMEOUT}
-        if BASE_URL:
-            kwargs["base_url"] = BASE_URL
-        return NutrientClient(**kwargs)
+        return NutrientClient(api_key=API_KEY, timeout=TIMEOUT)
 
     @pytest.fixture
     def sample_pdf_path(self):
@@ -253,10 +244,7 @@ class TestSetPDFMetadataIntegration:
     @pytest.fixture
     def client(self):
         """Create a client with the configured API key."""
-        kwargs = {"api_key": API_KEY, "timeout": TIMEOUT}
-        if BASE_URL:
-            kwargs["base_url"] = BASE_URL
-        return NutrientClient(**kwargs)
+        return NutrientClient(api_key=API_KEY, timeout=TIMEOUT)
 
     @pytest.fixture
     def sample_pdf_path(self):
@@ -311,10 +299,7 @@ class TestApplyInstantJSONIntegration:
     @pytest.fixture
     def client(self):
         """Create a client with the configured API key."""
-        kwargs = {"api_key": API_KEY, "timeout": TIMEOUT}
-        if BASE_URL:
-            kwargs["base_url"] = BASE_URL
-        return NutrientClient(**kwargs)
+        return NutrientClient(api_key=API_KEY, timeout=TIMEOUT)
 
     @pytest.fixture
     def sample_pdf_path(self):
@@ -385,10 +370,7 @@ class TestApplyXFDFIntegration:
     @pytest.fixture
     def client(self):
         """Create a client with the configured API key."""
-        kwargs = {"api_key": API_KEY, "timeout": TIMEOUT}
-        if BASE_URL:
-            kwargs["base_url"] = BASE_URL
-        return NutrientClient(**kwargs)
+        return NutrientClient(api_key=API_KEY, timeout=TIMEOUT)
 
     @pytest.fixture
     def sample_pdf_path(self):
