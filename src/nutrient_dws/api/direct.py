@@ -297,7 +297,6 @@ class DirectAPIMixin:
             preset: Preset pattern to use. Valid options:
                 - "social-security-number": US Social Security Number
                 - "credit-card-number": Credit card numbers
-                - "email": Email addresses
                 - "phone-number": Phone numbers
                 - "date": Date patterns
                 - "currency": Currency amounts
@@ -537,8 +536,12 @@ class DirectAPIMixin:
         builder = self.build(input_file)  # type: ignore[attr-defined]
 
         # Apply optimization via output options
-        output_options = {"optimize": options if options else True}
-        builder.set_output_options(**output_options)
+        if options:
+            # If there are specific options, set optimize to the options dict
+            builder.set_output_options(optimize=options)
+        else:
+            # If no options, just enable optimization
+            builder.set_output_options(optimize=True)
         return builder.execute(output_path)  # type: ignore[no-any-return]
 
     def password_protect_pdf(
