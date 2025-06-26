@@ -65,8 +65,7 @@ class TestCreateRedactionsIntegration:
     def test_create_redactions_preset_ssn(self, client, sample_pdf_with_sensitive_data):
         """Test creating redactions with SSN preset."""
         result = client.create_redactions_preset(
-            sample_pdf_with_sensitive_data,
-            preset="social-security-number"
+            sample_pdf_with_sensitive_data, preset="social-security-number"
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -77,9 +76,7 @@ class TestCreateRedactionsIntegration:
         """Test creating redactions with preset and saving to file."""
         output_path = tmp_path / "redacted_preset.pdf"
         result = client.create_redactions_preset(
-            sample_pdf_with_sensitive_data,
-            preset="email",
-            output_path=str(output_path)
+            sample_pdf_with_sensitive_data, preset="email", output_path=str(output_path)
         )
         assert result is None
         assert output_path.exists()
@@ -89,9 +86,7 @@ class TestCreateRedactionsIntegration:
         """Test creating redactions with regex pattern."""
         # Pattern for simple date format (MM/DD/YYYY)
         result = client.create_redactions_regex(
-            sample_pdf_with_sensitive_data,
-            pattern=r"\b\d{2}/\d{2}/\d{4}\b",
-            case_sensitive=False
+            sample_pdf_with_sensitive_data, pattern=r"\b\d{2}/\d{2}/\d{4}\b", case_sensitive=False
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -99,10 +94,7 @@ class TestCreateRedactionsIntegration:
     def test_create_redactions_text(self, client, sample_pdf_with_sensitive_data):
         """Test creating redactions for exact text matches."""
         result = client.create_redactions_text(
-            sample_pdf_with_sensitive_data,
-            text="PDF",
-            case_sensitive=False,
-            whole_words_only=True
+            sample_pdf_with_sensitive_data, text="PDF", case_sensitive=False, whole_words_only=True
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -115,7 +107,7 @@ class TestCreateRedactionsIntegration:
             case_sensitive=False,
             appearance_fill_color="#FF0000",
             appearance_stroke_color="#000000",
-            appearance_stroke_width=2
+            appearance_stroke_width=2,
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -147,29 +139,20 @@ class TestOptimizePDFIntegration:
     def test_optimize_pdf_grayscale(self, client, sample_pdf_path):
         """Test PDF optimization with grayscale options."""
         result = client.optimize_pdf(
-            sample_pdf_path,
-            grayscale_text=True,
-            grayscale_graphics=True,
-            grayscale_images=True
+            sample_pdf_path, grayscale_text=True, grayscale_graphics=True, grayscale_images=True
         )
         assert_is_pdf(result)
         assert len(result) > 0
 
     def test_optimize_pdf_reduce_quality(self, client, sample_pdf_path):
         """Test PDF optimization with reduced image quality."""
-        result = client.optimize_pdf(
-            sample_pdf_path,
-            reduce_image_quality=50
-        )
+        result = client.optimize_pdf(sample_pdf_path, reduce_image_quality=50)
         assert_is_pdf(result)
         assert len(result) > 0
 
     def test_optimize_pdf_linearize(self, client, sample_pdf_path):
         """Test PDF optimization with linearization."""
-        result = client.optimize_pdf(
-            sample_pdf_path,
-            linearize=True
-        )
+        result = client.optimize_pdf(sample_pdf_path, linearize=True)
         assert_is_pdf(result)
         assert len(result) > 0
 
@@ -180,7 +163,7 @@ class TestOptimizePDFIntegration:
             sample_pdf_path,
             grayscale_images=True,
             reduce_image_quality=70,
-            output_path=str(output_path)
+            output_path=str(output_path),
         )
         assert result is None
         assert output_path.exists()
@@ -214,19 +197,14 @@ class TestPasswordProtectPDFIntegration:
 
     def test_password_protect_user_password(self, client, sample_pdf_path):
         """Test password protection with user password only."""
-        result = client.password_protect_pdf(
-            sample_pdf_path,
-            user_password="test123"
-        )
+        result = client.password_protect_pdf(sample_pdf_path, user_password="test123")
         assert_is_pdf(result)
         assert len(result) > 0
 
     def test_password_protect_both_passwords(self, client, sample_pdf_path):
         """Test password protection with both user and owner passwords."""
         result = client.password_protect_pdf(
-            sample_pdf_path,
-            user_password="user123",
-            owner_password="owner456"
+            sample_pdf_path, user_password="user123", owner_password="owner456"
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -240,8 +218,8 @@ class TestPasswordProtectPDFIntegration:
                 "print": False,
                 "modification": False,
                 "extract": True,
-                "annotations": True
-            }
+                "annotations": True,
+            },
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -254,7 +232,7 @@ class TestPasswordProtectPDFIntegration:
             user_password="secret",
             owner_password="admin",
             permissions={"print": True, "modification": False},
-            output_path=str(output_path)
+            output_path=str(output_path),
         )
         assert result is None
         assert output_path.exists()
@@ -288,9 +266,7 @@ class TestSetPDFMetadataIntegration:
     def test_set_pdf_metadata_title_author(self, client, sample_pdf_path):
         """Test setting PDF title and author."""
         result = client.set_pdf_metadata(
-            sample_pdf_path,
-            title="Test Document",
-            author="Test Author"
+            sample_pdf_path, title="Test Document", author="Test Author"
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -304,7 +280,7 @@ class TestSetPDFMetadataIntegration:
             subject="Testing PDF Metadata",
             keywords="test, pdf, metadata, nutrient",
             creator="Nutrient DWS Python Client",
-            producer="Test Suite"
+            producer="Test Suite",
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -316,7 +292,7 @@ class TestSetPDFMetadataIntegration:
             sample_pdf_path,
             title="Output Test",
             keywords="output, test",
-            output_path=str(output_path)
+            output_path=str(output_path),
         )
         assert result is None
         assert output_path.exists()
@@ -364,10 +340,7 @@ class TestApplyInstantJSONIntegration:
 
     def test_apply_instant_json_from_file(self, client, sample_pdf_path, sample_instant_json):
         """Test applying Instant JSON from file."""
-        result = client.apply_instant_json(
-            sample_pdf_path,
-            sample_instant_json
-        )
+        result = client.apply_instant_json(sample_pdf_path, sample_instant_json)
         assert_is_pdf(result)
         assert len(result) > 0
 
@@ -382,10 +355,7 @@ class TestApplyInstantJSONIntegration:
                 }
             ]
         }"""
-        result = client.apply_instant_json(
-            sample_pdf_path,
-            json_bytes
-        )
+        result = client.apply_instant_json(sample_pdf_path, json_bytes)
         assert_is_pdf(result)
         assert len(result) > 0
 
@@ -395,9 +365,7 @@ class TestApplyInstantJSONIntegration:
         """Test applying Instant JSON with output file."""
         output_path = tmp_path / "annotated.pdf"
         result = client.apply_instant_json(
-            sample_pdf_path,
-            sample_instant_json,
-            output_path=str(output_path)
+            sample_pdf_path, sample_instant_json, output_path=str(output_path)
         )
         assert result is None
         assert output_path.exists()
@@ -444,10 +412,7 @@ class TestApplyXFDFIntegration:
 
     def test_apply_xfdf_from_file(self, client, sample_pdf_path, sample_xfdf):
         """Test applying XFDF from file."""
-        result = client.apply_xfdf(
-            sample_pdf_path,
-            sample_xfdf
-        )
+        result = client.apply_xfdf(sample_pdf_path, sample_xfdf)
         assert_is_pdf(result)
         assert len(result) > 0
 
@@ -459,21 +424,14 @@ class TestApplyXFDFIntegration:
         <highlight page="0" rect="50,50,150,70"/>
     </annots>
 </xfdf>"""
-        result = client.apply_xfdf(
-            sample_pdf_path,
-            xfdf_bytes
-        )
+        result = client.apply_xfdf(sample_pdf_path, xfdf_bytes)
         assert_is_pdf(result)
         assert len(result) > 0
 
     def test_apply_xfdf_with_output_file(self, client, sample_pdf_path, sample_xfdf, tmp_path):
         """Test applying XFDF with output file."""
         output_path = tmp_path / "xfdf_annotated.pdf"
-        result = client.apply_xfdf(
-            sample_pdf_path,
-            sample_xfdf,
-            output_path=str(output_path)
-        )
+        result = client.apply_xfdf(sample_pdf_path, sample_xfdf, output_path=str(output_path))
         assert result is None
         assert output_path.exists()
         assert_is_pdf(str(output_path))
@@ -483,4 +441,3 @@ class TestApplyXFDFIntegration:
         """Test applying XFDF from URL."""
         # This test would require a valid URL with XFDF content
         pass
-

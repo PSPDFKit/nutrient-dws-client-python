@@ -244,8 +244,7 @@ class BuildAPIWrapper:
                 for key, value in options.items():
                     # Convert snake_case to camelCase for API
                     camel_key = "".join(
-                        word.capitalize() if i else word
-                        for i, word in enumerate(key.split("_"))
+                        word.capitalize() if i else word for i, word in enumerate(key.split("_"))
                     )
                     action[camel_key] = value
 
