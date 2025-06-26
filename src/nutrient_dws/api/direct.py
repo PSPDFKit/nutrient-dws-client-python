@@ -295,10 +295,10 @@ class DirectAPIMixin:
         Args:
             input_file: Input PDF file.
             preset: Preset pattern to use. Common options include:
-                - "social-security-number": US SSN pattern
-                - "credit-card-number": Credit card numbers
+                - "socialSecurityNumber": US SSN pattern
+                - "creditCardNumber": Credit card numbers
                 - "email": Email addresses
-                - "phone-number": Phone numbers
+                - "phoneNumber": Phone numbers
                 - "date": Date patterns
                 - "currency": Currency amounts
             output_path: Optional path to save the output file.

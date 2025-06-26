@@ -62,7 +62,7 @@ class TestCreateRedactionsIntegration:
     def test_create_redactions_preset_ssn(self, client, sample_pdf_with_sensitive_data):
         """Test creating redactions with SSN preset."""
         result = client.create_redactions_preset(
-            sample_pdf_with_sensitive_data, preset="social-security-number"
+            sample_pdf_with_sensitive_data, preset="socialSecurityNumber"
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -104,7 +104,6 @@ class TestCreateRedactionsIntegration:
             case_sensitive=False,
             appearance_fill_color="#FF0000",
             appearance_stroke_color="#000000",
-            appearance_stroke_width=2,
         )
         assert_is_pdf(result)
         assert len(result) > 0
