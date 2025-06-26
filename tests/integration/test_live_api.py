@@ -4,7 +4,6 @@ These tests require a valid API key configured in integration_config.py.
 """
 
 from __future__ import annotations
-from typing import Union
 
 import pytest
 
@@ -13,8 +12,8 @@ from nutrient_dws import NutrientClient
 try:
     from . import integration_config  # type: ignore[attr-defined]
 
-    API_KEY: Union[str, None] = integration_config.API_KEY
-    BASE_URL: Union[str, None] = getattr(integration_config, "BASE_URL", None)
+    API_KEY: str | None = integration_config.API_KEY
+    BASE_URL: str | None = getattr(integration_config, "BASE_URL", None)
     TIMEOUT: int = getattr(integration_config, "TIMEOUT", 60)
 except ImportError:
     API_KEY = None
