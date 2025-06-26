@@ -339,7 +339,7 @@ class DirectAPIMixin:
         if content:
             options["content"] = content
 
-        return self._process_file("create-redactions", input_file, output_path, **options)
+        return self._process_file("createRedactions", input_file, output_path, **options)
 
     def create_redactions_regex(
         self,
@@ -400,7 +400,7 @@ class DirectAPIMixin:
         if content:
             options["content"] = content
 
-        return self._process_file("create-redactions", input_file, output_path, **options)
+        return self._process_file("createRedactions", input_file, output_path, **options)
 
     def create_redactions_text(
         self,
@@ -464,7 +464,7 @@ class DirectAPIMixin:
         if content:
             options["content"] = content
 
-        return self._process_file("create-redactions", input_file, output_path, **options)
+        return self._process_file("createRedactions", input_file, output_path, **options)
 
     def optimize_pdf(
         self,
@@ -533,7 +533,7 @@ class DirectAPIMixin:
         if linearize:
             options["linearize"] = True
 
-        return self._process_file("optimize-pdf", input_file, output_path, **options)
+        return self._process_file("optimize", input_file, output_path, **options)
 
     def password_protect_pdf(
         self,
@@ -588,15 +588,15 @@ class DirectAPIMixin:
         # Build using the Builder API with output options
         builder = self.build(input_file)  # type: ignore[attr-defined]
 
-        # Set up password options
+        # Set up password options with camelCase for API
         password_options: dict[str, Any] = {}
         if user_password:
-            password_options["user_password"] = user_password
+            password_options["userPassword"] = user_password
         if owner_password:
-            password_options["owner_password"] = owner_password
+            password_options["ownerPassword"] = owner_password
         else:
             # If no owner password provided, use user password
-            password_options["owner_password"] = user_password
+            password_options["ownerPassword"] = user_password
 
         # Set up permissions if provided
         if permissions:

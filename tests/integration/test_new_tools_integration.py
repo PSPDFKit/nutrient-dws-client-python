@@ -57,6 +57,8 @@ class TestCreateRedactionsIntegration:
         """Create a PDF with sensitive data for testing redactions."""
         # For now, we'll use a sample PDF. In a real scenario, we'd create one with sensitive data
         sample_path = Path(__file__).parent.parent / "data" / "sample.pdf"
+        if not sample_path.exists():
+            pytest.skip(f"Sample PDF not found at {sample_path}")
         return str(sample_path)
 
     def test_create_redactions_preset_ssn(self, client, sample_pdf_with_sensitive_data):
@@ -121,7 +123,10 @@ class TestOptimizePDFIntegration:
     @pytest.fixture
     def sample_pdf_path(self):
         """Get path to sample PDF file."""
-        return str(Path(__file__).parent.parent / "data" / "sample.pdf")
+        sample_path = Path(__file__).parent.parent / "data" / "sample.pdf"
+        if not sample_path.exists():
+            pytest.skip(f"Sample PDF not found at {sample_path}")
+        return str(sample_path)
 
     def test_optimize_pdf_basic(self, client, sample_pdf_path):
         """Test basic PDF optimization."""
@@ -183,7 +188,10 @@ class TestPasswordProtectPDFIntegration:
     @pytest.fixture
     def sample_pdf_path(self):
         """Get path to sample PDF file."""
-        return str(Path(__file__).parent.parent / "data" / "sample.pdf")
+        sample_path = Path(__file__).parent.parent / "data" / "sample.pdf"
+        if not sample_path.exists():
+            pytest.skip(f"Sample PDF not found at {sample_path}")
+        return str(sample_path)
 
     def test_password_protect_user_password(self, client, sample_pdf_path):
         """Test password protection with user password only."""
@@ -248,7 +256,10 @@ class TestSetPDFMetadataIntegration:
     @pytest.fixture
     def sample_pdf_path(self):
         """Get path to sample PDF file."""
-        return str(Path(__file__).parent.parent / "data" / "sample.pdf")
+        sample_path = Path(__file__).parent.parent / "data" / "sample.pdf"
+        if not sample_path.exists():
+            pytest.skip(f"Sample PDF not found at {sample_path}")
+        return str(sample_path)
 
     def test_set_pdf_metadata_title_author(self, client, sample_pdf_path):
         """Test setting PDF title and author."""
@@ -303,7 +314,10 @@ class TestApplyInstantJSONIntegration:
     @pytest.fixture
     def sample_pdf_path(self):
         """Get path to sample PDF file."""
-        return str(Path(__file__).parent.parent / "data" / "sample.pdf")
+        sample_path = Path(__file__).parent.parent / "data" / "sample.pdf"
+        if not sample_path.exists():
+            pytest.skip(f"Sample PDF not found at {sample_path}")
+        return str(sample_path)
 
     @pytest.fixture
     def sample_instant_json(self, tmp_path):
@@ -374,7 +388,10 @@ class TestApplyXFDFIntegration:
     @pytest.fixture
     def sample_pdf_path(self):
         """Get path to sample PDF file."""
-        return str(Path(__file__).parent.parent / "data" / "sample.pdf")
+        sample_path = Path(__file__).parent.parent / "data" / "sample.pdf"
+        if not sample_path.exists():
+            pytest.skip(f"Sample PDF not found at {sample_path}")
+        return str(sample_path)
 
     @pytest.fixture
     def sample_xfdf(self, tmp_path):

@@ -173,9 +173,9 @@ class BuildAPIWrapper:
             "flatten-annotations": "flatten",
             "apply-instant-json": "applyInstantJson",
             "apply-xfdf": "applyXfdf",
-            "create-redactions": "createRedactions",
+            "createRedactions": "createRedactions",
             "apply-redactions": "applyRedactions",
-            "optimize-pdf": "optimize",
+            "optimize": "optimize",
         }
 
         action_type = tool_mapping.get(tool, tool)
