@@ -75,7 +75,7 @@ class TestCreateRedactionsIntegration:
         """Test creating redactions with preset and saving to file."""
         output_path = tmp_path / "redacted_preset.pdf"
         result = client.create_redactions_preset(
-            sample_pdf_with_sensitive_data, preset="phone-number", output_path=str(output_path)
+            sample_pdf_with_sensitive_data, preset="international-phone-number", output_path=str(output_path)
         )
         assert result is None
         assert output_path.exists()
@@ -94,7 +94,7 @@ class TestCreateRedactionsIntegration:
         """Test creating redactions for exact text matches."""
         # Use a very common letter that should exist
         result = client.create_redactions_text(
-            sample_pdf_with_sensitive_data, text="a", case_sensitive=False, whole_words_only=False
+            sample_pdf_with_sensitive_data, text="a", case_sensitive=False,
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -143,9 +143,9 @@ class TestOptimizePDFIntegration:
         assert_is_pdf(result)
         assert len(result) > 0
 
-    def test_optimize_pdf_reduce_quality(self, client, sample_pdf_path):
-        """Test PDF optimization with reduced image quality."""
-        result = client.optimize_pdf(sample_pdf_path, reduce_image_quality=50)
+    def test_optimize_pdf_image_optimization_quality(self, client, sample_pdf_path):
+        """Test PDF optimization with image optimization quality."""
+        result = client.optimize_pdf(sample_pdf_path, image_optimization_quality=2)
         assert_is_pdf(result)
         assert len(result) > 0
 
@@ -161,7 +161,7 @@ class TestOptimizePDFIntegration:
         result = client.optimize_pdf(
             sample_pdf_path,
             grayscale_images=True,
-            reduce_image_quality=70,
+            image_optimization_quality=3,
             output_path=str(output_path),
         )
         assert result is None
@@ -170,11 +170,14 @@ class TestOptimizePDFIntegration:
 
     def test_optimize_pdf_invalid_quality_raises_error(self, client, sample_pdf_path):
         """Test that invalid image quality raises ValueError."""
-        with pytest.raises(ValueError, match="reduce_image_quality must be between 1 and 100"):
-            client.optimize_pdf(sample_pdf_path, reduce_image_quality=0)
+        with pytest.raises(ValueError, match="image_optimization_quality must be between 1 and 4"):
+            client.optimize_pdf(sample_pdf_path, image_optimization_quality=0)
 
-        with pytest.raises(ValueError, match="reduce_image_quality must be between 1 and 100"):
-            client.optimize_pdf(sample_pdf_path, reduce_image_quality=101)
+        with pytest.raises(ValueError, match="image_optimization_quality must be between 1 and 4"):
+            client.optimize_pdf(sample_pdf_path, image_optimization_quality=5)
+
+        with pytest.raises(ValueError, match="No optimization is enabled"):
+            client.optimize_pdf(sample_pdf_path, image_optimization_quality=None)
 
 
 @pytest.mark.skipif(not API_KEY, reason="No API key configured in integration_config.py")
@@ -213,12 +216,7 @@ class TestPasswordProtectPDFIntegration:
         result = client.password_protect_pdf(
             sample_pdf_path,
             user_password="test123",
-            permissions={
-                "print": False,
-                "modification": False,
-                "extract": True,
-                "annotations": True,
-            },
+            permissions=["extract", "annotations_and_forms"],
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -230,7 +228,7 @@ class TestPasswordProtectPDFIntegration:
             sample_pdf_path,
             user_password="secret",
             owner_password="admin",
-            permissions={"print": True, "modification": False},
+            permissions=["printing"],
             output_path=str(output_path),
         )
         assert result is None
@@ -270,16 +268,12 @@ class TestSetPDFMetadataIntegration:
         assert_is_pdf(result)
         assert len(result) > 0
 
-    def test_set_pdf_metadata_all_fields(self, client, sample_pdf_path):
-        """Test setting all PDF metadata fields."""
+    def test_set_pdf_metadata_all_supported_fields(self, client, sample_pdf_path):
+        """Test setting all supported PDF metadata fields (title and author)."""
         result = client.set_pdf_metadata(
             sample_pdf_path,
             title="Complete Test Document",
             author="John Doe",
-            subject="Testing PDF Metadata",
-            keywords="test, pdf, metadata, nutrient",
-            creator="Nutrient DWS Python Client",
-            producer="Test Suite",
         )
         assert_is_pdf(result)
         assert len(result) > 0
@@ -290,7 +284,7 @@ class TestSetPDFMetadataIntegration:
         result = client.set_pdf_metadata(
             sample_pdf_path,
             title="Output Test",
-            keywords="output, test",
+            author="Test Author",
             output_path=str(output_path),
         )
         assert result is None
@@ -324,12 +318,18 @@ class TestApplyInstantJSONIntegration:
     def sample_instant_json(self, tmp_path):
         """Create a sample Instant JSON file."""
         json_content = """{
+            "format": "https://pspdfkit.com/instant-json/v1",
             "annotations": [
                 {
-                    "type": "text",
+                    "v": 2,
+                    "type": "pspdfkit/text",
                     "pageIndex": 0,
                     "bbox": [100, 100, 200, 150],
-                    "content": "Test annotation"
+                    "content": "Test annotation",
+                    "fontSize": 14,
+                    "opacity": 1,
+                    "horizontalAlign": "left",
+                    "verticalAlign": "top"
                 }
             ]
         }"""
@@ -346,11 +346,18 @@ class TestApplyInstantJSONIntegration:
     def test_apply_instant_json_from_bytes(self, client, sample_pdf_path):
         """Test applying Instant JSON from bytes."""
         json_bytes = b"""{
+            "format": "https://pspdfkit.com/instant-json/v1",
             "annotations": [
                 {
-                    "type": "highlight",
+                    "v": 2,
+                    "type": "pspdfkit/text",
                     "pageIndex": 0,
-                    "rects": [[50, 50, 150, 70]]
+                    "bbox": [100, 100, 200, 150],
+                    "content": "Test annotation",
+                    "fontSize": 14,
+                    "opacity": 1,
+                    "horizontalAlign": "left",
+                    "verticalAlign": "top"
                 }
             ]
         }"""

@@ -98,40 +98,45 @@ def test_client_close():
 
 def test_set_page_label_validation():
     """Test set_page_label method validation logic."""
-    from unittest.mock import Mock
+    from unittest.mock import Mock, patch
 
     import pytest
 
     client = NutrientClient(api_key="test-key")
     client._http_client = Mock()  # Mock the HTTP client to avoid actual API calls
 
-    # Test empty labels list
-    with pytest.raises(ValueError, match="labels list cannot be empty"):
-        client.set_page_label("test.pdf", [])
-
-    # Test invalid label config (not a dict)
-    with pytest.raises(ValueError, match="Label configuration 0 must be a dictionary"):
-        client.set_page_label("test.pdf", ["invalid"])  # type: ignore[list-item]
-
-    # Test missing 'pages' key
-    with pytest.raises(ValueError, match="Label configuration 0 missing required 'pages' key"):
-        client.set_page_label("test.pdf", [{"label": "Test"}])
-
-    # Test missing 'label' key
-    with pytest.raises(ValueError, match="Label configuration 0 missing required 'label' key"):
-        client.set_page_label("test.pdf", [{"pages": {"start": 0}}])
-
-    # Test invalid pages config (not a dict)
-    with pytest.raises(
-        ValueError, match="Label configuration 0 'pages' must be a dict with 'start' key"
+    with (
+        patch("nutrient_dws.file_handler.get_pdf_page_count") as mock_pdf_page_count,
     ):
-        client.set_page_label("test.pdf", [{"pages": "invalid", "label": "Test"}])
+        mock_pdf_page_count.return_value = 10
 
-    # Test missing 'start' key in pages
-    with pytest.raises(
-        ValueError, match="Label configuration 0 'pages' must be a dict with 'start' key"
-    ):
-        client.set_page_label("test.pdf", [{"pages": {"end": 5}, "label": "Test"}])
+        # Test empty labels list
+        with pytest.raises(ValueError, match="labels list cannot be empty"):
+            client.set_page_label("test.pdf", [])
+
+        # Test invalid label config (not a dict)
+        with pytest.raises(ValueError, match="Label configuration 0 must be a dictionary"):
+            client.set_page_label("test.pdf", ["invalid"])  # type: ignore[list-item]
+
+        # Test missing 'pages' key
+        with pytest.raises(ValueError, match="Label configuration 0 missing required 'pages' key"):
+            client.set_page_label("test.pdf", [{"label": "Test"}])
+
+        # Test missing 'label' key
+        with pytest.raises(ValueError, match="Label configuration 0 missing required 'label' key"):
+            client.set_page_label("test.pdf", [{"pages": {"start": 0}}])
+
+        # Test invalid pages config (not a dict)
+        with pytest.raises(
+            ValueError, match="Label configuration 0 'pages' must be a dict with 'start' key"
+        ):
+            client.set_page_label("test.pdf", [{"pages": "invalid", "label": "Test"}])
+
+        # Test missing 'start' key in pages
+        with pytest.raises(
+            ValueError, match="Label configuration 0 'pages' must be a dict with 'start' key"
+        ):
+            client.set_page_label("test.pdf", [{"pages": {"end": 5}, "label": "Test"}])
 
 
 def test_set_page_label_valid_config():
@@ -148,12 +153,14 @@ def test_set_page_label_valid_config():
     with (
         patch("nutrient_dws.file_handler.prepare_file_for_upload") as mock_prepare,
         patch("nutrient_dws.file_handler.save_file_output") as mock_save,
+        patch("nutrient_dws.file_handler.get_pdf_page_count") as mock_pdf_page_count,
     ):
         mock_prepare.return_value = ("file", ("filename.pdf", b"mock_file_data", "application/pdf"))
+        mock_pdf_page_count.return_value = 10
 
         # Test valid configuration
         labels = [
-            {"pages": {"start": 0, "end": 3}, "label": "Introduction"},
+            {"pages": {"start": 0, "end": 2}, "label": "Introduction"},
             {"pages": {"start": 3}, "label": "Content"},
         ]
 
@@ -161,7 +168,7 @@ def test_set_page_label_valid_config():
 
         # Expected normalized labels (implementation only includes 'end' if explicitly provided)
         expected_normalized_labels = [
-            {"pages": {"start": 0, "end": 3}, "label": "Introduction"},
+            {"pages": {"start": 0, "end": 2}, "label": "Introduction"},
             {"pages": {"start": 3}, "label": "Content"},  # No 'end' means to end of document
         ]
 
@@ -197,10 +204,12 @@ def test_set_page_label_with_output_path():
     with (
         patch("nutrient_dws.file_handler.prepare_file_for_upload") as mock_prepare,
         patch("nutrient_dws.file_handler.save_file_output") as mock_save,
+        patch("nutrient_dws.file_handler.get_pdf_page_count") as mock_pdf_page_count,
     ):
         mock_prepare.return_value = ("file", ("filename.pdf", b"mock_file_data", "application/pdf"))
+        mock_pdf_page_count.return_value = 10
 
-        labels = [{"pages": {"start": 0, "end": 1}, "label": "Cover"}]
+        labels = [{"pages": {"start": 0, "end": 0}, "label": "Cover"}]
 
         result = client.set_page_label("test.pdf", labels, output_path="/path/to/output.pdf")
 
