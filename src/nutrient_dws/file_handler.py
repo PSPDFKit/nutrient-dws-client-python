@@ -3,6 +3,7 @@
 import contextlib
 import io
 import os
+import re
 from collections.abc import Generator
 from pathlib import Path
 from typing import BinaryIO
@@ -203,3 +204,59 @@ def get_file_size(file_input: FileInput) -> int | None:
             pass
 
     return None
+
+def get_pdf_page_count(pdf_input: FileInput) -> int:
+    """Zero dependency way to get the number of pages in a PDF.
+
+    Args:
+        file_input: File path, bytes, or file-like object. Has to be of a PDF file
+
+    Returns:
+        Number of pages in a PDF.
+    """
+    if isinstance(pdf_input, (str, Path)):
+        with open(pdf_input, 'rb') as f:
+            pdf_bytes = f.read()
+    elif isinstance(pdf_input, bytes):
+        pdf_bytes = pdf_input
+    elif hasattr(pdf_input, 'read') and hasattr(pdf_input, 'seek') and hasattr(pdf_input, 'tell'):
+        pos = pdf_input.tell()
+        pdf_input.seek(0)
+        pdf_bytes = pdf_input.read()
+        pdf_input.seek(pos)
+    else:
+        raise TypeError("Unsupported input type. Expected str, Path, bytes, or seekable BinaryIO.")
+
+    # Find all PDF objects
+    objects = re.findall(rb'(\d+)\s+(\d+)\s+obj(.*?)endobj', pdf_bytes, re.DOTALL)
+
+    # Get the Catalog Object
+    catalog_obj = None
+    for obj_num, gen_num, obj_data in objects:
+        if b'/Type' in obj_data and b'/Catalog' in obj_data:
+            catalog_obj = obj_data
+            break
+
+    if not catalog_obj:
+        raise ValueError("Could not find /Catalog object in PDF.")
+
+    # Extract /Pages reference (e.g. 3 0 R)
+    pages_ref_match = re.search(rb'/Pages\s+(\d+)\s+(\d+)\s+R', catalog_obj)
+    if not pages_ref_match:
+        raise ValueError("Could not find /Pages reference in /Catalog.")
+    pages_obj_num = pages_ref_match.group(1).decode()
+    pages_obj_gen = pages_ref_match.group(2).decode()
+
+    # Step 3: Find the referenced /Pages object
+    pages_obj_pattern = fr'{pages_obj_num}\s+{pages_obj_gen}\s+obj(.*?)endobj'.encode()
+    pages_obj_match = re.search(pages_obj_pattern, pdf_bytes, re.DOTALL)
+    if not pages_obj_match:
+        raise ValueError("Could not find root /Pages object.")
+    pages_obj_data = pages_obj_match.group(1)
+
+    # Step 4: Extract /Count
+    count_match = re.search(rb'/Count\s+(\d+)', pages_obj_data)
+    if not count_match:
+        raise ValueError("Could not find /Count in root /Pages object.")
+
+    return int(count_match.group(1))

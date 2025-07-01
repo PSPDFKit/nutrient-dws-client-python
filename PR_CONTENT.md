@@ -7,14 +7,14 @@ This PR adds 8 new direct API methods that were missing from the Python client, 
 
 ### 1. Create Redactions (3 methods for different strategies)
 - `create_redactions_preset()` - Use built-in patterns for common sensitive data
-  - Presets: social-security-number, credit-card-number, email, phone-number, date, currency
+  - Presets: social-security-number, credit-card-number, email-address, international-phone-number, north-american-phone-number, date, time, us-zip-code
 - `create_redactions_regex()` - Custom regex patterns for flexible redaction
 - `create_redactions_text()` - Exact text matches with case sensitivity options
 
 ### 2. PDF Optimization
 - `optimize_pdf()` - Reduce file size with multiple optimization options:
   - Grayscale conversion (text, graphics, images)
-  - Image quality reduction (1-100)
+  - Image optimization quality (1-4, where 4 is most optimized)
   - Linearization for web viewing
   - Option to disable images entirely
 
@@ -82,7 +82,7 @@ client.apply_redactions("redacted.pdf", output_path="final.pdf")
 client.optimize_pdf(
     "large_document.pdf",
     grayscale_images=True,
-    reduce_image_quality=50,
+    image_optimization_quality=4,
     linearize=True,
     output_path="optimized.pdf"
 )

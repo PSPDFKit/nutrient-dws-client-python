@@ -87,15 +87,15 @@ class BuildAPIWrapper:
             labels: List of label configurations. Each dict must contain:
                    - 'pages': Page range dict with 'start' (required) and optionally 'end'
                    - 'label': String label to apply to those pages
-                   Page ranges use 0-based indexing where 'end' is exclusive.
+                   Page ranges use 0-based indexing where 'end' is inclusive.
 
         Returns:
             Self for method chaining.
 
         Example:
             >>> builder.set_page_labels([
-        ...     {"pages": {"start": 0, "end": 3}, "label": "Introduction"},
-        ...     {"pages": {"start": 3, "end": 10}, "label": "Chapter 1"},
+        ...     {"pages": {"start": 0, "end": 2}, "label": "Introduction"},
+        ...     {"pages": {"start": 3, "end": 9}, "label": "Chapter 1"},
         ...     {"pages": {"start": 10}, "label": "Appendix"}
         ... ])
         """

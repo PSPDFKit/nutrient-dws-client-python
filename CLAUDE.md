@@ -68,7 +68,7 @@ result = self._http_client.post("/build", files=files, json_data=instructions)
 ```
 
 ### Key Learnings from split_pdf Implementation
-- **Page Ranges**: Use `{"start": 0, "end": 5}` (0-based, end exclusive) and `{"start": 10}` (to end)
+- **Page Ranges**: Use `{"start": 0, "end": 4}` (0-based, end inclusive) and `{"start": 10}` (to end)
 - **Multiple Operations**: Some tools require multiple API calls (one per page range/operation)
 - **Error Handling**: API returns 400 with detailed errors when parameters are invalid
 - **Testing Strategy**: Focus on integration tests with live API rather than unit test mocking
