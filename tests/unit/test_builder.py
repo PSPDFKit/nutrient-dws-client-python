@@ -454,8 +454,8 @@ class TestBuilderEdgeCases:
         builder = BuildAPIWrapper(None, "test.pdf")
 
         labels = [
-            {"pages": {"start": 0, "end": 3}, "label": "Introduction"},
-            {"pages": {"start": 3, "end": 10}, "label": "Chapter 1"},
+            {"pages": {"start": 0, "end": 2}, "label": "Introduction"},
+            {"pages": {"start": 3, "end": 9}, "label": "Chapter 1"},
             {"pages": {"start": 10}, "label": "Appendix"},
         ]
 
@@ -468,7 +468,7 @@ class TestBuilderEdgeCases:
         """Test page labels can be chained with other operations."""
         builder = BuildAPIWrapper(None, "test.pdf")
 
-        labels = [{"pages": {"start": 0, "end": 1}, "label": "Cover"}]
+        labels = [{"pages": {"start": 0, "end": 0}, "label": "Cover"}]
 
         result = (
             builder.add_step("rotate-pages", options={"degrees": 90})

@@ -87,15 +87,15 @@ class BuildAPIWrapper:
             labels: List of label configurations. Each dict must contain:
                    - 'pages': Page range dict with 'start' (required) and optionally 'end'
                    - 'label': String label to apply to those pages
-                   Page ranges use 0-based indexing where 'end' is exclusive.
+                   Page ranges use 0-based indexing where 'end' is inclusive.
 
         Returns:
             Self for method chaining.
 
         Example:
             >>> builder.set_page_labels([
-        ...     {"pages": {"start": 0, "end": 3}, "label": "Introduction"},
-        ...     {"pages": {"start": 3, "end": 10}, "label": "Chapter 1"},
+        ...     {"pages": {"start": 0, "end": 2}, "label": "Introduction"},
+        ...     {"pages": {"start": 3, "end": 9}, "label": "Chapter 1"},
         ...     {"pages": {"start": 10}, "label": "Appendix"}
         ... ])
         """
@@ -227,6 +227,25 @@ class BuildAPIWrapper:
                     action["opacity"] = options["opacity"]
                 if "position" in options:
                     action["position"] = options["position"]
+
+            case "createRedactions":
+                # Handle create redactions - pass through directly
+                # The direct.py already formats everything correctly
+                if "strategy" in options:
+                    action["strategy"] = options["strategy"]
+                if "strategy_options" in options:
+                    action["strategyOptions"] = options["strategy_options"]
+                if "content" in options:
+                    action["content"] = options["content"]
+
+            case "optimize":
+                # Handle optimize action with camelCase conversion
+                for key, value in options.items():
+                    # Convert snake_case to camelCase for API
+                    camel_key = "".join(
+                        word.capitalize() if i else word for i, word in enumerate(key.split("_"))
+                    )
+                    action[camel_key] = value
 
             case _:
                 # For other actions, pass options directly

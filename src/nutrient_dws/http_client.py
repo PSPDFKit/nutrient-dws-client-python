@@ -166,6 +166,17 @@ class HTTPClient:
             raise APIError(f"Request failed: {e!s}") from e
 
         logger.debug(f"Response: {response.status_code}")
+
+        # Clean up file handles after request
+        if files:
+            for _, file_data in files.items():
+                if hasattr(file_data, "close"):
+                    file_data.close()
+                elif isinstance(file_data, tuple) and len(file_data) > 1:
+                    file_obj = file_data[1]
+                    if hasattr(file_obj, "close"):
+                        file_obj.close()
+
         return self._handle_response(response)
 
     def close(self) -> None:

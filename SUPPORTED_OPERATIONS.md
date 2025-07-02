@@ -171,8 +171,8 @@ Splits a PDF into multiple documents by page ranges.
 parts = client.split_pdf(
     "document.pdf", 
     page_ranges=[
-        {"start": 0, "end": 5},      # Pages 1-5
-        {"start": 5, "end": 10},     # Pages 6-10
+        {"start": 0, "end": 4},      # Pages 1-5
+        {"start": 5, "end": 9},      # Pages 6-10
         {"start": 10}                # Pages 11 to end
     ]
 )
@@ -180,7 +180,7 @@ parts = client.split_pdf(
 # Save to specific files
 client.split_pdf(
     "document.pdf",
-    page_ranges=[{"start": 0, "end": 2}, {"start": 2}],
+    page_ranges=[{"start": 0, "end": 1}, {"start": 2}],
     output_paths=["part1.pdf", "part2.pdf"]
 )
 
@@ -264,7 +264,7 @@ Sets custom labels/numbering for specific page ranges in a PDF.
 - `labels`: List of label configurations. Each dict must contain:
   - `pages`: Page range dict with `start` (required) and optionally `end`
   - `label`: String label to apply to those pages
-  - Page ranges use 0-based indexing where `end` is exclusive.
+  - Page ranges use 0-based indexing where `end` is inclusive.
 - `output_path`: Optional path to save the output file
 
 **Returns:**
@@ -276,8 +276,8 @@ Sets custom labels/numbering for specific page ranges in a PDF.
 client.set_page_label(
     "document.pdf",
     labels=[
-        {"pages": {"start": 0, "end": 3}, "label": "Introduction"},
-        {"pages": {"start": 3, "end": 10}, "label": "Chapter 1"},
+        {"pages": {"start": 0, "end": 2}, "label": "Introduction"},
+        {"pages": {"start": 3, "end": 9}, "label": "Chapter 1"},
         {"pages": {"start": 10}, "label": "Appendix"}
     ],
     output_path="labeled_document.pdf"
@@ -286,7 +286,7 @@ client.set_page_label(
 # Set label for single page
 client.set_page_label(
     "document.pdf",
-    labels=[{"pages": {"start": 0, "end": 1}, "label": "Cover Page"}]
+    labels=[{"pages": {"start": 0, "end": 0}, "label": "Cover Page"}]
 )
 ```
 
@@ -318,7 +318,7 @@ client.build(input_file="report.docx") \
 client.build(input_file="document.pdf") \
     .add_step("rotate-pages", {"degrees": 90}) \
     .set_page_labels([
-        {"pages": {"start": 0, "end": 3}, "label": "Introduction"},
+        {"pages": {"start": 0, "end": 2}, "label": "Introduction"},
         {"pages": {"start": 3}, "label": "Content"}
     ]) \
     .execute(output_path="labeled_document.pdf")
