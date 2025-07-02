@@ -273,7 +273,9 @@ class TestDirectAPIIntegration:
         # Verify the number of pages in each output PDF
         total_page_count = get_pdf_page_count(sample_multipage_pdf_path)
         assert get_pdf_page_count(result[0]) == 1  # First PDF should have 1 page
-        assert get_pdf_page_count(result[1]) == total_page_count - 1  # Second PDF should have the remaining pages
+        assert (
+            get_pdf_page_count(result[1]) == total_page_count - 1
+        )  # Second PDF should have the remaining pages
 
     def test_split_pdf_with_output_files(self, client, sample_multipage_pdf_path, tmp_path):
         """Test split_pdf method saving to output files."""
@@ -307,7 +309,9 @@ class TestDirectAPIIntegration:
 
         # Verify the number of pages in the second output PDF
         total_page_count = get_pdf_page_count(sample_multipage_pdf_path)
-        assert get_pdf_page_count(str(tmp_path / "remaining.pdf")) == total_page_count - 1 # Second PDF should have remaining pages
+        assert (
+            get_pdf_page_count(str(tmp_path / "remaining.pdf")) == total_page_count - 1
+        )  # Second PDF should have remaining pages
 
     def test_split_pdf_no_ranges_error(self, client, sample_pdf_path):
         """Test split_pdf with no ranges returns first page by default."""
@@ -396,7 +400,9 @@ class TestDirectAPIIntegration:
         assert_is_pdf(result)
 
         # Verify the number of pages in the output PDF
-        assert get_pdf_page_count(result) == 3  # Should have 3 pages (last page, first page, last page)
+        assert (
+            get_pdf_page_count(result) == 3
+        )  # Should have 3 pages (last page, first page, last page)
 
     def test_duplicate_pdf_pages_empty_indexes_error(self, client, sample_pdf_path):
         """Test duplicate_pdf_pages method with empty page_indexes raises error."""
@@ -415,7 +421,9 @@ class TestDirectAPIIntegration:
 
         # Verify the number of pages in the output PDF
         total_page_count = get_pdf_page_count(sample_multipage_pdf_path)
-        assert get_pdf_page_count(result) == total_page_count - 1  # Should have 2 pages (deleted first page from 3-page PDF)
+        assert (
+            get_pdf_page_count(result) == total_page_count - 1
+        )  # Should have 2 pages (deleted first page from 3-page PDF)
 
     def test_delete_pdf_pages_multiple(self, client, sample_multipage_pdf_path):
         """Test delete_pdf_pages method with multiple page deletion."""
@@ -428,7 +436,9 @@ class TestDirectAPIIntegration:
 
         # Verify the number of pages in the output PDF
         total_page_count = get_pdf_page_count(sample_multipage_pdf_path)
-        assert get_pdf_page_count(result) == total_page_count - 2  # Should have 1 page (deleted pages 1 and 3 from 3-page PDF)
+        assert (
+            get_pdf_page_count(result) == total_page_count - 2
+        )  # Should have 1 page (deleted pages 1 and 3 from 3-page PDF)
 
     def test_delete_pdf_pages_with_output_file(self, client, sample_multipage_pdf_path, tmp_path):
         """Test delete_pdf_pages method saving to output file."""
@@ -449,7 +459,9 @@ class TestDirectAPIIntegration:
 
         # Verify the number of pages in the output PDF
         total_page_count = get_pdf_page_count(sample_multipage_pdf_path)
-        assert get_pdf_page_count(output_path) == total_page_count - 1  # Should have 2 pages (deleted page 2 from 3-page PDF)
+        assert (
+            get_pdf_page_count(output_path) == total_page_count - 1
+        )  # Should have 2 pages (deleted page 2 from 3-page PDF)
 
     def test_delete_pdf_pages_negative_indexes_error(self, client, sample_pdf_path):
         """Test delete_pdf_pages method with negative indexes raises error."""
@@ -473,7 +485,9 @@ class TestDirectAPIIntegration:
 
         # Verify the number of pages in the output PDF
         total_page_count = get_pdf_page_count(sample_multipage_pdf_path)
-        assert get_pdf_page_count(result) == total_page_count - 2  # Should have 1 page (deleted pages 1 and 2 from 3-page PDF)
+        assert (
+            get_pdf_page_count(result) == total_page_count - 2
+        )  # Should have 1 page (deleted pages 1 and 2 from 3-page PDF)
 
     # Tests for add_page
     def test_add_page_at_beginning(self, client, sample_pdf_path):

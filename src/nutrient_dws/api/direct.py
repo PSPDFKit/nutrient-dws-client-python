@@ -478,7 +478,8 @@ class DirectAPIMixin:
             grayscale_annotations: Convert annotations to grayscale (default: False).
             disable_images: Remove all images from the PDF (default: False).
             mrc_compression: MCR compression (default: False).
-            image_optimization_quality: Image optimization quality from 1 (least optimized) to 4 (most optimized) (default: 2).
+            image_optimization_quality: Image optimization quality from 1 (least optimized)
+             to 4 (most optimized) (default: 2).
             linearize: Linearize (optimize for web viewing) the PDF (default: False).
 
         Returns:
@@ -487,7 +488,8 @@ class DirectAPIMixin:
         Raises:
             AuthenticationError: If API key is missing or invalid.
             APIError: For other API errors.
-            ValueError: If image_optimization_quality is not between 1-4 or no optimization is enabled
+            ValueError: If image_optimization_quality is not between 1-4
+            or no optimization is enabled
 
         Example:
             # Aggressive optimization for minimum file size
@@ -709,7 +711,11 @@ class DirectAPIMixin:
                 output_paths=["part1.pdf", "part2.pdf"]
             )
         """
-        from nutrient_dws.file_handler import prepare_file_for_upload, save_file_output, get_pdf_page_count
+        from nutrient_dws.file_handler import (
+            get_pdf_page_count,
+            prepare_file_for_upload,
+            save_file_output,
+        )
 
         # Validate inputs
         if not page_ranges:
@@ -731,15 +737,21 @@ class DirectAPIMixin:
 
             # Validate start is within document bounds
             if start < 0 or start >= num_of_pages:
-                raise ValueError(f"Page range {i}: start index {start} is out of bounds (0-{num_of_pages-1})")
+                raise ValueError(
+                    f"Page range {i}: start index {start} is out of bounds (0-{num_of_pages - 1})"
+                )
 
             # If end is specified, validate it's within document bounds
             if "end" in page_range:
                 end = page_range["end"]
                 if end < 0 or end >= num_of_pages:
-                    raise ValueError(f"Page range {i}: end index {end} is out of bounds (0-{num_of_pages-1})")
+                    raise ValueError(
+                        f"Page range {i}: end index {end} is out of bounds (0-{num_of_pages - 1})"
+                    )
                 if end < start:
-                    raise ValueError(f"Page range {i}: end index {end} cannot be less than start index {start}")
+                    raise ValueError(
+                        f"Page range {i}: end index {end} cannot be less than start index {start}"
+                    )
 
         results = []
 
@@ -814,7 +826,11 @@ class DirectAPIMixin:
                 output_path="reordered.pdf"
             )
         """
-        from nutrient_dws.file_handler import prepare_file_for_upload, save_file_output, get_pdf_page_count
+        from nutrient_dws.file_handler import (
+            get_pdf_page_count,
+            prepare_file_for_upload,
+            save_file_output,
+        )
 
         # Validate inputs
         if not page_indexes:
@@ -837,7 +853,9 @@ class DirectAPIMixin:
             else:
                 # Validate positive indexes are within bounds
                 if page_index >= num_of_pages:
-                    raise ValueError(f"Page index {page_index} is out of bounds (0-{num_of_pages-1})")
+                    raise ValueError(
+                        f"Page index {page_index} is out of bounds (0-{num_of_pages - 1})"
+                    )
                 # For positive indexes, create single-page range
                 parts.append({"file": "file", "pages": {"start": page_index, "end": page_index}})
 
@@ -905,7 +923,11 @@ class DirectAPIMixin:
                 output_path="pages_deleted.pdf"
             )
         """
-        from nutrient_dws.file_handler import prepare_file_for_upload, save_file_output, get_pdf_page_count
+        from nutrient_dws.file_handler import (
+            get_pdf_page_count,
+            prepare_file_for_upload,
+            save_file_output,
+        )
 
         # Validate inputs
         if not page_indexes:
@@ -924,7 +946,7 @@ class DirectAPIMixin:
         # Validate page indexes are within bounds
         for idx in page_indexes:
             if idx >= num_of_pages:
-                raise ValueError(f"Page index {idx} is out of bounds (0-{num_of_pages-1})")
+                raise ValueError(f"Page index {idx} is out of bounds (0-{num_of_pages - 1})")
 
         # Prepare file for upload
         file_field, file_data = prepare_file_for_upload(input_file, "file")
@@ -952,7 +974,9 @@ class DirectAPIMixin:
 
         # Add remaining pages after the last deleted page
         num_of_pages = get_pdf_page_count(input_file)
-        if (current_page > 0 or (current_page == 0 and len(sorted_indexes) == 0)) and current_page < num_of_pages:
+        if (
+            current_page > 0 or (current_page == 0 and len(sorted_indexes) == 0)
+        ) and current_page < num_of_pages:
             # Add all remaining pages from current_page onwards
             parts.append({"file": "file", "pages": {"start": current_page}})
 
@@ -1098,7 +1122,11 @@ class DirectAPIMixin:
                 output_path="with_blank_pages.pdf"
             )
         """
-        from nutrient_dws.file_handler import prepare_file_for_upload, save_file_output, get_pdf_page_count
+        from nutrient_dws.file_handler import (
+            get_pdf_page_count,
+            prepare_file_for_upload,
+            save_file_output,
+        )
 
         # Validate inputs
         if page_count < 1:
@@ -1394,7 +1422,11 @@ class DirectAPIMixin:
                 labels=[{"pages": {"start": 0, "end": 0}, "label": "Cover Page"}]
             )
         """
-        from nutrient_dws.file_handler import prepare_file_for_upload, save_file_output, get_pdf_page_count
+        from nutrient_dws.file_handler import (
+            get_pdf_page_count,
+            prepare_file_for_upload,
+            save_file_output,
+        )
 
         # Validate inputs
         if not labels:
@@ -1422,7 +1454,10 @@ class DirectAPIMixin:
             # Validate start is within document bounds
             start = pages["start"]
             if start < 0 or start >= num_of_pages:
-                raise ValueError(f"Label configuration {i}: start index {start} is out of bounds (0-{num_of_pages-1})")
+                raise ValueError(
+                    f"Label configuration {i}: start index {start}"
+                    f" is out of bounds (0-{num_of_pages - 1})"
+                )
 
             # Normalize pages - only include 'end' if explicitly provided
             normalized_pages = {"start": start}
@@ -1430,10 +1465,16 @@ class DirectAPIMixin:
                 end = pages["end"]
                 # Validate end is within document bounds
                 if end < 0 or end >= num_of_pages:
-                    raise ValueError(f"Label configuration {i}: end index {end} is out of bounds (0-{num_of_pages-1})")
+                    raise ValueError(
+                        f"Label configuration {i}: end index {end}"
+                        f" is out of bounds (0-{num_of_pages - 1})"
+                    )
                 # Validate end is not less than start
                 if end < start:
-                    raise ValueError(f"Label configuration {i}: end index {end} cannot be less than start index {start}")
+                    raise ValueError(
+                        f"Label configuration {i}: end index {end}"
+                        f" cannot be less than start index {start}"
+                    )
                 normalized_pages["end"] = end
             # If no end is specified, leave it out (meaning "to end of document")
 

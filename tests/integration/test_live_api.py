@@ -306,7 +306,9 @@ class TestLiveAPI:
         assert_is_pdf(result)
 
         # Verify the number of pages in the output PDF
-        assert get_pdf_page_count(result) == 3  # Should have 3 pages (last page, first page, last page)
+        assert (
+            get_pdf_page_count(result) == 3
+        )  # Should have 3 pages (last page, first page, last page)
 
     def test_duplicate_pdf_pages_empty_indexes_error(self, client, sample_pdf_path):
         """Test duplicate_pdf_pages method with empty page_indexes raises error."""
@@ -326,7 +328,9 @@ class TestLiveAPI:
 
         # Verify the number of pages in the output PDF
         total_pages = get_pdf_page_count(sample_pdf_path)
-        assert get_pdf_page_count(result) == total_pages - 1  # Should have one less page than original
+        assert (
+            get_pdf_page_count(result) == total_pages - 1
+        )  # Should have one less page than original
 
     def test_delete_pdf_pages_multiple(self, client, sample_pdf_path):
         """Test delete_pdf_pages method with multiple page deletion."""

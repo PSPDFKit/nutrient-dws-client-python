@@ -75,7 +75,9 @@ class TestCreateRedactionsIntegration:
         """Test creating redactions with preset and saving to file."""
         output_path = tmp_path / "redacted_preset.pdf"
         result = client.create_redactions_preset(
-            sample_pdf_with_sensitive_data, preset="international-phone-number", output_path=str(output_path)
+            sample_pdf_with_sensitive_data,
+            preset="international-phone-number",
+            output_path=str(output_path),
         )
         assert result is None
         assert output_path.exists()
@@ -94,7 +96,9 @@ class TestCreateRedactionsIntegration:
         """Test creating redactions for exact text matches."""
         # Use a very common letter that should exist
         result = client.create_redactions_text(
-            sample_pdf_with_sensitive_data, text="a", case_sensitive=False,
+            sample_pdf_with_sensitive_data,
+            text="a",
+            case_sensitive=False,
         )
         assert_is_pdf(result)
         assert len(result) > 0
