@@ -5,6 +5,61 @@ All notable changes to the nutrient-dws Python client library will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-01-03
+
+### Added
+
+#### Direct API Methods
+- `create_redactions_preset()` - Create redactions using predefined patterns (SSN, email, phone, etc.)
+- `create_redactions_regex()` - Create redactions using custom regex patterns
+- `create_redactions_text()` - Create redactions for specific text strings
+- `optimize_pdf()` - Optimize PDF file size and performance
+- `password_protect_pdf()` - Add password protection to PDFs
+- `set_pdf_metadata()` - Update PDF metadata (title, author, subject, keywords)
+- `split_pdf()` - Split PDFs into multiple files based on page ranges
+- `duplicate_pdf_pages()` - Duplicate specific pages within a PDF
+- `delete_pdf_pages()` - Remove specific pages from a PDF
+- `add_page()` - Insert blank pages at specific positions
+- `apply_instant_json()` - Apply PSPDFKit Instant JSON annotations
+- `apply_xfdf()` - Apply XFDF annotations to PDFs
+- `set_page_label()` - Set custom page labels (Roman numerals, letters, etc.)
+
+#### Enhancements
+- Image file support for `watermark_pdf()` method - now accepts PNG/JPEG images as watermarks
+- Improved CI/CD integration test strategy with better error reporting
+- Enhanced test coverage for all new Direct API methods
+
+### Fixed
+- Critical API compatibility issues in Direct API integration
+- Python 3.9 and 3.10 syntax compatibility across the codebase
+- Comprehensive CI failure resolution based on multi-model analysis
+- Integration test fixes to match actual API behavior patterns
+- Ruff linting and formatting issues throughout the project
+- MyPy type checking errors and improved type annotations
+- Removed unsupported parameters (stroke_width, base_url) from API calls
+- Corrected API parameter formats for various operations
+- Fixed page range handling in split_pdf with proper defaults
+- Resolved runtime errors with isinstance union syntax
+- Updated test fixtures to use valid PNG images
+
+### Changed
+- Minimum Python version maintained at 3.10+ as per project design
+- Improved error messages for better debugging experience
+- Standardized code formatting with ruff across entire codebase
+
+## [1.0.1] - 2025-06-20
+
+### Fixed
+
+#### Critical Bug Fixes
+- Fix README.md documentation to use `NutrientTimeoutError` instead of `TimeoutError`
+- Resolve inconsistency where code exported `NutrientTimeoutError` but docs referenced `TimeoutError`
+
+#### Testing Improvements
+- Added comprehensive unit tests (31 tests total)
+- Added integration test framework for CI
+- Improved test stability and coverage
+
 ## [1.0.0] - 2024-06-17
 
 ### Added
@@ -76,4 +131,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for environment variable configuration
 - Secure handling of authentication tokens
 
-[1.0.0]: https://github.com/jdrhyne/nutrient-dws-client-python/releases/tag/v1.0.0
+[1.0.2]: https://github.com/PSPDFKit/nutrient-dws-client-python/releases/tag/v1.0.2
+[1.0.1]: https://github.com/PSPDFKit/nutrient-dws-client-python/releases/tag/v1.0.1
+[1.0.0]: https://github.com/PSPDFKit/nutrient-dws-client-python/releases/tag/v1.0.0
