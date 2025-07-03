@@ -14,7 +14,7 @@ version = "1.0.2"
 description = "Python client library for Nutrient Document Web Services API"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Nutrient", email = "support@nutrient.io"},
 ]
