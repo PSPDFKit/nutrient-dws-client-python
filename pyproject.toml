@@ -8,6 +8,15 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+nutrient_dws = [
+    "*.pyi",
+    "py.typed",
+    "../../WORKFLOW.md",
+    "../../METHODS.md",
+    "../../LLM_DOC.md",
+]
+
 [project]
 name = "nutrient-dws"
 version = "1.0.2"
@@ -32,7 +41,8 @@ classifiers = [
     "Topic :: Multimedia :: Graphics :: Graphics Conversion",
 ]
 dependencies = [
-    "requests>=2.25.0,<3.0.0",
+    "httpx>=0.24.0,<1.0.0",
+    "aiofiles>=23.0.0,<25.0.0",
 ]
 
 [project.optional-dependencies]
@@ -42,23 +52,23 @@ dev = [
     "mypy>=1.0.0",
     "ruff>=0.1.0",
     "types-requests>=2.25.0",
-    "build>=1.0.0",
-    "twine>=4.0.0",
-]
-docs = [
-    "sphinx>=5.0.0",
-    "sphinx-rtd-theme>=1.2.0",
-    "sphinx-autodoc-typehints>=1.22.0",
+    "build>=1.2.2.post1,<2",
+    "twine>=6.1.0,<7",
+    "datamodel-code-generator>=0.32.0"
 ]
 
 [project.urls]
 Homepage = "https://github.com/PSPDFKit/nutrient-dws-client-python"
-Documentation = "https://nutrient-dws-client-python.readthedocs.io"
+Documentation = "https://github.com/PSPDFKit/nutrient-dws-client-python/blob/main/README.md"
 Repository = "https://github.com/PSPDFKit/nutrient-dws-client-python"
 "Bug Tracker" = "https://github.com/PSPDFKit/nutrient-dws-client-python/issues"
 
-[tool.setuptools.package-data]
-nutrient_dws = ["py.typed"]
+[project.scripts]
+dws-add-claude-code-rule = "scripts.add_claude_code_rule:main"
+dws-add-cursor-rule = "scripts.add_cursor_rule:main"
+dws-add-github-copilot-rule = "scripts.add_github_copilot_rule:main"
+dws-add-junie-rule = "scripts.add_junie_rule:main"
+dws-add-windsurf-rule = "scripts.add_windsurf_rule:main"
 
 [tool.ruff]
 target-version = "py310"

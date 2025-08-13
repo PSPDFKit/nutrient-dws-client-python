@@ -1,0 +1,5242 @@
+openapi: 3.1.0
+info:
+  version: '1.10.0'
+  title: Nutrient DWS API reference
+  description: |
+    Nutrient Document Web Services API is an HTTP API that provides you with a simple document-in, document-out-based
+    workflow that scales as you grow. Generate PDFs, convert documents to PDF, modify existing PDFs, and more.
+
+    # Authorization
+
+    Nutrient DWS API uses an HTTP authorization header to map each request made to the
+    API to the user making the request. You're required to provide your API token in
+    the authorization header with each request you make. Otherwise, the API will return an error.
+
+    The authorization header has the following shape:
+
+    ```
+    Authorization: Bearer <your_api_key_here>
+    ```
+
+    `<your_api_key_here>` is an API key that can be retrieved
+    by logging in to the [dashboard](https://dashboard.nutrient.io/api/api_keys/).
+
+    Because this API allows full access to credits you purchased for Nutrient DWS API, it's
+    only meant to be used by your backend services, which we assume are fully trusted.
+
+    ## JWT-based authorization
+
+    Apart from the API token, you can also use JWTs to authorize requests to DWS API. This is useful when you want finer control over authorization or if you want to interact with DWS API from a client-side application.
+
+    JWT authorization is a method of controlling access to resources through the use of JSON Web Tokens (JWTs). A [JWT](https://datatracker.ietf.org/doc/html/rfc7519) “is a compact, URL-safe means of representing claims to be transferred between two parties.”
+
+    It’s possible to generate a JWT using your API key via `POST tokens`[endpoint](https://www.nutrient.io/api/reference/public/#tag/JWT/operation/generate-token).
+
+    The JWT has a benefit of being able to customize the operations and origins the token can access. The token can be time-limited for the security of your application. It can also be revoked at any time, contrary to the API key, which can only be regenerated.
+
+    For example, you can generate a token that can only access the `pdfa_api` operation and can only be used from the `www.origin1` origin. In this way, the token may be shared with a third-party service that will only be able to access the `pdfa_api` operation from the `www.origin1` origin, without having access to other operations or origins.
+
+    Note that if the JWT has origin restrictions, the request must include the `Origin` header with the origin the token was generated for. If the `Origin` header isn’t provided, the request will be rejected. If origin restrictions aren’t set, the `Origin` header isn’t required.
+
+    It’s also possible to revoke a token using the `DELETE /tokens` [endpoint](https://www.nutrient.io/api/reference/public/#tag/JWT/operation/revoke-token).
+  contact:
+    name: Nutrient DWS API
+    url: https://www.nutrient.io/api/
+  license:
+    name: End User License Agreement
+    url: https://www.nutrient.io/api/terms/
+servers:
+  - url: https://api.nutrient.io
+    description: Base URL for Nutrient DWS API endpoints.
+security:
+  - BearerAuth: []
+tags:
+  - name: Document editing
+    description: Process documents.
+  - name: Instant JSON
+    description: |
+      Instant JSON is a format we created for bringing annotations, forms and bookmarks into a modern format while keeping all important properties to make the Instant JSON spec work with PDF. The format is fully documented and can be easily converted to XFDF to make it interoperable.
+
+      Please refer to [Instant JSON Reference](https://www.nutrient.io/api/reference/document-engine/instant-json/) for full reference documentation of the format.
+  - name: Build API
+    description: |
+      Build API allows you to assemble a PDF from multiple parts, such as an existing PDF, a blank page, or an HTML page. You can apply one or more actions, such as watermarking, rotating pages, or importing annotations. Once the entire PDF is generated from its parts, you can also apply additional actions, such as optical character recognition (OCR), to the assembled PDF itself.
+
+      The Build API can be interacted with two distinct ways:
+
+      * The basic use case for the Build API is to upload all inputs together in the build instructions with the `multipart/form-data` request, where each input is provided as a separate part along with a special `instructions` part with the processing instructions.
+      * The Build API supports inputs provided from remote URLs. If all inputs are provided as remote URLs, the multipart request isn’t necessary and can be simplified to a non-multipart request with the `application/json` body with the processing instructions.
+
+      ## Instructions Schema
+
+      When making requests to the API, the instructions object needs to follow the following schema:
+
+      <SchemaDefinition schemaRef="#/components/schemas/BuildInstructions" />
+externalDocs:
+  description: Nutrient DWS API guides
+  url: https://www.nutrient.io/api/documentation/
+paths:
+  /build:
+    post:
+      operationId: build-document
+      summary: Process documents and download the result
+      description: |
+        This endpoint lets you use [Build instructions](#tag/Build-API) to process a document. This allows you to
+        assemble a PDF from multiple parts, such as an existing document in a supported content type, a blank page,
+        or an HTML page. You can apply one or more actions, such as watermarking, rotating pages, or importing
+        annotations. Once the entire PDF is generated from its parts, you can also apply additional actions,
+        such as optical character recognition (OCR), to the assembled PDF itself.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildInstructions'
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                instructions:
+                  $ref: '#/components/schemas/BuildInstructions'
+            encoding:
+              instructions:
+                contentType: application/json
+      responses:
+        '200':
+          $ref: '#/components/responses/BuildResponseOk'
+        '400':
+          description: |
+            The request is malformed. Some invalid data was supplied, or a precondition wasn't met.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostedErrorResponse'
+        '401':
+          description: |
+            You are unauthorized. Sent when no API token is specified, or when the API token you specified isn't valid.
+        '402':
+          description: |
+            You have exceeded the total number of documents processed in your subscription.
+        '408':
+          description: |
+            The request timed out.
+        '413':
+          description: |
+            The request exceeds the maximum input size, meaning either a single part, or the sum of all parts, is large.
+        '422':
+          description: |
+            The request exceeds the maximum output file size.
+        '500':
+          description: |
+            An internal server error occurred. Please contact support.
+      tags:
+        - Document Editing
+      x-codeSamples:
+        - label: cURL
+          lang: curl
+          source: |
+            curl --request POST \
+              --url https://api.nutrient.io/build \
+              --header 'Authorization: Bearer <your_api_key_here>' \
+              --header 'content-type: application/json' \
+              --header 'pspdfkit-pdf-password: password' \
+              --data '{
+              "instructions": {
+                "parts": [{ "file": {"url": "https://remote-file-storage/input.pdf"}}],
+                "actions": [{ "type": "applyInstantJson", "file": {"url": "https://remote-file-storage/instant.json" }}],
+                "output": {
+                  "metadata": {
+                    "title": "Nutrient Document Engine API Specification",
+                    "author": "Document Author"
+                  },
+                  "labels": [{ "pages": [0], "label": "Page I-III" }],
+                  "user_password": "string",
+                  "owner_password": "string",
+                  "user_permissions": ["printing"],
+                  "type": "pdf"
+                }
+              },
+              "document_id": "7KPSE41NWKDGK5T9CFS3S53JTP",
+              "title": "string",
+              "overwrite_existing_document": false
+            }'
+        - lang: JavaScript
+          label: Node.js
+          source: |-
+            const http = require("https");
+
+            const options = {
+              "method": "POST",
+              "hostname": "api.nutrient.io",
+              "port": null,
+              "path": "/build",
+              "headers": {
+                "Authorization": "Bearer REPLACE_BEARER_TOKEN",
+                "content-type": "application/json"
+              }
+            };
+
+            const req = http.request(options, function (res) {
+              const chunks = [];
+
+              res.on("data", function (chunk) {
+                chunks.push(chunk);
+              });
+
+              res.on("end", function () {
+                const body = Buffer.concat(chunks);
+                console.log(body.toString());
+              });
+            });
+
+            req.write(JSON.stringify({
+              parts: [{file: 'pdf-file-from-multipart'}],
+              actions: [
+                {
+                  type: 'applyInstantJson',
+                  file: {url: 'https://remote-file-storage/input-file', sha256: 'string'}
+                }
+              ],
+              output: {
+                metadata: {title: 'Nutrient Document Engine API Specification', author: 'Document Author'},
+                labels: [{pages: [[0]], label: 'Page I-III'}],
+                user_password: 'string',
+                owner_password: 'string',
+                user_permissions: ['printing'],
+                optimize: {
+                  grayscaleText: false,
+                  grayscaleGraphics: false,
+                  grayscaleImages: false,
+                  grayscaleFormFields: false,
+                  grayscaleAnnotations: false,
+                  disableImages: false,
+                  mrcCompression: false,
+                  imageOptimizationQuality: 2,
+                  linearize: false
+                },
+                type: 'pdf'
+              }
+            }));
+            req.end();
+        - lang: Java
+          label: Java
+          source: |-
+            OkHttpClient client = new OkHttpClient();
+
+            MediaType mediaType = MediaType.parse("application/json");
+            RequestBody body = RequestBody.create(mediaType, "{\"parts\":[{\"file\":\"pdf-file-from-multipart\"}],\"actions\":[{\"type\":\"applyInstantJson\",\"file\":{\"url\":\"https://remote-file-storage/input-file\",\"sha256\":\"string\"}}],\"output\":{\"metadata\":{\"title\":\"Nutrient Document Engine API Specification\",\"author\":\"Document Author\"},\"labels\":[{\"pages\":[[0]],\"label\":\"Page I-III\"}],\"user_password\":\"string\",\"owner_password\":\"string\",\"user_permissions\":[\"printing\"],\"optimize\":{\"grayscaleText\":false,\"grayscaleGraphics\":false,\"grayscaleImages\":false,\"grayscaleFormFields\":false,\"grayscaleAnnotations\":false,\"disableImages\":false,\"mrcCompression\":false,\"imageOptimizationQuality\":2,\"linearize\":false},\"type\":\"pdf\"}}");
+            Request request = new Request.Builder()
+              .url("https://api.nutrient.io/build")
+              .post(body)
+              .addHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN")
+              .addHeader("content-type", "application/json")
+              .build();
+
+            Response response = client.newCall(request).execute();
+        - lang: C#
+          label: C#
+          source: |-
+            var client = new RestClient("https://api.nutrient.io/build");
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN");
+            request.AddHeader("content-type", "application/json");
+            request.AddParameter("application/json", "{\"parts\":[{\"file\":\"pdf-file-from-multipart\"}],\"actions\":[{\"type\":\"applyInstantJson\",\"file\":{\"url\":\"https://remote-file-storage/input-file\",\"sha256\":\"string\"}}],\"output\":{\"metadata\":{\"title\":\"Nutrient Document Engine API Specification\",\"author\":\"Document Author\"},\"labels\":[{\"pages\":[[0]],\"label\":\"Page I-III\"}],\"user_password\":\"string\",\"owner_password\":\"string\",\"user_permissions\":[\"printing\"],\"optimize\":{\"grayscaleText\":false,\"grayscaleGraphics\":false,\"grayscaleImages\":false,\"grayscaleFormFields\":false,\"grayscaleAnnotations\":false,\"disableImages\":false,\"mrcCompression\":false,\"imageOptimizationQuality\":2,\"linearize\":false},\"type\":\"pdf\"}}", ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+        - lang: Python
+          label: Python
+          source: |-
+            import http.client
+
+            conn = http.client.HTTPSConnection("api.nutrient.io")
+
+            payload = "{\"parts\":[{\"file\":\"pdf-file-from-multipart\"}],\"actions\":[{\"type\":\"applyInstantJson\",\"file\":{\"url\":\"https://remote-file-storage/input-file\",\"sha256\":\"string\"}}],\"output\":{\"metadata\":{\"title\":\"Nutrient Document Engine API Specification\",\"author\":\"Document Author\"},\"labels\":[{\"pages\":[[0]],\"label\":\"Page I-III\"}],\"user_password\":\"string\",\"owner_password\":\"string\",\"user_permissions\":[\"printing\"],\"optimize\":{\"grayscaleText\":false,\"grayscaleGraphics\":false,\"grayscaleImages\":false,\"grayscaleFormFields\":false,\"grayscaleAnnotations\":false,\"disableImages\":false,\"mrcCompression\":false,\"imageOptimizationQuality\":2,\"linearize\":false},\"type\":\"pdf\"}}"
+
+            headers = {
+                'Authorization': "Bearer REPLACE_BEARER_TOKEN",
+                'content-type': "application/json"
+                }
+
+            conn.request("POST", "/build", payload, headers)
+
+            res = conn.getresponse()
+            data = res.read()
+
+            print(data.decode("utf-8"))
+  /analyze_build:
+    post:
+      summary: Analyze a build request
+      description: |
+        Performs analysis of the Build API request without actually executing it.
+
+        Use this endpoint to calculate how many credits a Build API request would consume. The request is free of charge.
+
+        Note: Make sure to provide the correct `content_type` parameter for each of your file parts to get accurate results.
+        Otherwise, the endpoint might not correctly identify conversion features such as Office or image conversion.
+      operationId: analyze_build
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildInstructions'
+      responses:
+        '200':
+          description: The analysis result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeBuildResponse'
+        '400':
+          description: |
+            The request is malformed. Some invalid data was supplied, or a precondition wasn't met.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostedErrorResponse'
+        '401':
+          description: |
+            You are unauthorized. Sent when no API token is specified, or when the API token you specified isn't valid.
+        '408':
+          description: |
+            The request timed out.
+        '500':
+          description: |
+            An internal server error occurred. Please contact support.
+      tags:
+        - Document Editing
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |-
+            curl --request POST \
+              --url https://api.nutrient.io/analyze_build \
+              --header 'Authorization: Bearer REPLACE_BEARER_TOKEN' \
+              --header 'content-type: application/json' \
+              --data '{"parts":[{"file":"pdf-file-from-multipart"}],"actions":[{"type":"applyInstantJson","file":{"url":"https://remote-file-storage/input-file","sha256":"string"}}],"output":{"metadata":{"title":"Nutrient Document Engine API Specification","author":"Document Author"},"labels":[{"pages":[[0]],"label":"Page I-III"}],"user_password":"string","owner_password":"string","user_permissions":["printing"],"optimize":{"grayscaleText":false,"grayscaleGraphics":false,"grayscaleImages":false,"grayscaleFormFields":false,"grayscaleAnnotations":false,"disableImages":false,"mrcCompression":false,"imageOptimizationQuality":2,"linearize":false},"type":"pdf"}}'
+        - lang: JavaScript
+          label: Node.js
+          source: |-
+            const http = require("https");
+
+            const options = {
+              "method": "POST",
+              "hostname": "api.nutrient.io",
+              "port": null,
+              "path": "/analyze_build",
+              "headers": {
+                "Authorization": "Bearer REPLACE_BEARER_TOKEN",
+                "content-type": "application/json"
+              }
+            };
+
+            const req = http.request(options, function (res) {
+              const chunks = [];
+
+              res.on("data", function (chunk) {
+                chunks.push(chunk);
+              });
+
+              res.on("end", function () {
+                const body = Buffer.concat(chunks);
+                console.log(body.toString());
+              });
+            });
+
+            req.write(JSON.stringify({
+              parts: [{file: 'pdf-file-from-multipart'}],
+              actions: [
+                {
+                  type: 'applyInstantJson',
+                  file: {url: 'https://remote-file-storage/input-file', sha256: 'string'}
+                }
+              ],
+              output: {
+                metadata: {title: 'Nutrient Document Engine API Specification', author: 'Document Author'},
+                labels: [{pages: [[0]], label: 'Page I-III'}],
+                user_password: 'string',
+                owner_password: 'string',
+                user_permissions: ['printing'],
+                optimize: {
+                  grayscaleText: false,
+                  grayscaleGraphics: false,
+                  grayscaleImages: false,
+                  grayscaleFormFields: false,
+                  grayscaleAnnotations: false,
+                  disableImages: false,
+                  mrcCompression: false,
+                  imageOptimizationQuality: 2,
+                  linearize: false
+                },
+                type: 'pdf'
+              }
+            }));
+            req.end();
+        - lang: Java
+          label: Java
+          source: |-
+            OkHttpClient client = new OkHttpClient();
+
+            MediaType mediaType = MediaType.parse("application/json");
+            RequestBody body = RequestBody.create(mediaType, "{\"parts\":[{\"file\":\"pdf-file-from-multipart\"}],\"actions\":[{\"type\":\"applyInstantJson\",\"file\":{\"url\":\"https://remote-file-storage/input-file\",\"sha256\":\"string\"}}],\"output\":{\"metadata\":{\"title\":\"Nutrient Document Engine API Specification\",\"author\":\"Document Author\"},\"labels\":[{\"pages\":[[0]],\"label\":\"Page I-III\"}],\"user_password\":\"string\",\"owner_password\":\"string\",\"user_permissions\":[\"printing\"],\"optimize\":{\"grayscaleText\":false,\"grayscaleGraphics\":false,\"grayscaleImages\":false,\"grayscaleFormFields\":false,\"grayscaleAnnotations\":false,\"disableImages\":false,\"mrcCompression\":false,\"imageOptimizationQuality\":2,\"linearize\":false},\"type\":\"pdf\"}}");
+            Request request = new Request.Builder()
+              .url("https://api.nutrient.io/analyze_build")
+              .post(body)
+              .addHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN")
+              .addHeader("content-type", "application/json")
+              .build();
+
+            Response response = client.newCall(request).execute();
+        - lang: C#
+          label: C#
+          source: |-
+            var client = new RestClient("https://api.nutrient.io/analyze_build");
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN");
+            request.AddHeader("content-type", "application/json");
+            request.AddParameter("application/json", "{\"parts\":[{\"file\":\"pdf-file-from-multipart\"}],\"actions\":[{\"type\":\"applyInstantJson\",\"file\":{\"url\":\"https://remote-file-storage/input-file\",\"sha256\":\"string\"}}],\"output\":{\"metadata\":{\"title\":\"Nutrient Document Engine API Specification\",\"author\":\"Document Author\"},\"labels\":[{\"pages\":[[0]],\"label\":\"Page I-III\"}],\"user_password\":\"string\",\"owner_password\":\"string\",\"user_permissions\":[\"printing\"],\"optimize\":{\"grayscaleText\":false,\"grayscaleGraphics\":false,\"grayscaleImages\":false,\"grayscaleFormFields\":false,\"grayscaleAnnotations\":false,\"disableImages\":false,\"mrcCompression\":false,\"imageOptimizationQuality\":2,\"linearize\":false},\"type\":\"pdf\"}}", ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+        - lang: Python
+          label: Python
+          source: |-
+            import http.client
+
+            conn = http.client.HTTPSConnection("api.nutrient.io")
+
+            payload = "{\"parts\":[{\"file\":\"pdf-file-from-multipart\"}],\"actions\":[{\"type\":\"applyInstantJson\",\"file\":{\"url\":\"https://remote-file-storage/input-file\",\"sha256\":\"string\"}}],\"output\":{\"metadata\":{\"title\":\"Nutrient Document Engine API Specification\",\"author\":\"Document Author\"},\"labels\":[{\"pages\":[[0]],\"label\":\"Page I-III\"}],\"user_password\":\"string\",\"owner_password\":\"string\",\"user_permissions\":[\"printing\"],\"optimize\":{\"grayscaleText\":false,\"grayscaleGraphics\":false,\"grayscaleImages\":false,\"grayscaleFormFields\":false,\"grayscaleAnnotations\":false,\"disableImages\":false,\"mrcCompression\":false,\"imageOptimizationQuality\":2,\"linearize\":false},\"type\":\"pdf\"}}"
+
+            headers = {
+                'Authorization': "Bearer REPLACE_BEARER_TOKEN",
+                'content-type': "application/json"
+                }
+
+            conn.request("POST", "/analyze_build", payload, headers)
+
+            res = conn.getresponse()
+            data = res.read()
+
+            print(data.decode("utf-8"))
+  /sign:
+    post:
+      summary: Digitally sign a PDF file
+      description: |
+        Use this endpoint to digitally sign a PDF file.
+      operationId: sign-file
+      parameters:
+        - $ref: '#/components/parameters/Password'
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The binary content of a PDF file to be signed.
+                  example: <PDF data>
+                data:
+                  $ref: '#/components/schemas/CreateDigitalSignature'
+                  description: |
+                    Optional signing parameters. If omitted, defaults will be used:
+                    - `signatureType`: `cms`
+                    - `flatten`: `false`
+                    - An invisible signature will be created
+                image:
+                  type: string
+                  format: binary
+                  description: The watermark image to be used as part of the signature's appearance. Optional.
+                  example: <Image data>
+                graphicImage:
+                  type: string
+                  format: binary
+                  description: The graphic image to be used as part of the signature's appearance. Optional.
+                  example: <Image data>
+            encoding:
+              file:
+                contentType: application/pdf
+              image:
+                contentType: application/pdf, image/jpg, image/png, image/tiff
+              graphicImage:
+                contentType: application/pdf, image/jpg, image/png, image/tiff
+              data:
+                contentType: application/json
+      responses:
+        '200':
+          description: The signed document.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                description: The signed PDF file.
+                format: binary
+                example: <PDF file>
+          headers:
+            x-pspdfkit-request-cost:
+              $ref: '#/components/headers/x-pspdfkit-request-cost'
+            x-pspdfkit-remaining-credits:
+              $ref: '#/components/headers/x-pspdfkit-remaining-credits'
+        '400':
+          description: |
+            The request is malformed. Some invalid data was supplied, or a precondition wasn't met.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostedErrorResponse'
+        '401':
+          description: |
+            You are unauthorized. Sent when no API token is specified, or when the API token you specified isn't valid.
+        '402':
+          description: |
+            You have exceeded the total number of documents processed in your subscription.
+        '408':
+          description: |
+            The request timed out.
+        '413':
+          description: |
+            The request exceeds the maximum input size, meaning either a single part, or the sum of all parts, is large.
+        '422':
+          description: |
+            The request exceeds the maximum output file size.
+        '500':
+          description: |
+            An internal server error occurred. Please contact support.
+      tags:
+        - Digital Signatures
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |-
+            curl --request POST \
+              --url https://api.nutrient.io/sign \
+              --header 'Authorization: Bearer REPLACE_BEARER_TOKEN' \
+              --header 'content-type: multipart/form-data' \
+              --header 'pspdfkit-pdf-password: password' \
+              --form 'file=<PDF data>' \
+              --form 'data={"signatureType":"cades","flatten":false,"appearance":{"mode":"signatureOnly","contentType":"image/png","showWatermark":true,"showSignDate":true},"position":{"pageIndex":0},"cadesLevel":"b-lt"}' \
+              --form 'image=<Image data>' \
+              --form 'graphicImage=<Image data>'
+        - lang: JavaScript
+          label: Node.js
+          source: |-
+            const http = require("https");
+
+            const options = {
+              "method": "POST",
+              "hostname": "api.nutrient.io",
+              "port": null,
+              "path": "/sign",
+              "headers": {
+                "pspdfkit-pdf-password": "password",
+                "Authorization": "Bearer REPLACE_BEARER_TOKEN",
+                "content-type": "multipart/form-data"
+              }
+            };
+
+            const req = http.request(options, function (res) {
+              const chunks = [];
+
+              res.on("data", function (chunk) {
+                chunks.push(chunk);
+              });
+
+              res.on("end", function () {
+                const body = Buffer.concat(chunks);
+                console.log(body.toString());
+              });
+            });
+
+            req.write("-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n<PDF data>\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"data\"\r\n\r\n{\"signatureType\":\"cades\",\"flatten\":false,\"appearance\":{\"mode\":\"signatureOnly\",\"contentType\":\"image/png\",\"showWatermark\":true,\"showSignDate\":true},\"position\":{\"pageIndex\":0},\"cadesLevel\":\"b-lt\"}\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"image\"\r\n\r\n<Image data>\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"graphicImage\"\r\n\r\n<Image data>\r\n-----011000010111000001101001--\r\n");
+            req.end();
+        - lang: Java
+          label: Java
+          source: |-
+            OkHttpClient client = new OkHttpClient();
+
+            MediaType mediaType = MediaType.parse("multipart/form-data; boundary=---011000010111000001101001");
+            RequestBody body = RequestBody.create(mediaType, "-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n<PDF data>\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"data\"\r\n\r\n{\"signatureType\":\"cades\",\"flatten\":false,\"appearance\":{\"mode\":\"signatureOnly\",\"contentType\":\"image/png\",\"showWatermark\":true,\"showSignDate\":true},\"position\":{\"pageIndex\":0},\"cadesLevel\":\"b-lt\"}\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"image\"\r\n\r\n<Image data>\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"graphicImage\"\r\n\r\n<Image data>\r\n-----011000010111000001101001--\r\n");
+            Request request = new Request.Builder()
+              .url("https://api.nutrient.io/sign")
+              .post(body)
+              .addHeader("pspdfkit-pdf-password", "password")
+              .addHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN")
+              .addHeader("content-type", "multipart/form-data")
+              .build();
+
+            Response response = client.newCall(request).execute();
+        - lang: C#
+          label: C#
+          source: |-
+            var client = new RestClient("https://api.nutrient.io/sign");
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("pspdfkit-pdf-password", "password");
+            request.AddHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN");
+            request.AddHeader("content-type", "multipart/form-data");
+            request.AddParameter("multipart/form-data", "-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n<PDF data>\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"data\"\r\n\r\n{\"signatureType\":\"cades\",\"flatten\":false,\"appearance\":{\"mode\":\"signatureOnly\",\"contentType\":\"image/png\",\"showWatermark\":true,\"showSignDate\":true},\"position\":{\"pageIndex\":0},\"cadesLevel\":\"b-lt\"}\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"image\"\r\n\r\n<Image data>\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"graphicImage\"\r\n\r\n<Image data>\r\n-----011000010111000001101001--\r\n", ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+        - lang: Python
+          label: Python
+          source: |-
+            import http.client
+
+            conn = http.client.HTTPSConnection("api.nutrient.io")
+
+            payload = "-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n<PDF data>\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"data\"\r\n\r\n{\"signatureType\":\"cades\",\"flatten\":false,\"appearance\":{\"mode\":\"signatureOnly\",\"contentType\":\"image/png\",\"showWatermark\":true,\"showSignDate\":true},\"position\":{\"pageIndex\":0},\"cadesLevel\":\"b-lt\"}\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"image\"\r\n\r\n<Image data>\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"graphicImage\"\r\n\r\n<Image data>\r\n-----011000010111000001101001--\r\n"
+
+            headers = {
+                'pspdfkit-pdf-password': "password",
+                'Authorization': "Bearer REPLACE_BEARER_TOKEN",
+                'content-type': "multipart/form-data"
+                }
+
+            conn.request("POST", "/sign", payload, headers)
+
+            res = conn.getresponse()
+            data = res.read()
+
+            print(data.decode("utf-8"))
+  /tokens:
+    post:
+      operationId: generate-token
+      summary: Generate a new API token
+      description: |
+        Use this endpoint to generate a new API token. All request body parameters are optional.
+      tags:
+        - JWT
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAuthTokenParameters'
+      responses:
+        '201':
+          description: The generated API token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateAuthTokenResponse'
+        '400':
+          description: |
+            The request is malformed. Some invalid data was supplied, or a precondition wasn't met.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 400
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        allowedOperations:
+                          type: string
+                          example: Description of error
+                        allowedOrigins:
+                          type: string
+                          example: Description of error
+                        expirationTime:
+                          type: string
+                          example: Description of error
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |-
+            curl --request POST \
+              --url https://api.nutrient.io/tokens \
+              --header 'Authorization: Bearer REPLACE_BEARER_TOKEN' \
+              --header 'content-type: application/json' \
+              --data '{"allowedOperations":["digital_signatures_api"],"allowedOrigins":["example.com"],"expirationTime":3600}'
+        - lang: JavaScript
+          label: Node.js
+          source: |-
+            const http = require("https");
+
+            const options = {
+              "method": "POST",
+              "hostname": "api.nutrient.io",
+              "port": null,
+              "path": "/tokens",
+              "headers": {
+                "Authorization": "Bearer REPLACE_BEARER_TOKEN",
+                "content-type": "application/json"
+              }
+            };
+
+            const req = http.request(options, function (res) {
+              const chunks = [];
+
+              res.on("data", function (chunk) {
+                chunks.push(chunk);
+              });
+
+              res.on("end", function () {
+                const body = Buffer.concat(chunks);
+                console.log(body.toString());
+              });
+            });
+
+            req.write(JSON.stringify({
+              allowedOperations: ['digital_signatures_api'],
+              allowedOrigins: ['example.com'],
+              expirationTime: 3600
+            }));
+            req.end();
+        - lang: Java
+          label: Java
+          source: |-
+            OkHttpClient client = new OkHttpClient();
+
+            MediaType mediaType = MediaType.parse("application/json");
+            RequestBody body = RequestBody.create(mediaType, "{\"allowedOperations\":[\"digital_signatures_api\"],\"allowedOrigins\":[\"example.com\"],\"expirationTime\":3600}");
+            Request request = new Request.Builder()
+              .url("https://api.nutrient.io/tokens")
+              .post(body)
+              .addHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN")
+              .addHeader("content-type", "application/json")
+              .build();
+
+            Response response = client.newCall(request).execute();
+        - lang: C#
+          label: C#
+          source: |-
+            var client = new RestClient("https://api.nutrient.io/tokens");
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN");
+            request.AddHeader("content-type", "application/json");
+            request.AddParameter("application/json", "{\"allowedOperations\":[\"digital_signatures_api\"],\"allowedOrigins\":[\"example.com\"],\"expirationTime\":3600}", ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+        - lang: Python
+          label: Python
+          source: |-
+            import http.client
+
+            conn = http.client.HTTPSConnection("api.nutrient.io")
+
+            payload = "{\"allowedOperations\":[\"digital_signatures_api\"],\"allowedOrigins\":[\"example.com\"],\"expirationTime\":3600}"
+
+            headers = {
+                'Authorization': "Bearer REPLACE_BEARER_TOKEN",
+                'content-type': "application/json"
+                }
+
+            conn.request("POST", "/tokens", payload, headers)
+
+            res = conn.getresponse()
+            data = res.read()
+
+            print(data.decode("utf-8"))
+    delete:
+      operationId: revoke-token
+      summary: Revoke an API token
+      description: |
+        Use this endpoint to revoke an API token.
+      tags:
+        - JWT
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: The ID of the token to revoke.
+                  example: FCKGW-RHQQ2-YXRKT-8TG6W-2B7Q8
+      responses:
+        '204':
+          description: The token was successfully revoked.
+        '404':
+          description: The token was not found.
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |-
+            curl --request DELETE \
+              --url https://api.nutrient.io/tokens \
+              --header 'Authorization: Bearer REPLACE_BEARER_TOKEN' \
+              --header 'content-type: application/json' \
+              --data '{"id":"FCKGW-RHQQ2-YXRKT-8TG6W-2B7Q8"}'
+        - lang: JavaScript
+          label: Node.js
+          source: |-
+            const http = require("https");
+
+            const options = {
+              "method": "DELETE",
+              "hostname": "api.nutrient.io",
+              "port": null,
+              "path": "/tokens",
+              "headers": {
+                "Authorization": "Bearer REPLACE_BEARER_TOKEN",
+                "content-type": "application/json"
+              }
+            };
+
+            const req = http.request(options, function (res) {
+              const chunks = [];
+
+              res.on("data", function (chunk) {
+                chunks.push(chunk);
+              });
+
+              res.on("end", function () {
+                const body = Buffer.concat(chunks);
+                console.log(body.toString());
+              });
+            });
+
+            req.write(JSON.stringify({id: 'FCKGW-RHQQ2-YXRKT-8TG6W-2B7Q8'}));
+            req.end();
+        - lang: Java
+          label: Java
+          source: |-
+            OkHttpClient client = new OkHttpClient();
+
+            MediaType mediaType = MediaType.parse("application/json");
+            RequestBody body = RequestBody.create(mediaType, "{\"id\":\"FCKGW-RHQQ2-YXRKT-8TG6W-2B7Q8\"}");
+            Request request = new Request.Builder()
+              .url("https://api.nutrient.io/tokens")
+              .delete(body)
+              .addHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN")
+              .addHeader("content-type", "application/json")
+              .build();
+
+            Response response = client.newCall(request).execute();
+        - lang: C#
+          label: C#
+          source: |-
+            var client = new RestClient("https://api.nutrient.io/tokens");
+            var request = new RestRequest(Method.DELETE);
+            request.AddHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN");
+            request.AddHeader("content-type", "application/json");
+            request.AddParameter("application/json", "{\"id\":\"FCKGW-RHQQ2-YXRKT-8TG6W-2B7Q8\"}", ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+        - lang: Python
+          label: Python
+          source: |-
+            import http.client
+
+            conn = http.client.HTTPSConnection("api.nutrient.io")
+
+            payload = "{\"id\":\"FCKGW-RHQQ2-YXRKT-8TG6W-2B7Q8\"}"
+
+            headers = {
+                'Authorization': "Bearer REPLACE_BEARER_TOKEN",
+                'content-type': "application/json"
+                }
+
+            conn.request("DELETE", "/tokens", payload, headers)
+
+            res = conn.getresponse()
+            data = res.read()
+
+            print(data.decode("utf-8"))
+  /account/info:
+    get:
+      summary: Get account information
+      description: |
+        Use this endpoint to get information about your account, such as the number of credits you have left.
+      operationId: get-account-info
+      responses:
+        '200':
+          description: Account information.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiKeys:
+                    type: object
+                    description: Information about your API keys.
+                    properties:
+                      live:
+                        type: string
+                        description: Your live API key.
+                  signedIn:
+                    type: boolean
+                    description: Whether you are signed in.
+                    example: true
+                  subscriptionType:
+                    enum:
+                      - free
+                      - paid
+                      - enterprise
+                    description: Your subscription type.
+                  usage:
+                    type: object
+                    description: Information about your usage.
+                    properties:
+                      totalCredits:
+                        type: number
+                        description: The number of credits available in the current billing period.
+                        example: 100
+                      usedCredits:
+                        type: number
+                        description: The number of credits you have used in the current billing period.
+                        example: 50
+        '401':
+          description: |
+            You are unauthorized. Sent when no API token is specified, or when the API token you specified isn't valid.
+      tags:
+        - Account
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |-
+            curl --request GET \
+              --url https://api.nutrient.io/account/info \
+              --header 'Authorization: Bearer REPLACE_BEARER_TOKEN'
+        - lang: JavaScript
+          label: Node.js
+          source: |-
+            const http = require("https");
+
+            const options = {
+              "method": "GET",
+              "hostname": "api.nutrient.io",
+              "port": null,
+              "path": "/account/info",
+              "headers": {
+                "Authorization": "Bearer REPLACE_BEARER_TOKEN"
+              }
+            };
+
+            const req = http.request(options, function (res) {
+              const chunks = [];
+
+              res.on("data", function (chunk) {
+                chunks.push(chunk);
+              });
+
+              res.on("end", function () {
+                const body = Buffer.concat(chunks);
+                console.log(body.toString());
+              });
+            });
+
+            req.end();
+        - lang: Java
+          label: Java
+          source: |-
+            OkHttpClient client = new OkHttpClient();
+
+            Request request = new Request.Builder()
+              .url("https://api.nutrient.io/account/info")
+              .get()
+              .addHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN")
+              .build();
+
+            Response response = client.newCall(request).execute();
+        - lang: C#
+          label: C#
+          source: |-
+            var client = new RestClient("https://api.nutrient.io/account/info");
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN");
+            IRestResponse response = client.Execute(request);
+        - lang: Python
+          label: Python
+          source: |-
+            import http.client
+
+            conn = http.client.HTTPSConnection("api.nutrient.io")
+
+            headers = { 'Authorization': "Bearer REPLACE_BEARER_TOKEN" }
+
+            conn.request("GET", "/account/info", headers=headers)
+
+            res = conn.getresponse()
+            data = res.read()
+
+            print(data.decode("utf-8"))
+  /ai/redact:
+    post:
+      summary: Redact sensitive information from a document
+      operationId: ai-redact
+      description: |
+        Redacts sensitive information from a document based on the provided criteria.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - data
+                - file
+              properties:
+                data:
+                  description: |
+                    Parameters required for the redaction.
+                  $ref: '#/components/schemas/RedactData'
+                file:
+                  type: string
+                  format: binary
+                  description: The PDF file to process.
+                  example: <PDF data>
+            encoding:
+              data:
+                contentType: application/json
+              file:
+                contentType: application/pdf
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedactData'
+      responses:
+        '200':
+          description: The redacted document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+                description: The redacted PDF file
+          headers:
+            x-pspdfkit-request-cost:
+              schema:
+                type: number
+                description: Cost of the request in credits
+            x-pspdfkit-remaining-credits:
+              schema:
+                type: number
+                description: Remaining credits after the request has been executed
+        '400':
+          description: |
+            The request is malformed. Some invalid data was supplied, or a precondition wasn't met.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 400
+                  errors:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          description: |
+            You are unauthorized. Sent when no API token is specified, or when the API token you specified isn't valid.
+        '402':
+          description: |
+            You have exceeded the total number of documents processed in your subscription.
+        '408':
+          description: |
+            The request timed out.
+        '413':
+          description: |
+            The request exceeds the maximum input size, meaning either a single part, or the sum of all parts, is large.
+        '422':
+          description: |
+            The request exceeds the maximum output file size.
+        '500':
+          description: |
+            An internal server error occurred. Please contact support.
+      tags:
+        - AI
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |-
+            curl --request POST \
+              --url https://api.nutrient.io/ai/redact \
+              --header 'Authorization: Bearer REPLACE_BEARER_TOKEN' \
+              --header 'content-type: application/json' \
+              --data '{"documents":[{"file":"string","pages":[0]}],"criteria":"string","redaction_state":"stage","options":{"confidence":{"threshold":0}}}'
+        - lang: JavaScript
+          label: Node.js
+          source: |-
+            const http = require("https");
+
+            const options = {
+              "method": "POST",
+              "hostname": "api.nutrient.io",
+              "port": null,
+              "path": "/ai/redact",
+              "headers": {
+                "Authorization": "Bearer REPLACE_BEARER_TOKEN",
+                "content-type": "application/json"
+              }
+            };
+
+            const req = http.request(options, function (res) {
+              const chunks = [];
+
+              res.on("data", function (chunk) {
+                chunks.push(chunk);
+              });
+
+              res.on("end", function () {
+                const body = Buffer.concat(chunks);
+                console.log(body.toString());
+              });
+            });
+
+            req.write(JSON.stringify({
+              documents: [{file: 'string', pages: [0]}],
+              criteria: 'string',
+              redaction_state: 'stage',
+              options: {confidence: {threshold: 0}}
+            }));
+            req.end();
+        - lang: Java
+          label: Java
+          source: |-
+            OkHttpClient client = new OkHttpClient();
+
+            MediaType mediaType = MediaType.parse("application/json");
+            RequestBody body = RequestBody.create(mediaType, "{\"documents\":[{\"file\":\"string\",\"pages\":[0]}],\"criteria\":\"string\",\"redaction_state\":\"stage\",\"options\":{\"confidence\":{\"threshold\":0}}}");
+            Request request = new Request.Builder()
+              .url("https://api.nutrient.io/ai/redact")
+              .post(body)
+              .addHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN")
+              .addHeader("content-type", "application/json")
+              .build();
+
+            Response response = client.newCall(request).execute();
+        - lang: C#
+          label: C#
+          source: |-
+            var client = new RestClient("https://api.nutrient.io/ai/redact");
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("Authorization", "Bearer REPLACE_BEARER_TOKEN");
+            request.AddHeader("content-type", "application/json");
+            request.AddParameter("application/json", "{\"documents\":[{\"file\":\"string\",\"pages\":[0]}],\"criteria\":\"string\",\"redaction_state\":\"stage\",\"options\":{\"confidence\":{\"threshold\":0}}}", ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+        - lang: Python
+          label: Python
+          source: |-
+            import http.client
+
+            conn = http.client.HTTPSConnection("api.nutrient.io")
+
+            payload = "{\"documents\":[{\"file\":\"string\",\"pages\":[0]}],\"criteria\":\"string\",\"redaction_state\":\"stage\",\"options\":{\"confidence\":{\"threshold\":0}}}"
+
+            headers = {
+                'Authorization': "Bearer REPLACE_BEARER_TOKEN",
+                'content-type': "application/json"
+                }
+
+            conn.request("POST", "/ai/redact", payload, headers)
+
+            res = conn.getresponse()
+            data = res.read()
+
+            print(data.decode("utf-8"))
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    AnalyzeBuildResponse:
+      type: object
+      properties:
+        cost:
+          type: number
+          description: |
+            Total cost in credits charged after executing the request.
+          minimum: 0
+          example: 1.5
+        required_features:
+          type: object
+          description: |
+            Usage statistics for all features required to execute the request.
+          additionalProperties:
+            type: object
+            properties:
+              unit_cost:
+                type: number
+                description: Credits cost per use of the feature.
+                minimum: 0
+                example: 0.5
+              unit_type:
+                type: string
+                description: |
+                  Type of the unit used for billing. Possible values:
+
+                  * `per_use` - `units` field represent number of uses of this particular feature in a Build request.
+                  * `per_output_page` - `units` field represents number of pages of the Build request output.
+                example: per_use
+                enum:
+                  - per_use
+                  - per_output_page
+              units:
+                type: integer
+                description: Number of feature uses in the request.
+                minimum: 1
+                example: 3
+              cost:
+                type: number
+                description: Cost for feature uses in the request.
+                minimum: 0
+                example: 1.5
+              usage:
+                type: array
+                description: |
+                  JSON paths to the parts of instructions where the feature was used.
+                items:
+                  type: string
+      example:
+        cost: 3.5
+        required_features:
+          annotation_api:
+            - unit_cost: 0.5
+              unit_type: per_use
+              units: 3
+              cost: 1.5
+              usage:
+                - $.parts[0].actions[0]
+                - $.parts[1].actions[1]
+                - $.actions[0]
+          document_editor_api:
+            - unit_cost: 1
+              unit_type: per_use
+              units: 1
+              cost: 1
+              usage:
+                - $.parts[1].merge
+          ocr_api:
+            - unit_cost: 2
+              unit_type: per_use
+              units: 1
+              cost: 2
+              usage:
+                - $.parts[1].actions[0]
+          pdf_to_pdfua_api:
+            - unit_cost: 5
+              unit_type: per_output_page
+              units: 3
+              cost: 15
+              usage:
+                - $.output
+    InstantJson:
+      title: Instant JSON
+      description: |
+        Instant JSON is a format for bringing annotations and bookmarks into a modern format while keeping all important properties to make the Instant JSON spec work with PDF.
+      type: object
+      properties:
+        format:
+          type: string
+          enum:
+            - https://pspdfkit.com/instant-json/v1
+        annotations:
+          type: array
+          items:
+            anyOf:
+              - $ref: '#/components/schemas/Annotation'
+              - $ref: '#/components/schemas/Annotation.v1'
+        attachments:
+          $ref: '#/components/schemas/Attachments'
+        formFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormField'
+        formFieldValues:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormFieldValue'
+        bookmarks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bookmark'
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommentContent'
+        skippedPdfObjectIds:
+          type: array
+          description: An array of PDF object IDs that should be skipped during the import process. Whenever an object ID is marked as skipped, it'll no longer be loaded from the original PDF. Instead, it could be defined inside the annotations array with the same pdfObjectId. If this is the case, the PDF viewer will display the new annotation, which signals an update to the original one. If an object ID is marked as skipped but the annotations array doesn't contain an annotation with the same pdfObjectId, it'll be interpreted as a deleted annotation. An annotation inside the annotations array without the pdfObjectId property is interpreted as a newly created annotation.
+          items:
+            type: integer
+            minimum: 0
+        pdfId:
+          type: object
+          description: PDF document identifiers, base64 encoded. This is used to track version of PDF document this JSON has been exported from.
+          properties:
+            permanent:
+              type: string
+              description: Permanent document identifier based on the contents of the file at the time it was originally created. Does not change when the file is saved incrementally.
+              example: 9C3nLxNzQBuBBzv96LbdMg==
+            changing:
+              type: string
+              description: Document identifier based on the file's contents at the time it was last updated.
+              example: Oi+XccZpDHChV7I=
+      required:
+        - format
+    CreateAuthTokenParameters:
+      type: object
+      properties:
+        allowedOperations:
+          type: array
+          description: |
+            List of operations that can be performed with the generated token.
+            Defaults to all operations.
+          items:
+            type: string
+            enum:
+              - annotations_api
+              - compression_api
+              - data_extraction_api
+              - digital_signatures_api
+              - document_editor_api
+              - html_conversion_api
+              - image_conversion_api
+              - image_rendering_api
+              - email_conversion_api
+              - linearization_api
+              - ocr_api
+              - office_conversion_api
+              - pdfa_api
+              - pdf_to_office_conversion_api
+              - redaction_api
+          example:
+            - digital_signatures_api
+        allowedOrigins:
+          type: array
+          description: |
+            List of origins that can use the generated token.
+            By default, allows all origins.
+          items:
+            type: string
+            example: example.com
+        expirationTime:
+          type: integer
+          default: 3600
+          description: |
+            The expiration time of the token in seconds.
+    CreateAuthTokenResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The ID of the generated token.
+          example: a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6
+        accessToken:
+          type: string
+          description: The generated API token.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjM0NTY3ODkwLCJpYXQiOjE1MTYyMzkwMjJ9.4TJ4J7
+    RedactData:
+      type: object
+      required:
+        - documents
+        - criteria
+      properties:
+        documents:
+          type: array
+          description: An array of documents to analyze for redaction.
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            properties:
+              file:
+                oneOf:
+                  - type: string
+                    description: If the request is multipart/form-data, the name of the `file` key.
+                  - type: object
+                    properties:
+                      url:
+                        type: string
+                        description: A URL pointing to a document to redact.
+                    required:
+                      - url
+              pages:
+                oneOf:
+                  - type: array
+                    items:
+                      type: integer
+                      minimum: 0
+                    description: Array of page indices to analyze (0-based).
+                  - type: object
+                    properties:
+                      start:
+                        type: integer
+                        minimum: 0
+                        description: Starting page index (0-based).
+                      end:
+                        type: integer
+                        description: |
+                          Ending page index. A positive number denotes an absolute page index,
+                          negative number denotes a relative page index from the end of the document.
+                    required:
+                      - start
+                      - end
+                description: Optional. Limits the analysis to specific pages.
+        criteria:
+          type: string
+          description: The redaction criteria such as "Redact all PII", or "All personal names and addresses", etc.
+        redaction_state:
+          type: string
+          enum:
+            - stage
+            - apply
+          default: stage
+          description: When set to "stage", marks locations for redaction; when set to "apply", marks and removes content permanently. Optional, defaults to "stage".
+        options:
+          type: object
+          description: Optional configuration for the redaction process.
+          properties:
+            confidence:
+              type: object
+              description: Configuration for confidence-based filtering of redactions.
+              properties:
+                threshold:
+                  type: number
+                  description: Optionally filter terms which are scored with a confidence level less than the threshold. Scores range from 1-10.
+              required:
+                - threshold
+    FileHandle:
+      oneOf:
+        - type: object
+          title: Remote file
+          description: Object pointing to remote file
+          properties:
+            url:
+              type: string
+              description: Specifies the URL from a file can be downloaded
+              example: https://remote-file-storage/input-file
+            sha256:
+              type: string
+              description: |
+                Optional parameter to verify a downloaded file using provided SHA256 hash.
+                It is expected to be base16 encoded using lowercase.
+          required:
+            - url
+        - type: string
+          title: Uploaded file
+          description: Specifies the name of multipart part containing a file
+          example: file-from-multipart
+    PageRange:
+      type: object
+      description: |
+        Defines the range of pages in a document. The indexing starts from 0. It is possible
+        to use negative numbers to refer to pages from the last page. For example, `-1` refers to the last page.
+      properties:
+        start:
+          type: integer
+          default: 0
+        end:
+          type: integer
+          default: -1
+    PageLayout:
+      type: object
+      description: |
+        Defines the layout of the generated pages.
+      properties:
+        orientation:
+          type: string
+          enum:
+            - portrait
+            - landscape
+          description: |
+            The orientation of generated pages.
+          default: portrait
+        size:
+          oneOf:
+            - type: string
+              title: Preset
+              description: |
+                Page size preset.
+              enum:
+                - A0
+                - A1
+                - A2
+                - A3
+                - A4
+                - A5
+                - A6
+                - A7
+                - A8
+                - Letter
+                - Legal
+            - type: object
+              title: Custom
+              description: |
+                The dimensions of generated pages.
+              properties:
+                width:
+                  type: number
+                  description: |
+                    The width of pages in mm.
+                  example: 210
+                  minimum: 1
+                height:
+                  type: number
+                  description: |
+                    The height of pages in mm.
+                  example: 297
+                  minimum: 1
+        margin:
+          type: object
+          description: |
+            The margins of generated pages. All dimensions are in mm.
+          properties:
+            left:
+              type: number
+              minimum: 0
+              default: 0
+            top:
+              type: number
+              minimum: 0
+              default: 0
+            right:
+              type: number
+              minimum: 0
+              default: 0
+            bottom:
+              type: number
+              minimum: 0
+              default: 0
+    ApplyInstantJsonAction:
+      type: object
+      required:
+        - type
+        - file
+      properties:
+        type:
+          type: string
+          description: |
+            Apply the Instant JSON to the document to import annotations or forms to a document.
+          enum:
+            - applyInstantJson
+        file:
+          $ref: '#/components/schemas/FileHandle'
+    ApplyXfdfAction:
+      type: object
+      required:
+        - type
+        - file
+      properties:
+        type:
+          type: string
+          description: |
+            Apply the XFDF to the document to import annotations to a document.
+          enum:
+            - applyXfdf
+        file:
+          $ref: '#/components/schemas/FileHandle'
+        ignorePageRotation:
+          type: boolean
+          default: false
+          description: If `true`, ignores page rotation when applying XFDF data.
+        richTextEnabled:
+          type: boolean
+          default: true
+          description: |
+            If `true`, plain text annotations will be converted to rich text annotations.
+            If `false`, all text annotations will be plain text annotations.
+    FlattenAction:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          description: |
+            Flatten the annotations in the document.
+          enum:
+            - flatten
+        annotationIds:
+          type: array
+          description: |
+            Annotation IDs to flatten. These can be annotation IDs or `pdfObjectId`s.
+            If not specified, all annotations will be flattened.
+          items:
+            oneOf:
+              - type: string
+              - type: integer
+    OcrLanguage:
+      type: string
+      example: english
+      description: |
+        Language to be used for the OCR text extraction. You can find the list of supported languages in our [guides](https://www.nutrient.io/guides/document-engine/ocr/language-support/).
+        In addition to the languages outlined in the guides, we support the 3 letter ISO 639-2 code for some other languages.
+      enum:
+        - afrikaans
+        - albanian
+        - arabic
+        - armenian
+        - azerbaijani
+        - basque
+        - belarusian
+        - bengali
+        - bosnian
+        - bulgarian
+        - catalan
+        - chinese
+        - croatian
+        - czech
+        - danish
+        - dutch
+        - english
+        - finnish
+        - french
+        - german
+        - indonesian
+        - italian
+        - malay
+        - norwegian
+        - polish
+        - portuguese
+        - serbian
+        - slovak
+        - slovenian
+        - spanish
+        - swedish
+        - turkish
+        - welsh
+        - afr
+        - amh
+        - ara
+        - asm
+        - aze
+        - bel
+        - ben
+        - bod
+        - bos
+        - bre
+        - bul
+        - cat
+        - ceb
+        - ces
+        - chr
+        - cos
+        - cym
+        - dan
+        - deu
+        - div
+        - dzo
+        - ell
+        - eng
+        - enm
+        - epo
+        - equ
+        - est
+        - eus
+        - fao
+        - fas
+        - fil
+        - fin
+        - fra
+        - frk
+        - frm
+        - fry
+        - gla
+        - gle
+        - glg
+        - grc
+        - guj
+        - hat
+        - heb
+        - hin
+        - hrv
+        - hun
+        - hye
+        - iku
+        - ind
+        - isl
+        - ita
+        - jav
+        - jpn
+        - kan
+        - kat
+        - kaz
+        - khm
+        - kir
+        - kmr
+        - kor
+        - kur
+        - lao
+        - lat
+        - lav
+        - lit
+        - ltz
+        - mal
+        - mar
+        - mkd
+        - mlt
+        - mon
+        - mri
+        - msa
+        - mya
+        - nep
+        - nld
+        - nor
+        - oci
+        - ori
+        - osd
+        - pan
+        - pol
+        - por
+        - pus
+        - que
+        - ron
+        - rus
+        - san
+        - sin
+        - slk
+        - slv
+        - snd
+        - sp1
+        - spa
+        - sqi
+        - srp
+        - sun
+        - swa
+        - swe
+        - syr
+        - tam
+        - tat
+        - tel
+        - tgk
+        - tgl
+        - tha
+        - tir
+        - ton
+        - tur
+        - uig
+        - ukr
+        - urd
+        - uzb
+        - vie
+        - yid
+        - yor
+    OcrAction:
+      type: object
+      required:
+        - type
+        - language
+      properties:
+        type:
+          type: string
+          description: |
+            Perform optical character recognition (OCR) in the document.
+          enum:
+            - ocr
+        language:
+          oneOf:
+            - $ref: '#/components/schemas/OcrLanguage'
+            - type: array
+              example:
+                - english
+                - german
+              items:
+                $ref: '#/components/schemas/OcrLanguage'
+    RotateAction:
+      type: object
+      required:
+        - type
+        - rotateBy
+      properties:
+        type:
+          type: string
+          description: |
+            Rotate all pages by the angle specified.
+          enum:
+            - rotate
+        rotateBy:
+          type: number
+          description: |
+            The angle by which the pages should be rotated, clockwise.
+          enum:
+            - 90
+            - 180
+            - 270
+    WatermarkDimension:
+      type: object
+      required:
+        - value
+        - unit
+      properties:
+        value:
+          type: number
+          description: Dimension value
+          example: 100
+        unit:
+          type: string
+          description: Dimension unit
+          enum:
+            - pt
+            - '%'
+    BaseWatermarkAction:
+      type: object
+      required:
+        - type
+        - width
+        - height
+      properties:
+        type:
+          type: string
+          description: |
+            Watermark all pages with text watermark.
+          enum:
+            - watermark
+        width:
+          allOf:
+            - type: object
+              description: |
+                Width of the watermark in PDF points.
+            - $ref: '#/components/schemas/WatermarkDimension'
+        height:
+          allOf:
+            - type: object
+              description: |
+                Height of the watermark in PDF points.
+            - $ref: '#/components/schemas/WatermarkDimension'
+        top:
+          allOf:
+            - type: object
+              description: |
+                Offset of the watermark from the top edge of a page.
+            - $ref: '#/components/schemas/WatermarkDimension'
+        right:
+          allOf:
+            - type: object
+              description: |
+                Offset of the watermark from the right edge of a page.
+            - $ref: '#/components/schemas/WatermarkDimension'
+        bottom:
+          allOf:
+            - type: object
+              description: |
+                Offset of the watermark from the bottom edge of a page.
+            - $ref: '#/components/schemas/WatermarkDimension'
+        left:
+          allOf:
+            - type: object
+              description: |
+                Offset of the watermark from the left edge of a page.
+            - $ref: '#/components/schemas/WatermarkDimension'
+        rotation:
+          type: number
+          description: |
+            Rotation of the watermark in counterclockwise degrees.
+          default: 0
+        opacity:
+          type: number
+          description: Watermark opacity. 0 is fully transparent, 1 is fully opaque.
+          minimum: 0
+          maximum: 1
+    TextWatermarkAction:
+      allOf:
+        - $ref: '#/components/schemas/BaseWatermarkAction'
+        - type: object
+          title: Text
+          required:
+            - text
+          properties:
+            text:
+              type: string
+              description: |
+                Text used for watermarking
+            fontFamily:
+              type: string
+              description: The font to render the text. Fonts are client specific, so you should only use fonts you know are present in the browser where they should be displayed. If a font isn't found, PSPDFKit will automatically fall back to a sans-serif font.
+              example: Helvetica
+            fontSize:
+              description: Size of the text in points.
+              type: integer
+              example: 10
+            fontColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A foreground color of the text.
+              example: '#ffffff'
+            fontStyle:
+              type: array
+              description: Text style. Can be only italic, only bold, italic and bold, or none of these.
+              items:
+                type: string
+                enum:
+                  - bold
+                  - italic
+    ImageWatermarkAction:
+      allOf:
+        - $ref: '#/components/schemas/BaseWatermarkAction'
+        - type: object
+          title: Image
+          required:
+            - image
+          properties:
+            image:
+              $ref: '#/components/schemas/FileHandle'
+    WatermarkAction:
+      oneOf:
+        - $ref: '#/components/schemas/TextWatermarkAction'
+        - $ref: '#/components/schemas/ImageWatermarkAction'
+    PageIndex:
+      type: integer
+      description: Page index of the annotation. 0 is the first page.
+      example: 0
+      minimum: 0
+    AnnotationBbox:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items:
+        type: number
+      description: Bounding box of the annotation within the page in a form [left, top, width, height].
+      example:
+        - 255.10077620466092
+        - 656.7566095695641
+        - 145.91672653256705
+        - 18.390804597701162
+    BaseAction:
+      title: BaseAction
+      type: object
+      properties:
+        subAction:
+          type: object
+          description: Sub-action to execute after the action has been executed.
+    GoToAction:
+      title: GoToAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: GoToAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - goTo
+            pageIndex:
+              type: integer
+              description: Page index to navigate to. 0 is the first page.
+              minimum: 0
+          required:
+            - type
+            - pageIndex
+    GoToRemoteAction:
+      title: GoToRemoteAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: GoToRemoteAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - goToRemote
+            relativePath:
+              type: string
+              description: The relative path of the file to open.
+              example: /other_document.pdf
+            namedDestination:
+              type: string
+          required:
+            - type
+            - relativePath
+    GoToEmbeddedAction:
+      title: GoToEmbeddedAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: GoToEmbeddedAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - goToEmbedded
+            relativePath:
+              type: string
+              description: The relative path to the embedded file.
+              example: /other_document.pdf
+            newWindow:
+              type: boolean
+              description: Whether to open the file in a new window.
+            targetType:
+              type: string
+              enum:
+                - parent
+                - child
+          required:
+            - type
+            - relativePath
+    LaunchAction:
+      title: LaunchAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: LaunchAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - launch
+            filePath:
+              type: string
+              description: The file path to launch.
+              example: /other_document.pdf
+          required:
+            - type
+            - filePath
+    URIAction:
+      title: URIAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: URIAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - uri
+            uri:
+              type: string
+              example: https://www.nutrient.io
+          required:
+            - type
+            - uri
+    AnnotationReference:
+      title: AnnotationReference
+      type: object
+      properties:
+        fieldName:
+          type: string
+        pdfObjectId:
+          type: integer
+    HideAction:
+      title: HideAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: HideAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - hide
+            hide:
+              type: boolean
+            annotationReferences:
+              type: array
+              items:
+                $ref: '#/components/schemas/AnnotationReference'
+          required:
+            - type
+            - hide
+            - annotationReferences
+    JavaScriptAction:
+      title: JavaScriptAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: JavaScriptAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - javascript
+            script:
+              type: string
+          required:
+            - type
+            - script
+    SubmitFormAction:
+      title: SubmitFormAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: SubmitFormAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - submitForm
+            uri:
+              type: string
+            flags:
+              type: array
+              items:
+                type: string
+                enum:
+                  - includeExclude
+                  - includeNoValueFields
+                  - exportFormat
+                  - getMethod
+                  - submitCoordinated
+                  - xfdf
+                  - includeAppendSaves
+                  - includeAnnotations
+                  - submitPDF
+                  - canonicalFormat
+                  - excludeNonUserAnnotations
+                  - excludeFKey
+                  - embedForm
+            fields:
+              type: array
+              items:
+                $ref: '#/components/schemas/AnnotationReference'
+          required:
+            - type
+            - uri
+            - flags
+    ResetFormAction:
+      title: ResetFormAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: ResetFormAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - resetForm
+            flags:
+              type: string
+              enum:
+                - includeExclude
+            fields:
+              type: array
+              items:
+                $ref: '#/components/schemas/AnnotationReference'
+          required:
+            - type
+    NamedAction:
+      title: NamedAction
+      allOf:
+        - $ref: '#/components/schemas/BaseAction'
+        - title: NamedAction
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - named
+            action:
+              type: string
+              enum:
+                - nextPage
+                - prevPage
+                - firstPage
+                - lastPage
+                - goBack
+                - goForward
+                - goToPage
+                - find
+                - print
+                - outline
+                - search
+                - brightness
+                - zoomIn
+                - zoomOut
+                - saveAs
+                - info
+          required:
+            - type
+            - action
+    Action:
+      description: |
+        Represents a PDF action.
+
+        There are many different action types. You can learn more about their semantics
+        [here](https://www.nutrient.io/guides/ios/annotations/pdf-actions/).
+
+        All actions have a `type` property. Depending on the type, the action object
+        includes additional properties.
+      example:
+        type: goTo
+        pageIndex: 0
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/GoToAction'
+        - $ref: '#/components/schemas/GoToRemoteAction'
+        - $ref: '#/components/schemas/GoToEmbeddedAction'
+        - $ref: '#/components/schemas/LaunchAction'
+        - $ref: '#/components/schemas/URIAction'
+        - $ref: '#/components/schemas/HideAction'
+        - $ref: '#/components/schemas/JavaScriptAction'
+        - $ref: '#/components/schemas/SubmitFormAction'
+        - $ref: '#/components/schemas/ResetFormAction'
+        - $ref: '#/components/schemas/NamedAction'
+    AnnotationOpacity:
+      type: number
+      description: Annotation opacity. 0 is fully transparent, 1 is fully opaque.
+      minimum: 0
+      maximum: 1
+    PdfObjectId:
+      type: integer
+      description: The PDF object ID of the annotation from the source PDF.
+    AnnotationCustomData:
+      type:
+        - object
+        - 'null'
+      additionalProperties: true
+      description: |
+        Object of arbitrary properties attached to the annotations. PSPDFKit won't modify this data when processing annotations.
+      example:
+        foo: bar
+    BaseAnnotation:
+      title: BaseAnnotation
+      type: object
+      properties:
+        v:
+          type: integer
+          enum:
+            - 2
+          description: The specification version that the record is compliant to.
+        type:
+          type: string
+          description: The type of the annotation.
+        pageIndex:
+          $ref: '#/components/schemas/PageIndex'
+        bbox:
+          $ref: '#/components/schemas/AnnotationBbox'
+        action:
+          $ref: '#/components/schemas/Action'
+        opacity:
+          $ref: '#/components/schemas/AnnotationOpacity'
+        pdfObjectId:
+          $ref: '#/components/schemas/PdfObjectId'
+        id:
+          type: string
+          description: The unique Instant JSON identifier of the annotation.
+          example: 01DNEDPQQ22W49KDXRFPG4EPEQ
+        flags:
+          type: array
+          description: |
+            Array of annotation flags.
+
+            | Flag | Description |
+            | ---- | ----------- |
+            | noPrint | Don't print. |
+            | noZoom | Don't zoom with page. |
+            | noRotate | Don't rotate. |
+            | noView | Don't display, can be still printed. |
+            | hidden | Don't display, don't print, disable any interaction with user. |
+            | invisible | Ignore annotation AP stream. |
+            | readOnly | Don't allow the annotation to be deleted or its properties modified. |
+            | locked | Same as `readOnly` but allows changing annotation contents. |
+            | lockedContents | Don't allow the contents of the annotation to be modified. |
+          items:
+            type: string
+            enum:
+              - noPrint
+              - noZoom
+              - noRotate
+              - noView
+              - hidden
+              - invisible
+              - readOnly
+              - locked
+              - toggleNoView
+              - lockedContents
+        createdAt:
+          type: string
+          description: The date of the annotation creation. ISO 8601 with full date, time, and time zone information
+          format: date-time
+          example: '2019-09-16T15:05:03.712909Z'
+        updatedAt:
+          type: string
+          description: The date of the last annotation update. ISO 8601 with full date, time, and time zone information
+          format: date-time
+          example: '2019-09-16T15:05:03.712909Z'
+        name:
+          type: string
+          description: The name of the annotation used to identify the annotation.
+        creatorName:
+          type: string
+          description: The name of the creator of the annotation.
+        customData:
+          $ref: '#/components/schemas/AnnotationCustomData'
+      required:
+        - type
+        - pageIndex
+        - bbox
+        - v
+    Rect:
+      type: array
+      title: Rect
+      description: Rectangle in a form [left, top, width, height] in PDF points (pt).
+      items:
+        type: number
+        minItems: 4
+        maxItems: 4
+      example:
+        - 100
+        - 200
+        - 300
+        - 400
+    AnnotationRotation:
+      type: integer
+      title: Rotation
+      description: Counterclockwise annotation rotation in degrees.
+      enum:
+        - 0
+        - 90
+        - 180
+        - 270
+    AnnotationNote:
+      type: string
+      title: Note
+      description: Text of an annotation note.
+      example: This is a note.
+    RedactionAnnotation:
+      title: RedactionAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: RedactionAnnotation
+          description: Redaction annotations determines the location of the area marked for redaction.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/markup/redaction
+            rects:
+              type: array
+              description: Bounding boxes of the marked text.
+              items:
+                $ref: '#/components/schemas/Rect'
+            outlineColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Outline color is the border color of a redaction annotation when it hasn't yet been applied to the document
+              example: '#ffffff'
+            fillColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Fill color is the background color that a redaction will have when applied to the document.
+            overlayText:
+              type: string
+              description: The text that will be printed on top of an applied redaction annotation.
+              example: CONFIDENTIAL
+            repeatOverlayText:
+              type: boolean
+              description: Specifies whether or not the overlay text will be repeated multiple times to fill the boundaries of the redaction annotation.
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Color of the overlay text (if any).
+              example: '#ffffff'
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+    SearchPreset:
+      type: string
+      description: |
+        - `credit-card-number` — matches a number with 13 to 19 digits that begins with 1—6.
+        Spaces and `-` are allowed anywhere in the number.
+        - `date` — matches date formats such as `mm/dd/yyyy`, `mm/dd/yy`, `dd/mm/yyyy`, and `dd/mm/yy`.
+        It rejects any days greater than 31 or months greater than 12 and accepts a leading 0 in front of a single-digit day or month.
+        The delimiter can be `-`, `.`, or `/`.
+        - `email-address` — matches an email address. Expects the format of `*@*.*` with at least two levels of the domain name.
+        - `international-phone-number` — matches international phone numbers.
+        The number can have 7 to 15 digits with spaces or `-` occurring anywhere within the number, and it must have prefix of `+` or `00`.
+        - `ipv4` — matches an IPv4 address with an optional mask at the end.
+        - `ipv6` — matches a full and compressed IPv6 address as defined in [RFC 2373](http://www.faqs.org/rfcs/rfc2373.html).
+        - `mac-address` — matches a MAC address with either `-` or `:` as a delimiter.
+        - `north-american-phone-number` — matches North American-style phone numbers.
+        NANPA standardization is used with international support.
+        - `social-security-number` — matches a social security number.
+        Expects the format of `XXX-XX-XXXX` or `XXXXXXXXX`, with X denoting digits.
+        - `time` — matches time formats such as `00:00:00`, `00:00`, and `00:00 PM`. 12- and 24-hour formats are allowed.
+        Seconds and AM/PM denotation are both optional.
+        - `url` — matches a URL with a prefix of `http` or `https`, with an optional subdomain.
+        - `us-zip-code` — matches a USA-style zip code. The format expected is `XXXXX`, `XXXXX-XXXX` or `XXXXX/XXXX`.
+        - `vin` — matches US and ISO Standard 3779 Vehicle Identification Number.
+        The format expects 17 characters, with the last 5 characters being numeric. `I`, `i`, `O`, `o` ,`Q`, `q`, and `_` characters are not allowed.
+      enum:
+        - credit-card-number
+        - date
+        - email-address
+        - international-phone-number
+        - ipv4
+        - ipv6
+        - mac-address
+        - north-american-phone-number
+        - social-security-number
+        - time
+        - url
+        - us-zip-code
+        - vin
+      example: email-address
+    CreateRedactionsStrategyOptionsPreset:
+      type: object
+      required:
+        - preset
+      properties:
+        preset:
+          $ref: '#/components/schemas/SearchPreset'
+        includeAnnotations:
+          type: boolean
+          default: true
+          description: |
+            Determines if redaction annotations are created on top of annotations whose
+            content match the provided preset.
+        start:
+          type: integer
+          default: 0
+          description: |
+            The index of the page from where you want to start the search.
+        limit:
+          type: integer
+          default: null
+          description: |
+            Starting from start, the number of pages to search. Default is to the end of
+            the document.
+    CreateRedactionsStrategyOptionsRegex:
+      type: object
+      required:
+        - regex
+      properties:
+        regex:
+          type: string
+          description: |
+            Regex search term used for searching for text to redact.
+          example: '@pspdfkit\\.com'
+        includeAnnotations:
+          type: boolean
+          default: true
+          description: |
+            Determines if redaction annotations are created on top of annotations whose
+            content match the provided preset.
+        caseSensitive:
+          type: boolean
+          default: true
+          description: |
+            Determines if the search will be case sensitive.
+        start:
+          type: integer
+          default: 0
+          description: |
+            The index of the page from where you want to start the search.
+        limit:
+          type: integer
+          default: null
+          description: |
+            Starting from start, the number of pages to search. Default is to the end of
+            the document.
+    CreateRedactionsStrategyOptionsText:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: |
+            Search term used for searching for text to redact.
+          example: '@nutrient.io'
+        includeAnnotations:
+          type: boolean
+          default: true
+          description: |
+            Determines if redaction annotations are created on top of annotations whose
+            content match the provided preset.
+        caseSensitive:
+          type: boolean
+          default: false
+          description: |
+            Determines if the search will be case sensitive.
+        start:
+          type: integer
+          default: 0
+          description: |
+            The index of the page from where you want to start the search.
+        limit:
+          type: integer
+          default: null
+          description: |
+            Starting from start, the number of pages to search. Default is to the end of
+            the document.
+    CreateRedactionsAction:
+      allOf:
+        - type: object
+          required:
+            - type
+            - strategy
+            - strategyOptions
+          properties:
+            type:
+              type: string
+              description: |
+                Creates redactions according to the given strategy. Once redactions are created, they need to be applied using the `applyRedactions` action.
+                You can configure some visual aspects of the redaction annotation, including its background color, overlay text, and so on, by passing an optional `content` object.
+              enum:
+                - createRedactions
+            content:
+              $ref: '#/components/schemas/RedactionAnnotation'
+        - oneOf:
+            - type: object
+              title: Preset
+              required:
+                - strategy
+                - strategyOptions
+              properties:
+                strategy:
+                  type: string
+                  enum:
+                    - preset
+                strategyOptions:
+                  $ref: '#/components/schemas/CreateRedactionsStrategyOptionsPreset'
+            - type: object
+              title: Regex
+              required:
+                - strategy
+                - strategyOptions
+              properties:
+                strategy:
+                  type: string
+                  enum:
+                    - regex
+                strategyOptions:
+                  $ref: '#/components/schemas/CreateRedactionsStrategyOptionsRegex'
+            - type: object
+              title: Text
+              required:
+                - strategy
+                - strategyOptions
+              properties:
+                strategy:
+                  type: string
+                  enum:
+                    - text
+                strategyOptions:
+                  $ref: '#/components/schemas/CreateRedactionsStrategyOptionsText'
+    ApplyRedactionsAction:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          description: |
+            Applies the redactions created by an earlier `createRedactions` action.
+          enum:
+            - applyRedactions
+    BuildAction:
+      oneOf:
+        - $ref: '#/components/schemas/ApplyInstantJsonAction'
+        - $ref: '#/components/schemas/ApplyXfdfAction'
+        - $ref: '#/components/schemas/FlattenAction'
+        - $ref: '#/components/schemas/OcrAction'
+        - $ref: '#/components/schemas/RotateAction'
+        - $ref: '#/components/schemas/WatermarkAction'
+        - $ref: '#/components/schemas/CreateRedactionsAction'
+        - $ref: '#/components/schemas/ApplyRedactionsAction'
+    FilePart:
+      type: object
+      properties:
+        file:
+          $ref: '#/components/schemas/FileHandle'
+        password:
+          type: string
+          description: The password for the input file
+        pages:
+          $ref: '#/components/schemas/PageRange'
+        layout:
+          allOf:
+            - type: object
+              description: |
+                Defines the layout of the generated pages. Only valid for email (e.g. EML and MSG) and spreadsheet (e.g. XLSX) inputs.
+            - $ref: '#/components/schemas/PageLayout'
+        content_type:
+          type: string
+          description: |
+            The content type of the file. Used to determine the file type when the file content type is not available and can't be inferred.
+          example: application/pdf
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildAction'
+      required:
+        - file
+      example:
+        file: pdf-file-from-multipart
+    HTMLPart:
+      type: object
+      required:
+        - html
+      properties:
+        html:
+          $ref: '#/components/schemas/FileHandle'
+        assets:
+          type: array
+          description: |
+            List of asset names imported in the HTML. References the name passed in the multipart request.
+          items:
+            type: string
+        layout:
+          $ref: '#/components/schemas/PageLayout'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildAction'
+    NewPagePart:
+      type: object
+      required:
+        - page
+      properties:
+        page:
+          type: string
+          enum:
+            - new
+        pageCount:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Number of pages to be added.
+        layout:
+          $ref: '#/components/schemas/PageLayout'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildAction'
+    DocumentId:
+      type: string
+      title: Document ID
+      example: 7KPZW8XFGM4F1C92KWBK1B748M
+      description: The ID of the document.
+    DocumentPart:
+      type: object
+      description: |
+        This allows to reference a document stored on Document Engine.
+        It is also possible to refer to currently scoped file by using special ID:
+          ```
+          {"document": {"id": "#self"}}
+          ```
+      properties:
+        document:
+          type: object
+          required:
+            - id
+          properties:
+            id:
+              oneOf:
+                - $ref: '#/components/schemas/DocumentId'
+                - type: string
+                  title: Self
+                  description: |
+                    Special ID that allows to refer to currently scoped document (including layer if using layers path).
+                  enum:
+                    - '#self'
+            layer:
+              type: string
+              description: |
+                The name of the layer to be used.
+              example: my-existing-layer
+        password:
+          type: string
+          description: The password for the input file
+        pages:
+          $ref: '#/components/schemas/PageRange'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/BuildAction'
+      required:
+        - document
+    Part:
+      oneOf:
+        - $ref: '#/components/schemas/FilePart'
+        - $ref: '#/components/schemas/HTMLPart'
+        - $ref: '#/components/schemas/NewPagePart'
+        - $ref: '#/components/schemas/DocumentPart'
+    Title:
+      type:
+        - string
+        - 'null'
+      description: The document title.
+      example: Nutrient Document Engine API Specification
+    Metadata:
+      type: object
+      properties:
+        title:
+          $ref: '#/components/schemas/Title'
+        author:
+          type: string
+          description: The document author.
+          example: Document Author
+    Label:
+      type: object
+      required:
+        - pages
+        - label
+      properties:
+        pages:
+          type: array
+          description: Array of page numbers (0-based indexing)
+          items:
+            type: integer
+            description: A specific page number
+            example:
+              - 0
+        label:
+          type: string
+          description: The label to apply to specified pages.
+          example: Page I-III
+    PDFUserPermission:
+      type: string
+      enum:
+        - printing
+        - modification
+        - extract
+        - annotations_and_forms
+        - fill_forms
+        - extract_accessibility
+        - assemble
+        - print_high_quality
+    OptimizePdf:
+      type: object
+      properties:
+        grayscaleText:
+          type: boolean
+          default: false
+        grayscaleGraphics:
+          type: boolean
+          default: false
+        grayscaleImages:
+          type: boolean
+          default: false
+        grayscaleFormFields:
+          type: boolean
+          default: false
+        grayscaleAnnotations:
+          type: boolean
+          default: false
+        disableImages:
+          type: boolean
+          default: false
+        mrcCompression:
+          type: boolean
+          default: false
+        imageOptimizationQuality:
+          type: integer
+          default: 2
+          minimum: 1
+          maximum: 4
+        linearize:
+          type: boolean
+          default: false
+          description: |
+            If set to `true`, the resulting PDF file will be linearized.
+            This means that the document will be optimized in a special way that allows it to be loaded faster over the network.
+            You need the `Linearization` feature to be enabled in your Nutrient Document Engine license in order to use this option.
+    BasePDFOutput:
+      type: object
+      description: |
+        Object representing PDF output.
+      properties:
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Label'
+        user_password:
+          type: string
+          description: |
+            Defines the password which allows to open a file with defined
+            permissions
+        owner_password:
+          type: string
+          description: |
+            Defines the password which allows to manage the permissions for the file
+        user_permissions:
+          type: array
+          description: |
+            Defines the permissions which are granted when a file is opened with user password
+          items:
+            $ref: '#/components/schemas/PDFUserPermission'
+        optimize:
+          $ref: '#/components/schemas/OptimizePdf'
+    PDFOutput:
+      allOf:
+        - $ref: '#/components/schemas/BasePDFOutput'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pdf
+    PDFAOutput:
+      allOf:
+        - $ref: '#/components/schemas/BasePDFOutput'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum:
+                - pdfa
+            conformance:
+              type: string
+              enum:
+                - pdfa-1a
+                - pdfa-1b
+                - pdfa-2a
+                - pdfa-2u
+                - pdfa-2b
+                - pdfa-3a
+                - pdfa-3u
+              description: |
+                Defines the conformance level of the output file.
+                The default value is `pdfa-1b`.
+
+                These are the only supported conformance levels at this time.
+            vectorization:
+              type: boolean
+              default: true
+              description: |
+                When set to true, produces vector based graphic elements where applicable. For example: fonts and paths.
+            rasterization:
+              type: boolean
+              default: true
+              description: |
+                When set to true, produces raster based graphic elements where applicable. For example: images.
+    PDFUAOutput:
+      allOf:
+        - $ref: '#/components/schemas/BasePDFOutput'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum:
+                - pdfua
+    ImageOutput:
+      type: object
+      title: ImageOutput
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - image
+        format:
+          type: string
+          default: png
+          description: |
+            The format of the rendered image.
+          enum:
+            - png
+            - jpeg
+            - jpg
+            - webp
+        pages:
+          $ref: '#/components/schemas/PageRange'
+        width:
+          type: number
+          description: |
+            The width of the rendered image in pixels. You must specify at least one of either width, height or dpi
+        height:
+          type: number
+          description: |
+            The height of the rendered image in pixels. You must specify at least one of either width, height or dpi
+        dpi:
+          type: number
+          description: |
+            The resolution of the rendered image in dots per inch. You must specify at least one of either width, height or dpi
+      description: Render the document as an image.
+    JSONContentOutput:
+      type: object
+      title: JSONContentOutput
+      required:
+        - type
+      description: |
+        JSON with document contents. Returned for `json-content` output type.
+      properties:
+        type:
+          type: string
+          enum:
+            - json-content
+        plainText:
+          type: boolean
+          default: true
+          description: |
+            When set to true, extracts document text. Text is extracted via OCR process.
+        structuredText:
+          type: boolean
+          default: false
+          description: |
+            When set to true, extracts structured document text. This includes text words, characters, lines and paragraphs.
+        keyValuePairs:
+          type: boolean
+          default: false
+          description: |
+            When set to true, extracts key-value pairs detected within the document contents. Example of detected values are phone numbers, email addresses, currencies, numbers, dates, etc.
+        tables:
+          type: boolean
+          default: true
+          description: |
+            When set to true, extracts tabular data from the document.
+        language:
+          oneOf:
+            - $ref: '#/components/schemas/OcrLanguage'
+            - type: array
+              items:
+                $ref: '#/components/schemas/OcrLanguage'
+    OfficeOutput:
+      type: object
+      title: OfficeOutput
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          description: |
+            The output office file type.
+          enum:
+            - docx
+            - xlsx
+            - pptx
+    HTMLOutput:
+      type: object
+      title: HTMLOutput
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - html
+        layout:
+          type: string
+          description: |
+            The layout type to use for conversion to HTML:
+
+            * `page` layout keeps the original structure of the document, segmented by page.
+            * `reflow` layout converts the document into a continuous flow of text, without page breaks.
+          enum:
+            - page
+            - reflow
+    MarkdownOutput:
+      type: object
+      title: MarkdownOutput
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - markdown
+    BuildOutput:
+      oneOf:
+        - $ref: '#/components/schemas/PDFOutput'
+        - $ref: '#/components/schemas/PDFAOutput'
+        - $ref: '#/components/schemas/PDFUAOutput'
+        - $ref: '#/components/schemas/ImageOutput'
+        - $ref: '#/components/schemas/JSONContentOutput'
+        - $ref: '#/components/schemas/OfficeOutput'
+        - $ref: '#/components/schemas/HTMLOutput'
+        - $ref: '#/components/schemas/MarkdownOutput'
+    BuildInstructions:
+      type: object
+      properties:
+        parts:
+          type: array
+          description: |
+            Parts of the document to be built.
+
+            Multiple types of parts are supported:
+            * `FilePart` that represents a binary input file that can be either a part name in the `multipart/form-data` request or an URL of a remote file.
+            * `HTMLPart` that represents an HTML input file along with it's assets.
+            * `NewPagePart` that represents a document with empty pages.
+            * `DocumentPart` that represents a document (with optional layer) managed by Nutrient Document Engine. Only applicable if used in a Document Engine context.
+          items:
+            $ref: '#/components/schemas/Part'
+        actions:
+          type: array
+          description: |
+            Actions to be performed on the document after it is built.
+          items:
+            $ref: '#/components/schemas/BuildAction'
+        output:
+          $ref: '#/components/schemas/BuildOutput'
+      required:
+        - parts
+    HostedErrorResponse:
+      type: object
+      properties:
+        details:
+          type: string
+          example: The request is malformed
+        status:
+          type: integer
+          enum:
+            - 400
+            - 402
+            - 408
+            - 413
+            - 422
+            - 500
+        requestId:
+          type: string
+          example: xy123zzdafaf
+        failingPaths:
+          type: array
+          description: List of failing paths.
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+                example: $.property[0]
+              details:
+                type: string
+                example: Missing required property
+    CreateDigitalSignature:
+      title: CreateDigitalSignature
+      type: object
+      required:
+        - signatureType
+      properties:
+        signatureType:
+          type: string
+          description: |
+            The signature type to create.
+            Note: While this field is required if sending signature parameters,
+            the entire `data` object itself is optional in the multipart request.
+          enum:
+            - cms
+            - cades
+          default: cms
+        flatten:
+          type: boolean
+          description: |
+            Controls whether to flatten the document before signing it.
+            This is useful when you want the document's appearance to remain stable before signing and to ensure there's no indication that the document can be edited after signing.
+
+            Note that the resulting document's records (annotations and form fields) will be deleted.
+          default: false
+        formFieldName:
+          type: string
+          description: |
+            Name of the signature form field to sign. Use this when signing an existing signature form field.
+            If a signature field with this name does not exist in the document, it will be created at the position specified with `position`.
+
+            If a signature field with the specified name exists and `position` is also set, the request will result in an error.
+
+            Note: Either `formFieldName` or `position` must be provided if creating a visible signature.
+          example: signatureI-field
+        appearance:
+          description: |
+            The appearance settings for the visible signature. Omit if you want an invisible signature to be created.
+          type: object
+          properties:
+            mode:
+              type: string
+              description: |
+                Specifies what will be rendered in the signature appearance: graphics, description, or both.
+                Visit the [Configure Digital Signature Appearance guide](https://www.nutrient.io/guides/web/signatures/digital-signatures/signature-lifecycle/configure-digital-signature-appearance/) for a detailed description of the signature modes.
+              default: signatureAndDescription
+              example: signatureOnly
+              enum:
+                - signatureOnly
+                - signatureAndDescription
+                - descriptionOnly
+            contentType:
+              type: string
+              description: |
+                The content type of the watermark image when provided in the `image` parameter of the multipart request.
+                Supported types are `application/pdf`, `image/png`, and `image/jpeg`.
+              example: image/png
+            showWatermark:
+              type: boolean
+              description: |
+                Controls whether to include the watermark in the signature appearance.
+                When `true` and a watermark image is provided via the `watermark` parameter, it will be included.
+                When `true` and no watermark image is provided, the Nutrient logo will be used as the default watermark.
+              default: true
+            showSignDate:
+              type: boolean
+              description: |
+                Controls whether to show the signing date and time in the signature appearance.
+                When `true`, the date and time will be shown in ISO 8601 format.
+                Example: 2023-06-15 13:57:31
+              default: true
+            showDateTimezone:
+              type: boolean
+              description: |
+                Controls whether to include the timezone in the signing date.
+                Only applies when `showSignDate` is `true`.
+              default: false
+        position:
+          type: object
+          description: |
+            Position of the visible signature form field. Omit if you want an invisible signature or if you specified the `formFieldName` option.
+          required:
+            - pageIndex
+            - rect
+          properties:
+            pageIndex:
+              type: integer
+              minimum: 0
+              description: |
+                The index of the page where the signature appearance will be rendered.
+            rect:
+              type: array
+              description: |
+                An array of 4 numbers (points) representing the bounding box where the signature appearance will be rendered on the specified `pageIndex`.
+
+                [left, top, width, height]
+
+                The unit is PDF points (1 PDF point equals 1⁄72 of an inch).
+                The first two numbers describe the [left,top] coordinates of the top left corner of the bounding box,
+                while the second two numbers describe the width and height of the bounding box.
+              minItems: 4
+              maxItems: 4
+              items:
+                type: number
+              example:
+                - 0
+                - 0
+                - 100
+                - 100
+        cadesLevel:
+          type: string
+          enum:
+            - b-lt
+            - b-t
+            - b-b
+          default: b-lt
+          description: |
+            The CAdES level to use when creating the signature. The default value is `CAdES B-LT`.
+            This parameter is ignored when the `signatureType` is `cms`.
+
+            This is more like a hint of what level to use, and you should be aware that the API can return `b-b` even when you ask for `b-lt`. This can happen when the timestamp authority server is down, etc.
+
+            If this API is invoked with the [Document Engine](https://www.nutrient.io/sdk/document-engine), you can override the default with the following environment variable: [`DIGITAL_SIGNATURE_CADES_LEVEL`](https://www.nutrient.io/guides/document-engine/configuration/options/).
+
+            For Long-Term Validation (LTV) of the signature - when this API is invoked with the [Document Engine](https://www.nutrient.io/sdk/document-engine) - you need to ensure that the signing certificate chain links to a trusted anchor Certificate Authority (CA) at the time of signing.
+
+            To add the root CA and necessary intermediate CAs to your Document Engine instance, follow the instructions in [our guide on Providing Trusted Root Certificates](https://www.nutrient.io/guides/document-engine/signatures/signature-lifecycle/validation/#providing-trusted-root-certificates).
+      example:
+        signatureType: cades
+        flatten: false
+        appearance:
+          mode: signatureOnly
+          contentType: image/png
+          showWatermark: true
+          showSignDate: true
+        position:
+          pageIndex: 0
+        cadesLevel: b-lt
+    BlendMode:
+      type: string
+      title: BlendMode
+      enum:
+        - normal
+        - multiply
+        - screen
+        - overlay
+        - darken
+        - lighten
+        - colorDodge
+        - colorBurn
+        - hardLight
+        - softLight
+        - difference
+        - exclusion
+    IsCommentThreadRoot:
+      title: isCommentThreadRoot
+      type: boolean
+      description: |
+        Indicates whether the annotation is the root of a comment thread.
+    MarkupAnnotation:
+      title: MarkupAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: MarkupAnnotation
+          description: |
+            Markup annotations include highlight, squiggly, strikeout, and underline. All of these require a list of rectangles that they're drawn to. The highlight annotation will lay the color on top of the element and apply the multiply blend mode.
+          type: object
+          properties:
+            type:
+              enum:
+                - pspdfkit/markup/highlight
+                - pspdfkit/markup/squiggly
+                - pspdfkit/markup/strikeout
+                - pspdfkit/markup/underline
+            rects:
+              type: array
+              description: Bounding boxes of the marked text.
+              items:
+                $ref: '#/components/schemas/Rect'
+            blendMode:
+              $ref: '#/components/schemas/BlendMode'
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Foreground color
+              example: '#fcee7c'
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+            isCommentThreadRoot:
+              $ref: '#/components/schemas/IsCommentThreadRoot'
+          required:
+            - rects
+            - color
+            - type
+    AnnotationText:
+      type: object
+      description: The text contents.
+      properties:
+        format:
+          type: string
+          description: |
+            The format of the annotation's contents. Can be either `xhtml` or `plain`.
+            If `xhtml` is used, the text will be rendered as XHTML.
+            If `plain` is used, the text will be rendered as plain text.
+
+            Supported XHTML tags include `span`, `p`, `html`, `body`, `b`, `i`, and `a`.
+            Hyperlinks are also supported in the `a` tags using the `href` attribute.
+            Styles are supported by using inline styles with the `style` attribute.
+            Supported CSS properties include `background-color`, `font-weight`, `font-style`, `text-decoration`, `color`
+          enum:
+            - xhtml
+            - plain
+        value:
+          type: string
+          description: |
+            Actual text content of the annotation. This is the text that will be displayed in the annotation.
+          example: Annotation with <b>xhtml</b> contents.
+    FontSizeInt:
+      title: FontSizeInt
+      description: Size of the text in PDF points.
+      type: integer
+      example: 10
+    FontStyle:
+      type: array
+      description: Text style. Can be only italic, only bold, italic and bold, or none of these.
+      items:
+        type: string
+        enum:
+          - bold
+          - italic
+    FontColor:
+      title: FontColor
+      type: string
+      pattern: ^#[0-9a-fA-F]{6}$
+      description: A foreground color of the text.
+      example: '#ffffff'
+    Font:
+      title: Font
+      type: string
+      description: The font to render the text. Fonts are client specific, so you should only use fonts you know are present in the browser where they should be displayed. If a font isn't found, PSPDFKit will automatically fall back to a sans-serif font.
+      example: Helvetica
+    HorizontalAlign:
+      title: HorizontalAlign
+      type: string
+      description: Alignment of the text along the horizontal axis.
+      enum:
+        - left
+        - center
+        - right
+    VerticalAlign:
+      title: VerticalAlign
+      type: string
+      description: |
+        Alignment of the text along the vertical axis.
+
+        Note that vertical align is a custom PSPDFKit extension that might not be honored by 3rd party readers.
+      enum:
+        - top
+        - center
+        - bottom
+    Point:
+      type: array
+      title: Point
+      description: Point coordinates in a form [x, y] in PDF points (pt).
+      items:
+        type: number
+        minItems: 2
+        maxItems: 2
+      example:
+        - 100
+        - 200
+    LineCap:
+      type: string
+      title: LineCap
+      enum:
+        - square
+        - circle
+        - diamond
+        - openArrow
+        - closedArrow
+        - butt
+        - reverseOpenArrow
+        - reverseClosedArrow
+        - slash
+    BorderStyle:
+      type: string
+      title: BorderStyle
+      enum:
+        - solid
+        - dashed
+        - beveled
+        - inset
+        - underline
+    CloudyBorderIntensity:
+      title: CloudyBorderIntensity
+      type: number
+      minimum: 0
+    CloudyBorderInset:
+      title: CloudyBorderInset
+      description: Inset used for drawing cloudy borders in a form [left, top, right, bottom].
+      type: array
+      items:
+        type: number
+        minItems: 4
+        maxItems: 4
+    TextAnnotation:
+      title: TextAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: TextAnnotation
+          description: A text box annotation that can be placed anywhere on the screen.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/text
+            text:
+              $ref: '#/components/schemas/AnnotationText'
+            fontSize:
+              $ref: '#/components/schemas/FontSizeInt'
+            fontStyle:
+              $ref: '#/components/schemas/FontStyle'
+            fontColor:
+              $ref: '#/components/schemas/FontColor'
+            font:
+              $ref: '#/components/schemas/Font'
+            backgroundColor:
+              title: BackgroundColor
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A background color that will fill the bounding box.
+              example: '#000000'
+            horizontalAlign:
+              $ref: '#/components/schemas/HorizontalAlign'
+            verticalAlign:
+              $ref: '#/components/schemas/VerticalAlign'
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            isFitting:
+              type: boolean
+              description: Specifies that the text is supposed to fit in the bounding box. This is only set on new annotations, as we can't easily figure out if an appearance stream contains all the text for existing annotations.
+            callout:
+              type: object
+              description: Properties for callout version of text annotation.
+              properties:
+                start:
+                  $ref: '#/components/schemas/Point'
+                end:
+                  $ref: '#/components/schemas/Point'
+                innerRectInset:
+                  type: array
+                  description: Inset applied to the bounding box to size and position the rectangle for the text [left, top, right, bottom].
+                  items:
+                    type: number
+                    minItems: 4
+                    maxItems: 4
+                cap:
+                  $ref: '#/components/schemas/LineCap'
+                knee:
+                  $ref: '#/components/schemas/Point'
+              required:
+                - start
+                - end
+                - innerRectInset
+            borderStyle:
+              $ref: '#/components/schemas/BorderStyle'
+            borderWidth:
+              type: integer
+              minimum: 0
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+            cloudyBorderInset:
+              $ref: '#/components/schemas/CloudyBorderInset'
+          required:
+            - type
+            - text
+            - fontSize
+            - opacity
+            - horizontalAlign
+            - verticalAlign
+    Intensity:
+      title: Intensity
+      type: number
+      minimum: 0
+      maximum: 1
+      default: 0.5
+    Lines:
+      title: Lines
+      type: object
+      properties:
+        intensities:
+          type: array
+          description: Intensities are used to weigh the point during natural drawing. They are received by pressure-sensitive drawing or touch devices. The default value should be used if it's not possible to obtain the intensity.
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Intensity'
+        points:
+          type: array
+          description: Points are grouped in segments. Points inside a segment are joined to a line. There must be at least one  segment with at least one point.
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Point'
+    BackgroundColor:
+      title: BackgroundColor
+      type: string
+      pattern: ^#[0-9a-fA-F]{6}$
+      description: A background color that will fill the bounding box.
+      example: '#000000'
+    InkAnnotation:
+      title: InkAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: InkAnnotation
+          description: Ink annotations are used for freehand drawings on a page. They can contain multiple line segments. Points within a segment are connected to a line.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/ink
+            lines:
+              $ref: '#/components/schemas/Lines'
+            lineWidth:
+              type: integer
+              description: The width of the line in PDF points (pt).
+              minimum: 0
+            isDrawnNaturally:
+              type: boolean
+              description: Nutrient's natural drawing mode. This value is only used by Nutrient iOS SDK.
+            isSignature:
+              type: boolean
+              description: True if the annotation should be considered a (soft) ink signature.
+            strokeColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: The color of the line.
+              example: '#ffffff'
+            backgroundColor:
+              $ref: '#/components/schemas/BackgroundColor'
+            blendMode:
+              $ref: '#/components/schemas/BlendMode'
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+            - lines
+            - lineWidth
+    LinkAnnotation:
+      title: LinkAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: LinkAnnotation
+          description: A link can be used to trigger an action when clicked or pressed. The link will be drawn on the bounding box.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/link
+            borderColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A color of the link border.
+              example: '#ffffff'
+            borderStyle:
+              $ref: '#/components/schemas/BorderStyle'
+            borderWidth:
+              type: integer
+              minimum: 0
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+            - action
+    NoteIcon:
+      title: NoteIcon
+      type: string
+      enum:
+        - comment
+        - rightPointer
+        - rightArrow
+        - check
+        - circle
+        - cross
+        - insert
+        - newParagraph
+        - note
+        - paragraph
+        - help
+        - star
+        - key
+    NoteAnnotation:
+      title: NoteAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: NoteAnnotation
+          description: Note annotations are “sticky notes” attached to a point in the PDF document. They're represented as markers, and each one has an icon associated with it. Its text content is revealed on selection.
+          type: object
+          properties:
+            text:
+              $ref: '#/components/schemas/AnnotationText'
+            icon:
+              $ref: '#/components/schemas/NoteIcon'
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A color that fills the note shape and its icon.
+              example: '#ffd83f'
+          required:
+            - type
+            - text
+            - icon
+    MeasurementScale:
+      title: MeasurementScale
+      type: object
+      properties:
+        unitFrom:
+          type: string
+          enum:
+            - in
+            - mm
+            - cm
+            - pt
+        unitTo:
+          type: string
+          enum:
+            - in
+            - mm
+            - cm
+            - pt
+            - ft
+            - m
+            - yd
+            - km
+            - mi
+        from:
+          type: number
+        to:
+          type: number
+    MeasurementPrecision:
+      title: MeasurementPrecision
+      type: string
+      enum:
+        - whole
+        - oneDp
+        - twoDp
+        - threeDp
+        - fourDp
+    ShapeAnnotation:
+      title: ShapeAnnotation
+      description: Shape annotations are used to draw different shapes on a page.
+      type: object
+      properties:
+        strokeDashArray:
+          type: array
+          items:
+            type: number
+        strokeWidth:
+          type: number
+        strokeColor:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+          example: '#ffffff'
+        note:
+          $ref: '#/components/schemas/AnnotationNote'
+        measurementScale:
+          $ref: '#/components/schemas/MeasurementScale'
+        measurementPrecision:
+          $ref: '#/components/schemas/MeasurementPrecision'
+    FillColor:
+      title: FillColor
+      type: string
+      pattern: ^#[0-9a-fA-F]{6}$
+      example: '#FF0000'
+    EllipseAnnotation:
+      title: EllipseAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - $ref: '#/components/schemas/ShapeAnnotation'
+        - title: EllipseAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/ellipse
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+            cloudyBorderInset:
+              $ref: '#/components/schemas/CloudyBorderInset'
+          required:
+            - type
+    RectangleAnnotation:
+      title: RectangleAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - $ref: '#/components/schemas/ShapeAnnotation'
+        - title: RectangleAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/rectangle
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+            cloudyBorderInset:
+              $ref: '#/components/schemas/CloudyBorderInset'
+          required:
+            - type
+    LineCaps:
+      title: LineCaps
+      type: object
+      properties:
+        start:
+          $ref: '#/components/schemas/LineCap'
+        end:
+          $ref: '#/components/schemas/LineCap'
+    LineAnnotation:
+      title: LineAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - $ref: '#/components/schemas/ShapeAnnotation'
+        - title: LineAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/line
+            startPoint:
+              $ref: '#/components/schemas/Point'
+            endPoint:
+              $ref: '#/components/schemas/Point'
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            lineCaps:
+              $ref: '#/components/schemas/LineCaps'
+          required:
+            - type
+            - startPoint
+            - endPoint
+    PolylineAnnotation:
+      title: PolylineAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - $ref: '#/components/schemas/ShapeAnnotation'
+        - title: PolylineAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/polyline
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            points:
+              type: array
+              items:
+                $ref: '#/components/schemas/Point'
+            lineCaps:
+              $ref: '#/components/schemas/LineCaps'
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+            cloudyBorderInset:
+              $ref: '#/components/schemas/CloudyBorderInset'
+          required:
+            - type
+            - points
+    PolygonAnnotation:
+      title: PolygonAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - $ref: '#/components/schemas/ShapeAnnotation'
+        - title: PolygonAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/polygon
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            points:
+              type: array
+              items:
+                $ref: '#/components/schemas/Point'
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+          required:
+            - type
+            - points
+    ImageAnnotation:
+      title: ImageAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: ImageAnnotation
+          description: Image annotations are used to annotate a PDF with images.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/image
+            description:
+              type: string
+              description: A description of the image.
+              example: PSPDFKit Logo
+            fileName:
+              type: string
+              description: An optional file name for the image.
+            contentType:
+              type: string
+              description: MIME type of the image.
+              enum:
+                - image/jpeg
+                - image/png
+                - application/pdf
+            imageAttachmentId:
+              type: string
+              description: Either the SHA256 Hash of the attachment or the pdfObjectId of the attachment.
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            isSignature:
+              type: boolean
+              description: True if the annotation should be considered a (soft) signature.
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+    StampAnnotation:
+      title: StampAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: StampAnnotation
+          description: A stamp annotation represents a stamp in a PDF.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/stamp
+            stampType:
+              type: string
+              description: A type defining the appearance of the stamp annotation. Type 'Custom' displays arbitrary title and subtitle.
+              enum:
+                - Accepted
+                - Approved
+                - AsIs
+                - Completed
+                - Confidential
+                - Departmental
+                - Draft
+                - Experimental
+                - Expired
+                - Final
+                - ForComment
+                - ForPublicRelease
+                - InformationOnly
+                - InitialHere
+                - NotApproved
+                - NotForPublicRelease
+                - PreliminaryResults
+                - Rejected
+                - Revised
+                - SignHere
+                - Sold
+                - TopSecret
+                - Void
+                - Witness
+                - Custom
+            title:
+              type: string
+              description: Custom stamp's title.
+            subtitle:
+              type: string
+              description: Custom stamp's subtitle.
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Custom stamp's fill color.
+              example: '#ffffff'
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+            - stampType
+    FontSizeAuto:
+      title: FontSizeAuto
+      description: Size of the text that automatically adjusts to fit the bounding box.
+      type: string
+      enum:
+        - auto
+      example: auto
+    WidgetAnnotation:
+      title: WidgetAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: WidgetAnnotation
+          description: |
+            JSON representation of the form field widget annotation. Widget annotations are a type of annotation with the type always being 'pspdfkit/widget'.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/widget
+            formFieldName:
+              type: string
+              example: First-Name
+              description: See name property of the FormField schema for more details
+            borderColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A color of the annotation border.
+              example: '#ffffff'
+            borderStyle:
+              $ref: '#/components/schemas/BorderStyle'
+            borderWidth:
+              type: integer
+              minimum: 0
+            font:
+              $ref: '#/components/schemas/Font'
+            fontSize:
+              oneOf:
+                - $ref: '#/components/schemas/FontSizeInt'
+                - $ref: '#/components/schemas/FontSizeAuto'
+            fontColor:
+              $ref: '#/components/schemas/FontColor'
+            fontStyle:
+              $ref: '#/components/schemas/FontStyle'
+            horizontalAlign:
+              $ref: '#/components/schemas/HorizontalAlign'
+            verticalAlign:
+              $ref: '#/components/schemas/VerticalAlign'
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            backgroundColor:
+              $ref: '#/components/schemas/BackgroundColor'
+          required:
+            - type
+    CommentMarkerAnnotation:
+      title: CommentMarkerAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation'
+        - title: CommentMarkerAnnotation
+          description: |
+            Comment markers are annotations attached to a point in the PDF document that can be a root of a comment thread. They're represented as markers, and each one has an icon associated with it. Its text content match the content of the first comment in the thread.
+          type: object
+          properties:
+            text:
+              $ref: '#/components/schemas/AnnotationText'
+            icon:
+              $ref: '#/components/schemas/NoteIcon'
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A color that fills the note shape and its icon.
+              example: '#ffd83f'
+            isCommentThreadRoot:
+              $ref: '#/components/schemas/IsCommentThreadRoot'
+          required:
+            - type
+            - icon
+    Annotation:
+      title: Annotation JSON v2
+      type: object
+      description: |
+        JSON representation of an annotation.
+      oneOf:
+        - $ref: '#/components/schemas/MarkupAnnotation'
+        - $ref: '#/components/schemas/RedactionAnnotation'
+        - $ref: '#/components/schemas/TextAnnotation'
+        - $ref: '#/components/schemas/InkAnnotation'
+        - $ref: '#/components/schemas/LinkAnnotation'
+        - $ref: '#/components/schemas/NoteAnnotation'
+        - $ref: '#/components/schemas/EllipseAnnotation'
+        - $ref: '#/components/schemas/RectangleAnnotation'
+        - $ref: '#/components/schemas/LineAnnotation'
+        - $ref: '#/components/schemas/PolylineAnnotation'
+        - $ref: '#/components/schemas/PolygonAnnotation'
+        - $ref: '#/components/schemas/ImageAnnotation'
+        - $ref: '#/components/schemas/StampAnnotation'
+        - $ref: '#/components/schemas/WidgetAnnotation'
+        - $ref: '#/components/schemas/CommentMarkerAnnotation'
+    BaseAnnotation.v1:
+      title: BaseAnnotation
+      type: object
+      properties:
+        v:
+          type: integer
+          enum:
+            - 1
+          description: The specification version that the record is compliant to.
+        type:
+          type: string
+          description: The type of the annotation.
+        pageIndex:
+          type: integer
+          description: Page index of the annotation. 0 is the first page.
+          minimum: 0
+        bbox:
+          $ref: '#/components/schemas/AnnotationBbox'
+        action:
+          $ref: '#/components/schemas/Action'
+        opacity:
+          type: number
+          description: Annotation opacity. 0 is fully transparent, 1 is fully opaque.
+          minimum: 0
+          maximum: 1
+        pdfObjectId:
+          type: integer
+          description: The PDF object ID of the annotation from the source PDF.
+        id:
+          type: string
+          description: The unique Instant JSON identifier of the annotation.
+          example: 01DNEDPQQ22W49KDXRFPG4EPEQ
+        flags:
+          type: array
+          description: |
+            Array of annotation flags.
+
+            | Flag | Description |
+            | ---- | ----------- |
+            | noPrint | Don't print. |
+            | noZoom | Don't zoom with page. |
+            | noRotate | Don't rotate. |
+            | noView | Don't display, can be still printed. |
+            | hidden | Don't display, don't print, disable any interaction with user. |
+            | invisible | Ignore annotation AP stream. |
+            | readOnly | Don't allow the annotation to be deleted or its properties modified. |
+            | locked | Same as `readOnly` but allows changing annotation contents. |
+            | lockedContents | Don't allow the contents of the annotation to be modified. |
+          items:
+            type: string
+            enum:
+              - noPrint
+              - noZoom
+              - noRotate
+              - noView
+              - hidden
+              - invisible
+              - readOnly
+              - locked
+              - toggleNoView
+              - lockedContents
+        createdAt:
+          type: string
+          description: The date of the annotation creation. ISO 8601 with full date, time, and time zone information
+          format: date-time
+          example: '2019-09-16T15:05:03.712909Z'
+        updatedAt:
+          type: string
+          description: The date of the last annotation update. ISO 8601 with full date, time, and time zone information
+          format: date-time
+          example: '2019-09-16T15:05:03.712909Z'
+        name:
+          type: string
+          description: The name of the annotation used to identify the annotation.
+        creatorName:
+          type: string
+          description: The name of the creator of the annotation.
+        customData:
+          $ref: '#/components/schemas/AnnotationCustomData'
+      required:
+        - type
+        - pageIndex
+        - bbox
+        - v
+    MarkupAnnotation.v1:
+      title: MarkupAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: MarkupAnnotation
+          description: |
+            Markup annotations include highlight, squiggly, strikeout, and underline. All of these require a list of rectangles that they're drawn to. The highlight annotation will lay the color on top of the element and apply the multiply blend mode.
+          type: object
+          properties:
+            type:
+              enum:
+                - pspdfkit/markup/highlight
+                - pspdfkit/markup/squiggly
+                - pspdfkit/markup/strikeout
+                - pspdfkit/markup/underline
+            rects:
+              type: array
+              description: Bounding boxes of the marked text.
+              items:
+                $ref: '#/components/schemas/Rect'
+            blendMode:
+              $ref: '#/components/schemas/BlendMode'
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Foreground color
+              example: '#fcee7c'
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+            isCommentThreadRoot:
+              $ref: '#/components/schemas/IsCommentThreadRoot'
+          required:
+            - rects
+            - color
+            - type
+    RedactionAnnotation.v1:
+      title: RedactionAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: RedactionAnnotation
+          description: Redaction annotations determines the location of the area marked for redaction.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/markup/redaction
+            rects:
+              type: array
+              description: Bounding boxes of the marked text.
+              items:
+                $ref: '#/components/schemas/Rect'
+            outlineColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Outline color is the border color of a redaction annotation when it hasn't yet been applied to the document
+              example: '#ffffff'
+            fillColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Fill color is the background color that a redaction will have when applied to the document.
+            overlayText:
+              type: string
+              description: The text that will be printed on top of an applied redaction annotation.
+              example: CONFIDENTIAL
+            repeatOverlayText:
+              type: boolean
+              description: Specifies whether or not the overlay text will be repeated multiple times to fill the boundaries of the redaction annotation.
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Color of the overlay text (if any).
+              example: '#ffffff'
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+    AnnotationPlainText:
+      type: string
+      description: The text contents.
+      example: Annotation text.
+    TextAnnotation.v1:
+      title: TextAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: TextAnnotation
+          description: A text box annotation that can be placed anywhere on the screen.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/text
+            text:
+              $ref: '#/components/schemas/AnnotationPlainText'
+            fontSize:
+              $ref: '#/components/schemas/FontSizeInt'
+            fontStyle:
+              type: array
+              description: Text style. Can be only italic, only bold, italic and bold, or none of these.
+              items:
+                type: string
+                enum:
+                  - bold
+                  - italic
+            fontColor:
+              $ref: '#/components/schemas/FontColor'
+            font:
+              $ref: '#/components/schemas/Font'
+            backgroundColor:
+              title: BackgroundColor
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A background color that will fill the bounding box.
+              example: '#000000'
+            horizontalAlign:
+              $ref: '#/components/schemas/HorizontalAlign'
+            verticalAlign:
+              $ref: '#/components/schemas/VerticalAlign'
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            isFitting:
+              type: boolean
+              description: Specifies that the text is supposed to fit in the bounding box. This is only set on new annotations, as we can't easily figure out if an appearance stream contains all the text for existing annotations.
+            callout:
+              type: object
+              description: Properties for callout version of text annotation.
+              properties:
+                start:
+                  $ref: '#/components/schemas/Point'
+                end:
+                  $ref: '#/components/schemas/Point'
+                innerRectInset:
+                  type: array
+                  description: Inset applied to the bounding box to size and position the rectangle for the text [left, top, right, bottom].
+                  items:
+                    type: number
+                    minItems: 4
+                    maxItems: 4
+                cap:
+                  $ref: '#/components/schemas/LineCap'
+                knee:
+                  $ref: '#/components/schemas/Point'
+              required:
+                - start
+                - end
+                - innerRectInset
+            borderStyle:
+              $ref: '#/components/schemas/BorderStyle'
+            borderWidth:
+              type: integer
+              minimum: 0
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+            cloudyBorderInset:
+              $ref: '#/components/schemas/CloudyBorderInset'
+          required:
+            - type
+            - text
+            - fontSize
+    InkAnnotation.v1:
+      title: InkAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: InkAnnotation
+          description: Ink annotations are used for freehand drawings on a page. They can contain multiple line segments. Points within a segment are connected to a line.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/ink
+            lines:
+              $ref: '#/components/schemas/Lines'
+            lineWidth:
+              type: integer
+              description: The width of the line in PDF points (pt).
+              minimum: 0
+            isDrawnNaturally:
+              type: boolean
+              description: Nutrient's natural drawing mode. This value is only used by Nutrient iOS SDK.
+            isSignature:
+              type: boolean
+              description: True if the annotation should be considered a (soft) ink signature.
+            strokeColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: The color of the line.
+              example: '#ffffff'
+            backgroundColor:
+              $ref: '#/components/schemas/BackgroundColor'
+            blendMode:
+              $ref: '#/components/schemas/BlendMode'
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+            - lines
+            - lineWidth
+    LinkAnnotation.v1:
+      title: LinkAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: LinkAnnotation
+          description: A link can be used to trigger an action when clicked or pressed. The link will be drawn on the bounding box.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/link
+            borderColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A color of the link border.
+              example: '#ffffff'
+            borderStyle:
+              $ref: '#/components/schemas/BorderStyle'
+            borderWidth:
+              type: integer
+              minimum: 0
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+            - action
+    NoteAnnotation.v1:
+      title: NoteAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: NoteAnnotation
+          description: Note annotations are “sticky notes” attached to a point in the PDF document. They're represented as markers, and each one has an icon associated with it. Its text content is revealed on selection.
+          type: object
+          properties:
+            text:
+              $ref: '#/components/schemas/AnnotationPlainText'
+            icon:
+              $ref: '#/components/schemas/NoteIcon'
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A color that fills the note shape and its icon.
+              example: '#ffd83f'
+          required:
+            - type
+            - text
+            - icon
+    ShapeAnnotation.v1:
+      title: ShapeAnnotation
+      description: Shape annotations are used to draw different shapes on a page.
+      type: object
+      properties:
+        strokeDashArray:
+          type: array
+          items:
+            type: number
+        strokeWidth:
+          type: number
+        strokeColor:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+          example: '#ffffff'
+        note:
+          $ref: '#/components/schemas/AnnotationNote'
+        measurementScale:
+          $ref: '#/components/schemas/MeasurementScale'
+        measurementPrecision:
+          $ref: '#/components/schemas/MeasurementPrecision'
+    EllipseAnnotation.v1:
+      title: EllipseAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - $ref: '#/components/schemas/ShapeAnnotation.v1'
+        - title: EllipseAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/ellipse
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+            cloudyBorderInset:
+              $ref: '#/components/schemas/CloudyBorderInset'
+          required:
+            - type
+    RectangleAnnotation.v1:
+      title: RectangleAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - $ref: '#/components/schemas/ShapeAnnotation.v1'
+        - title: RectangleAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/rectangle
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+            cloudyBorderInset:
+              $ref: '#/components/schemas/CloudyBorderInset'
+          required:
+            - type
+    LineAnnotation.v1:
+      title: LineAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - $ref: '#/components/schemas/ShapeAnnotation.v1'
+        - title: LineAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/line
+            startPoint:
+              $ref: '#/components/schemas/Point'
+            endPoint:
+              $ref: '#/components/schemas/Point'
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            lineCaps:
+              $ref: '#/components/schemas/LineCaps'
+          required:
+            - type
+            - startPoint
+            - endPoint
+    PolylineAnnotation.v1:
+      title: PolylineAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - $ref: '#/components/schemas/ShapeAnnotation.v1'
+        - title: PolylineAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/polyline
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            points:
+              type: array
+              items:
+                $ref: '#/components/schemas/Point'
+            lineCaps:
+              $ref: '#/components/schemas/LineCaps'
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+            cloudyBorderInset:
+              $ref: '#/components/schemas/CloudyBorderInset'
+          required:
+            - type
+            - points
+    PolygonAnnotation.v1:
+      title: PolygonAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - $ref: '#/components/schemas/ShapeAnnotation.v1'
+        - title: PolygonAnnotation
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/shape/polygon
+            fillColor:
+              $ref: '#/components/schemas/FillColor'
+            points:
+              type: array
+              items:
+                $ref: '#/components/schemas/Point'
+            cloudyBorderIntensity:
+              $ref: '#/components/schemas/CloudyBorderIntensity'
+          required:
+            - type
+            - points
+    ImageAnnotation.v1:
+      title: ImageAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: ImageAnnotation
+          description: Image annotations are used to annotate a PDF with images.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/image
+            description:
+              type: string
+              description: A description of the image.
+              example: PSPDFKit Logo
+            fileName:
+              type: string
+              description: An optional file name for the image.
+            contentType:
+              type: string
+              description: MIME type of the image.
+              enum:
+                - image/jpeg
+                - image/png
+                - application/pdf
+            imageAttachmentId:
+              type: string
+              description: Either the SHA256 Hash of the attachment or the pdfObjectId of the attachment.
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            isSignature:
+              type: boolean
+              description: True if the annotation should be considered a (soft) signature.
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+    StampAnnotation.v1:
+      title: StampAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: StampAnnotation
+          description: A stamp annotation represents a stamp in a PDF.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/stamp
+            stampType:
+              type: string
+              description: A type defining the appearance of the stamp annotation. Type 'Custom' displays arbitrary title and subtitle.
+              enum:
+                - Accepted
+                - Approved
+                - AsIs
+                - Completed
+                - Confidential
+                - Departmental
+                - Draft
+                - Experimental
+                - Expired
+                - Final
+                - ForComment
+                - ForPublicRelease
+                - InformationOnly
+                - InitialHere
+                - NotApproved
+                - NotForPublicRelease
+                - PreliminaryResults
+                - Rejected
+                - Revised
+                - SignHere
+                - Sold
+                - TopSecret
+                - Void
+                - Witness
+                - Custom
+            title:
+              type: string
+              description: Custom stamp's title.
+            subtitle:
+              type: string
+              description: Custom stamp's subtitle.
+            color:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: Custom stamp's fill color.
+              example: '#ffffff'
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            note:
+              $ref: '#/components/schemas/AnnotationNote'
+          required:
+            - type
+            - stampType
+    WidgetAnnotation.v1:
+      title: WidgetAnnotation
+      allOf:
+        - $ref: '#/components/schemas/BaseAnnotation.v1'
+        - title: WidgetAnnotation
+          description: |
+            JSON representation of the form field widget annotation. Widget annotations are a type of annotation with the type always being 'pspdfkit/widget'.
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/widget
+            formFieldName:
+              type: string
+              example: First-Name
+              description: See name property of the FormFieldContent schema for more details
+            borderColor:
+              type: string
+              pattern: ^#[0-9a-fA-F]{6}$
+              description: A color of the annotation border.
+              example: '#ffffff'
+            borderStyle:
+              $ref: '#/components/schemas/BorderStyle'
+            borderWidth:
+              type: integer
+              minimum: 0
+            font:
+              $ref: '#/components/schemas/Font'
+            fontSize:
+              oneOf:
+                - $ref: '#/components/schemas/FontSizeInt'
+                - $ref: '#/components/schemas/FontSizeAuto'
+            fontColor:
+              $ref: '#/components/schemas/FontColor'
+            horizontalAlign:
+              $ref: '#/components/schemas/HorizontalAlign'
+            verticalAlign:
+              $ref: '#/components/schemas/VerticalAlign'
+            rotation:
+              $ref: '#/components/schemas/AnnotationRotation'
+            backgroundColor:
+              $ref: '#/components/schemas/BackgroundColor'
+          required:
+            - type
+    Annotation.v1:
+      title: Annotation JSON v1
+      type: object
+      description: |
+        JSON representation of an annotation.
+      oneOf:
+        - $ref: '#/components/schemas/MarkupAnnotation.v1'
+        - $ref: '#/components/schemas/RedactionAnnotation.v1'
+        - $ref: '#/components/schemas/TextAnnotation.v1'
+        - $ref: '#/components/schemas/InkAnnotation.v1'
+        - $ref: '#/components/schemas/LinkAnnotation.v1'
+        - $ref: '#/components/schemas/NoteAnnotation.v1'
+        - $ref: '#/components/schemas/EllipseAnnotation.v1'
+        - $ref: '#/components/schemas/RectangleAnnotation.v1'
+        - $ref: '#/components/schemas/LineAnnotation.v1'
+        - $ref: '#/components/schemas/PolylineAnnotation.v1'
+        - $ref: '#/components/schemas/PolygonAnnotation.v1'
+        - $ref: '#/components/schemas/ImageAnnotation.v1'
+        - $ref: '#/components/schemas/StampAnnotation.v1'
+        - $ref: '#/components/schemas/WidgetAnnotation.v1'
+    Attachment:
+      title: Attachment
+      description: |
+        Represents a binary "attachment" associated with an Annotation.
+
+        For example, this might be an image attachment for `ImageAnnotation`.
+      type: object
+      properties:
+        binary:
+          type: string
+          description: |
+            Base64-encoded binary data of the attachment.
+        contentType:
+          type: string
+          description: |
+            MIME type of the attachment's content. For example, `image/png`.
+    Attachments:
+      title: Attachments
+      description: |
+        Attachments are defined as an associative array.
+        * Keys are SHA-256 hashes of the attachment contents or the `pdfObjectId`
+        of the attachment (in case it's part of the source PDF).
+        * Values are the actual `Attachment` objects with Base-64 encoded binary
+        contents of the attachment and its content type.
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/Attachment'
+      example:
+        388dd55f16b0b7ccdf7abdc7a0daea7872ef521de56ee820b4440e52c87d081b:
+          binary: YXR0YWNobWVudCBjb250ZW50cwo=
+          contentType: image/png
+        ccbb4499fa6d9f003545fa43ec19511fdb7227ca505bba9f74d787dff57af77b:
+          binary: YW5vdGhlciBhdHRhY2htZW50IGNvbnRlbnRzCg==
+          contentType: plain/text
+    BaseFormField:
+      title: BaseFormField
+      type: object
+      properties:
+        v:
+          type: integer
+          enum:
+            - 1
+          description: The specification version that the record is compliant to.
+        type:
+          type: string
+          description: The type of the form field.
+        id:
+          type: string
+          description: The unique Instant JSON identifier of the form field.
+          example: 7KPSXX1NMNJ2WFDKN7BKQK9KZ
+        name:
+          type: string
+          description: |
+            A unique identifier for the form field. This is not visible in the PDF.
+          example: Form-Field
+        label:
+          type: string
+          description: |
+            The visible name of the form field. It is used to identify the field in the UI for accessibility.
+          example: Form Field
+        annotationIds:
+          type: array
+          description: |
+            The list of Instant JSON identifiers of widget annotations that are associated with this form field.
+
+            The widget annotation is used to define the visual appearance of the form field and
+            to manage user interaction with the form field. Each interactive form control is
+            associated with separate widget annotation.
+          items:
+            type: string
+          example:
+            - 01DNEDPQQ22W49KDXRFPG4EPEQ
+            - 7KPS6T4DKYN71VB7G5KBGB5R51
+        pdfObjectId:
+          type: integer
+          description: The PDF object ID of the form field from the source PDF.
+        flags:
+          type: array
+          description: |
+            Array of form field flags.
+
+            | Flag | Description |
+            | ---- | ----------- |
+            | readOnly | Field can't be filled. |
+            | required | Field needs to have a value when exported by a submit-form action |
+            | _noExport_ | _(Not supported) Field shall not be exported by a submit-form action. PSPDFKit will read this flag from the PDF and write back changes to its state, but otherwise this flag has no effect._ |
+          items:
+            type: string
+            enum:
+              - readOnly
+              - required
+              - noExport
+          example:
+            - required
+      required:
+        - annotationIds
+        - label
+        - name
+        - type
+        - v
+    ButtonFormField:
+      title: ButtonFormField
+      description: |
+        A simple push button that responds immediately to user input without retaining any state.
+      allOf:
+        - $ref: '#/components/schemas/BaseFormField'
+        - type: object
+          title: ButtonFormField
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/form-field/button
+            buttonLabel:
+              type: string
+              description: Specifies the 'normal' caption of the button
+          required:
+            - type
+            - buttonLabel
+    FormFieldOption:
+      type: object
+      description: |
+        A form option identifies a possible option for the form field.
+      required:
+        - label
+        - value
+      properties:
+        label:
+          type: string
+          description: The label of the option.
+          example: One
+        value:
+          type: string
+          description: The export value of the option.
+          example: Two
+    FormFieldOptions:
+      type: array
+      description: |
+        The list of form field options.
+
+        The index of the widget annotation ID in the `annotationIds`
+        property corresponds to an index in the  form field option array.
+      items:
+        $ref: '#/components/schemas/FormFieldOption'
+      example:
+        - label: MALE
+          value: MALE
+        - label: FEMALE
+          value: FEMALE
+    FormFieldDefaultValues:
+      type: array
+      description: |
+        Default values corresponding to each option.
+      items:
+        type: string
+    FormFieldAdditionalActionsEvent:
+      type: object
+      description: |
+        Additional actions that can be performed on the form field.
+      properties:
+        onChange:
+          allOf:
+            - type: object
+              description: |
+                Action to be performed when the field's value is changed.
+            - $ref: '#/components/schemas/Action'
+        onCalculate:
+          allOf:
+            - type: object
+              description: |
+                Action to be performed to recalculate the value of a field.
+            - $ref: '#/components/schemas/Action'
+    ChoiceFormField:
+      type: object
+      properties:
+        options:
+          $ref: '#/components/schemas/FormFieldOptions'
+        multiSelect:
+          type: boolean
+          description: |
+            If true, more than one of the field's option items may be selected
+            simultaneously.
+          default: false
+        commitOnChange:
+          type: boolean
+          description: |
+            If true, the new value is committed as soon as a selection is made, without
+            requiring the user to blur the field.
+          default: false
+        defaultValues:
+          $ref: '#/components/schemas/FormFieldDefaultValues'
+        additionalActions:
+          $ref: '#/components/schemas/FormFieldAdditionalActionsEvent'
+      required:
+        - options
+    FormFieldAdditionalActionsInput:
+      type: object
+      description: |
+        Additional actions that can be performed on the form field.
+      properties:
+        onInput:
+          allOf:
+            - type: object
+              description: |
+                Action to be performed when the user types a key-stroke into a text
+                field or combo box or modifies the selection in a scrollable list box.
+            - $ref: '#/components/schemas/Action'
+        onFormat:
+          allOf:
+            - type: object
+              description: |
+                Action to be performed before the field is formatted to display its current value.
+            - $ref: '#/components/schemas/Action'
+    ListBoxFormField:
+      title: ListBoxFormField
+      description: |
+        A list box where multiple values can be selected.
+      allOf:
+        - $ref: '#/components/schemas/BaseFormField'
+        - $ref: '#/components/schemas/ChoiceFormField'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/form-field/listbox
+            additionalActions:
+              allOf:
+                - $ref: '#/components/schemas/FormFieldAdditionalActionsEvent'
+                - $ref: '#/components/schemas/FormFieldAdditionalActionsInput'
+    ComboBoxFormField:
+      title: ComboBoxFormField
+      description: |
+        A combo box is a drop-down box with the option add custom entries (see `edit`).
+      allOf:
+        - $ref: '#/components/schemas/BaseFormField'
+        - $ref: '#/components/schemas/ChoiceFormField'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/form-field/combobox
+            edit:
+              type: boolean
+              description: |
+                If true, the combo box includes an editable text box as well as a dropdown list. If false, it includes only a drop-down list.
+              default: false
+            doNotSpellCheck:
+              type: boolean
+              description: |
+                If true, the text entered in the field is not spell-checked.
+              default: false
+          required:
+            - edit
+            - doNotSpellCheck
+    CheckboxFormField:
+      title: CheckBoxFormField
+      description: |
+        A check box that can either be checked or unchecked. One check box form field can also be associated to multiple single check box widgets
+      allOf:
+        - $ref: '#/components/schemas/BaseFormField'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/form-field/checkbox
+            options:
+              $ref: '#/components/schemas/FormFieldOptions'
+            defaultValues:
+              $ref: '#/components/schemas/FormFieldDefaultValues'
+            additionalActions:
+              $ref: '#/components/schemas/FormFieldAdditionalActionsEvent'
+          required:
+            - type
+            - options
+            - defaultValues
+    FormFieldDefaultValue:
+      type: string
+      description: |
+        Default value of the form field.
+    RadioButtonFormField:
+      title: RadioButtonFormField
+      description: |
+        A group of radio buttons. Similar to `CheckBoxFormField`, but there can only be one value set at the same time.
+      allOf:
+        - $ref: '#/components/schemas/BaseFormField'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/form-field/radio
+            options:
+              $ref: '#/components/schemas/FormFieldOptions'
+            defaultValue:
+              $ref: '#/components/schemas/FormFieldDefaultValue'
+            noToggleToOff:
+              type: boolean
+              description: |
+                If true, exactly one radio button must be selected at all times.
+                Clicking the currently selected button has no effect. Otherwise,
+                clicking the selected button deselects it, leaving no button selected.
+              default: false
+            radiosInUnison:
+              type: boolean
+              description: |
+                If true, a group of radio buttons within a radio button field that use
+                the same value for the on state will turn on and off in unions: If one is
+                checked, they are all checked (the same behavior as HTML radio buttons).
+                Otherwise, only the checked radio button will be marked checked.
+              default: false
+          required:
+            - type
+            - options
+            - defaultValues
+    TextFormField:
+      title: TextFormField
+      description: |
+        A text input element, that can either span a single or multiple lines.
+      allOf:
+        - $ref: '#/components/schemas/BaseFormField'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/form-field/text
+            password:
+              type: boolean
+              description: |
+                If true, the field is intended for entering a secure password that should not be echoed visibly
+                 to the screen. Characters typed from the keyboard should instead be echoed in some unreadable
+                 form, such as asterisks or bullet characters.
+              default: false
+            maxLength:
+              type: integer
+              minimum: 0
+              description: |
+                The maximum length of the field's text, in characters. If none is set, the size is not limited.
+            doNotSpellCheck:
+              type: boolean
+              description: |
+                If true, the text entered in the field is not spell-checked.
+              default: false
+            doNotScroll:
+              type: boolean
+              description: |
+                If true, the field does not scroll (horizontally for single-line fields, vertically for multiple-line fields)
+                to accommodate more text than fits within its widget annotation's rectangle. Once the field is full, no further
+                text is accepted.
+              default: false
+            multiLine:
+              type: boolean
+              description: |
+                If true, the field can contain multiple lines of text. Otherwise, the field's text is restricted to a single line.
+              default: false
+            comb:
+              type: boolean
+              description: |
+                If true, every character will have an input element on their own which is evenly distributed inside
+                the bounding box of the widget annotation. When this is set, the form field must have a `maxLength``.
+              default: false
+            defaultValue:
+              $ref: '#/components/schemas/FormFieldDefaultValue'
+            richText:
+              type: boolean
+              default: false
+              description: |
+                _(Not Supported) Rich text rendering is not supported right now. Any rich text value will be displayed as plain text in case the regular text value is missing._
+            richTextValue:
+              type: string
+              description: |
+                _(Not Supported) Rich text rendering is not supported right now. Any rich text value will be displayed as plain text in case the regular text value is missing._
+            additionalActions:
+              allOf:
+                - $ref: '#/components/schemas/FormFieldAdditionalActionsEvent'
+                - $ref: '#/components/schemas/FormFieldAdditionalActionsInput'
+          required:
+            - type
+            - doNotSpellCheck
+            - doNotScroll
+            - multiLine
+            - comb
+            - defaultValue
+    SignatureFormField:
+      title: SignatureFormField
+      description: |
+        A field that contains a digital signature.
+      allOf:
+        - $ref: '#/components/schemas/BaseFormField'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - pspdfkit/form-field/signature
+    FormField:
+      title: Form field JSON
+      type: object
+      description: |
+        JSON representation of a form field
+      oneOf:
+        - $ref: '#/components/schemas/ButtonFormField'
+        - $ref: '#/components/schemas/ListBoxFormField'
+        - $ref: '#/components/schemas/ComboBoxFormField'
+        - $ref: '#/components/schemas/CheckboxFormField'
+        - $ref: '#/components/schemas/RadioButtonFormField'
+        - $ref: '#/components/schemas/TextFormField'
+        - $ref: '#/components/schemas/SignatureFormField'
+    FormFieldValue:
+      title: FormFieldValue
+      description: |
+        A record representing a form field value.
+
+        ## Choice Fields
+
+        When creating form fields with multiple widgets like `CheckBoxFormField` or `RadioButtonFormField`, you need to ensure two things:
+        - The number of annotations in the `annotationIds` field must be equal to the number of elements in the `options` field.
+        - For each option in `options` you need to specify the `annotationId` that is mapped to this specific option on the PDF.
+
+        The list of `options` in a `CheckBoxFormField` or `RadioButtonFormField` are the names of the `ON` state appearance
+        of each widget annotation that is a child of the form field. The `options` array and the `annotationWidgetIds`
+        array keep the same order, that is, the `ON` state appearance name for `annotationIds[0]` is in `options[0]`.
+        The value of the `OFF` state is customizable but always has the same name, "Off", so it's not included in the model.
+
+        In order to check a checkbox or radio button, if the `options` list contains, for example, `["Checked"]`,
+        then you need to and pass the same list. The system will internally notice that you are setting the form
+        value of a checkbox or radio button and automatically interpret "Checked" not as text, but as the PDF name
+        that represents an appearance stream named "Checked", representing the ON state.
+
+        The same applies to the OFF state, which by design always has the name "Off", as explained previously.
+      type: object
+      required:
+        - type
+        - name
+        - v
+      properties:
+        name:
+          type: string
+          description: |
+            Unique name of the form field. This property is used to link form field value to a `FormField`.
+        value:
+          anyOf:
+            - title: Single value
+              type:
+                - string
+                - 'null'
+              description: |
+                Value of the form field.
+            - title: Multiple values
+              type: array
+              items:
+                type: string
+                description: |
+                  Values associated with the form field. Multiple values are allowed for
+                  `ComboBoxFormField`, `ListBoxFormField` and `CheckBoxFormField`.
+        type:
+          type: string
+          enum:
+            - pspdfkit/form-field-value
+        v:
+          type: integer
+          enum:
+            - 1
+          description: The specification version that the record is compliant to.
+        optionIndexes:
+          type: array
+          description: |
+            Radio buttons and checkboxes can have multiple widgets with the same form value associated,
+            but can be selected independently. `optionIndexes`` contains the value indexes that should be actually set.
+
+            If set, the value field doesn't get used, and the widget found at the corresponding indexes in
+            the form field's annotationIds property are checked.
+
+            If set on fields other than `RadioButtonFormField` or `CheckBoxFormField`, setting the form value will fail.
+          items:
+            type: integer
+        isFitting:
+          type: boolean
+          default: false
+          description: |
+            Specifies if the given text should fit into the visible portion of the text form field.
+    Bookmark:
+      title: Bookmark
+      description: |
+        A record representing a bookmark.
+      type: object
+      required:
+        - type
+        - v
+        - action
+      properties:
+        name:
+          type: string
+          description: |
+            The optional bookmark name. This is used to identify the bookmark.
+        type:
+          type: string
+          enum:
+            - pspdfkit/bookmark
+        v:
+          type: integer
+          enum:
+            - 1
+          description: The specification version that the record is compliant to.
+        action:
+          $ref: '#/components/schemas/Action'
+        pdfBookmarkId:
+          type: string
+          description: |
+            The PDF object ID of the bookmark in the PDF.
+    IsoDateTime:
+      title: IsoDateTime
+      type: string
+      description: Date and time in ISO8601 format with timezone.
+      example: '2019-09-16T15:05:03.712909Z'
+    CustomData:
+      title: CustomData
+      type:
+        - object
+        - 'null'
+      additionalProperties: true
+      description: Object of arbitrary properties attached to an entity
+    InstantComment.v2:
+      title: Comment JSON v2
+      type: object
+      required:
+        - type
+        - text
+        - pageIndex
+        - v
+        - rootId
+      properties:
+        type:
+          type: string
+          enum:
+            - pspdfkit/comment
+        pageIndex:
+          $ref: '#/components/schemas/PageIndex'
+        rootId:
+          type: string
+          description: |
+            The ID of the root annotation of the comment thread.
+          example: 01HBDGR9D5JTFERPSCEMNH5GPG
+        text:
+          $ref: '#/components/schemas/AnnotationText'
+        v:
+          type: integer
+          enum:
+            - 2
+          description: |
+            The instant JSON specification version that the record is compliant to.
+        createdAt:
+          $ref: '#/components/schemas/IsoDateTime'
+        creatorName:
+          type: string
+          description: |
+            The name of the user who created the comment.
+          example: John Doe
+        customData:
+          $ref: '#/components/schemas/CustomData'
+        pdfObjectId:
+          $ref: '#/components/schemas/PdfObjectId'
+        updatedAt:
+          $ref: '#/components/schemas/IsoDateTime'
+    InstantComment.v1:
+      title: Comment JSON v1
+      type: object
+      required:
+        - type
+        - text
+        - pageIndex
+        - v
+        - rootId
+      properties:
+        type:
+          type: string
+          enum:
+            - pspdfkit/comment
+        pageIndex:
+          $ref: '#/components/schemas/PageIndex'
+        rootId:
+          type: string
+          description: |
+            The ID of the root annotation of the comment thread.
+          example: 01HBDGR9D5JTFERPSCEMNH5GPG
+        text:
+          type: string
+          description: The text of the comment
+          example: A comment is made of words
+        v:
+          type: integer
+          enum:
+            - 1
+          description: |
+            The instant JSON specification version that the record is compliant to.
+        createdAt:
+          $ref: '#/components/schemas/IsoDateTime'
+        creatorName:
+          type: string
+          description: |
+            The name of the user who created the comment.
+          example: John Doe
+        customData:
+          $ref: '#/components/schemas/CustomData'
+        pdfObjectId:
+          $ref: '#/components/schemas/PdfObjectId'
+        updatedAt:
+          $ref: '#/components/schemas/IsoDateTime'
+    CommentContent:
+      title: Comments JSON
+      type: object
+      description: |
+        JSON representation of a comment.
+      oneOf:
+        - $ref: '#/components/schemas/InstantComment.v2'
+        - $ref: '#/components/schemas/InstantComment.v1'
+  headers:
+    x-pspdfkit-request-cost:
+      description: |
+        Cost of the request in credits.
+      schema:
+        type: number
+    x-pspdfkit-remaining-credits:
+      description: |
+        Remaining credits after the request has been executed. Note that this
+        value is only informational, as it doesn't include pending credit
+        deductions on your account.
+      schema:
+        type: number
+  responses:
+    BuildResponseOk:
+      description: |
+        The processing result. One of the following:
+        * PDF file for `pdf` and `pdfa` output types.
+        * Image file for `image` output types.
+        * JSON with document contents for `json-content` output type.
+        * Office file for `docx`, `xlsx`, and `pptx` output types.
+      content:
+        application/pdf:
+          schema:
+            type: string
+            description: The processed PDF file. Returned in case of `pdf` and `pdfa` output types.
+            format: binary
+            example: <PDF file>
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JSONContentOutput'
+        application/jpeg:
+          schema:
+            type: string
+            description: The rendered image file. Returned for `image` output type, `format` specified as `jpeg`, and only a single page rendered.
+            format: binary
+            example: <JPEG data>
+        application/png:
+          schema:
+            type: string
+            description: The rendered image file. Returned for `image` output type, `format` specified as `png`, and only a single page rendered.
+            format: binary
+            example: <PNG data>
+        application/webp:
+          schema:
+            type: string
+            description: The rendered image file. Returned for `image` output type, `format` specified as `webp`, and only a single page rendered.
+            format: binary
+            example: <WebP data>
+        application/zip:
+          schema:
+            type: string
+            description: An archive with rendered pages. Returned for `image` output type and multiple pages rendered.
+            format: binary
+            example: <ZIP data>
+        application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+          schema:
+            type: string
+            description: Converted Office file. Returned for `docx` output type.
+            format: binary
+            example: <DOCX data>
+        application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+          schema:
+            type: string
+            description: Converted Office file. Returned for `xlsx` output type.
+            format: binary
+            example: <XLSX data>
+        application/vnd.openxmlformats-officedocument.presentationml.presentation:
+          schema:
+            type: string
+            description: Converted Office file. Returned for `pptx` output type.
+            format: binary
+            example: <PPTX data>
+      headers:
+        x-pspdfkit-request-cost:
+          $ref: '#/components/headers/x-pspdfkit-request-cost'
+        x-pspdfkit-remaining-credits:
+          $ref: '#/components/headers/x-pspdfkit-remaining-credits'
+  parameters:
+    Password:
+      in: header
+      name: pspdfkit-pdf-password
+      schema:
+        type: string
+        default: ''
+      description: |
+        The PDF document password.
+
+        The value can be either either a plain-text password or a base64 encoded password in a form `base64:<encoded-password>`.
+        Use the Base64 encoding if your password contains characters that are not allowed in HTTP header or would be otherwise mangled
+        (e.g. trailing or leading spaces)
+
+        If the document is password protected, any operations performed on it require supplying a password.
+      examples:
+        plainTextPassword:
+          value: password
+          summary: Plain-text password
+        base64EncodedPassword:
+          value: base64:Cg==
+          summary: Base64 encoded password
+x-tagGroups:
+  - name: Endpoints
+    tags:
+      - Document Editing
+      - Digital Signatures
+      - AI
+      - JWT
+  - name: Account
+    tags:
+      - Account
+  - name: Reference
+    tags:
+      - Build API
+      - Instant JSON
