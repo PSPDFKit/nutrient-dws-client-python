@@ -3,6 +3,7 @@
 A Python client library for the Nutrient Document Web Services API.
 """
 
+from nutrient_dws.client import NutrientClient
 from nutrient_dws.errors import (
     APIError,
     AuthenticationError,
@@ -16,6 +17,7 @@ __all__ = [
     "APIError",
     "AuthenticationError",
     "NetworkError",
+    "NutrientClient",
     "NutrientError",
     "ValidationError",
 ]

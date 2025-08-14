@@ -117,7 +117,7 @@ Signs a PDF document.
 **Parameters**:
 - `file: FileInput` - The PDF file to sign
 - `data: CreateDigitalSignature | None` - Signature data (optional)
-- `options: dict[str, FileInput] | None` - Additional options (image, graphicImage) (optional)
+- `options: SignRequestOptions | None` - Additional options (image, graphicImage) (optional)
 
 **Returns**: `BufferOutput` - The signed PDF file output
 
@@ -147,7 +147,7 @@ Uses AI to redact sensitive information in a document.
 - `criteria: str` - AI redaction criteria
 - `redaction_state: Literal['stage', 'apply']` - Whether to stage or apply redactions (default: 'stage')
 - `pages: PageRange | None` - Optional pages to redact
-- `options: dict[str, Any] | None` - Optional redaction options
+- `options: RedactOptions | None` - Optional redaction options
 
 **Returns**: `BufferOutput` - The redacted document
 
@@ -248,7 +248,7 @@ Adds an image watermark to a document.
 **Parameters**:
 - `file: FileInput` - The input file to watermark
 - `image: FileInput` - The watermark image
-- `options: dict[str, Any] | None` - Watermark options (optional)
+- `options: ImageWatermarkActionOptions | None` - Watermark options (optional)
 
 **Returns**: `BufferOutput` - The watermarked document
 
@@ -593,7 +593,7 @@ Adds a file part to the workflow.
 
 **Parameters:**
 - `file: FileInput` - The file to add to the workflow. Can be a local file path, bytes, or file-like object.
-- `options: dict[str, Any] | None` - Additional options for the file part (optional)
+- `options: FilePartOptions | None` - Additional options for the file part (optional)
 - `actions: list[BuildAction] | None` - Actions to apply to the file part (optional)
 
 **Returns:** `WorkflowWithPartsStage` - The workflow builder instance for method chaining.
@@ -617,7 +617,7 @@ Adds an HTML part to the workflow.
 **Parameters:**
 - `html: FileInput` - The HTML content to add. Can be a file path, bytes, or file-like object.
 - `assets: list[FileInput] | None` - Optional list of assets (CSS, images, etc.) to include with the HTML. Only local files or bytes are supported (optional)
-- `options: dict[str, Any] | None` - Additional options for the HTML part (optional)
+- `options: HTMLPartOptions | None` - Additional options for the HTML part (optional)
 - `actions: list[BuildAction] | None` - Actions to apply to the HTML part (optional)
 
 **Returns:** `WorkflowWithPartsStage` - The workflow builder instance for method chaining.
@@ -639,7 +639,7 @@ workflow.add_html_part(
 Adds a new blank page to the workflow.
 
 **Parameters:**
-- `options: dict[str, Any] | None` - Additional options for the new page, such as page size, orientation, etc. (optional)
+- `options: NewPagePartOptions | None` - Additional options for the new page, such as page size, orientation, etc. (optional)
 - `actions: list[BuildAction] | None` - Actions to apply to the new page (optional)
 
 **Returns:** `WorkflowWithPartsStage` - The workflow builder instance for method chaining.
@@ -660,7 +660,7 @@ Adds a document part to the workflow by referencing an existing document by ID.
 
 **Parameters:**
 - `document_id: str` - The ID of the document to add to the workflow.
-- `options: dict[str, Any] | None` - Additional options for the document part (optional)
+- `options: DocumentPartOptions | None` - Additional options for the document part (optional)
   - `options['layer']: str` - Optional layer name to select a specific layer from the document.
 - `actions: list[BuildAction] | None` - Actions to apply to the document part (optional)
 
@@ -796,7 +796,7 @@ Creates an action to add a text watermark to the document.
 
 **Parameters:**
 - `text: str` - Watermark text content.
-- `options: dict[str, Any] | None` - Watermark options (optional):
+- `options: TextWatermarkActionOptions | None` - Watermark options (optional):
   - `width`: Width dimension of the watermark (dict with 'value' and 'unit', e.g. `{'value': 100, 'unit': '%'}`)
   - `height`: Height dimension of the watermark (dict with 'value' and 'unit')
   - `top`, `right`, `bottom`, `left`: Position of the watermark (dict with 'value' and 'unit')
@@ -827,7 +827,7 @@ Creates an action to add an image watermark to the document.
 
 **Parameters:**
 - `image: FileInput` - Watermark image (file path, bytes, or file-like object).
-- `options: dict[str, Any] | None` - Watermark options (optional):
+- `options: ImageWatermarkActionOptions | None` - Watermark options (optional):
   - `width`: Width dimension of the watermark (dict with 'value' and 'unit', e.g. `{'value': 100, 'unit': '%'}`)
   - `height`: Height dimension of the watermark (dict with 'value' and 'unit')
   - `top`, `right`, `bottom`, `left`: Position of the watermark (dict with 'value' and 'unit')
@@ -852,7 +852,7 @@ workflow.apply_action(BuildActions.watermarkImage('/path/to/logo.png', {
 
 #### Annotations
 
-##### `BuildActions.apply_instant_json(file)`
+##### `BuildActions.applyInstantJson(file)`
 Creates an action to apply annotations from an Instant JSON file to the document.
 
 **Parameters:**
@@ -861,25 +861,25 @@ Creates an action to apply annotations from an Instant JSON file to the document
 **Example:**
 ```python
 # Apply annotations from Instant JSON file
-workflow.apply_action(BuildActions.apply_instant_json('/path/to/annotations.json'))
+workflow.apply_action(BuildActions.applyInstantJson('/path/to/annotations.json'))
 ```
 
-##### `BuildActions.apply_xfdf(file, options?)`
+##### `BuildActions.applyXfdf(file, options?)`
 Creates an action to apply annotations from an XFDF file to the document.
 
 **Parameters:**
 - `file: FileInput` - XFDF file input (file path, bytes, or file-like object).
-- `options: dict[str, Any] | None` - Apply XFDF options (optional):
+- `options: ApplyXfdfActionOptions | None` - Apply XFDF options (optional):
   - `ignorePageRotation: bool` - If True, ignores page rotation when applying XFDF data (default: False)
   - `richTextEnabled: bool` - If True, plain text annotations will be converted to rich text annotations. If False, all text annotations will be plain text annotations (default: True)
 
 **Example:**
 ```python
 # Apply annotations from XFDF file with default options
-workflow.apply_action(BuildActions.apply_xfdf('/path/to/annotations.xfdf'))
+workflow.apply_action(BuildActions.applyXfdf('/path/to/annotations.xfdf'))
 
 # Apply annotations with specific options
-workflow.apply_action(BuildActions.apply_xfdf('/path/to/annotations.xfdf', {
+workflow.apply_action(BuildActions.applyXfdf('/path/to/annotations.xfdf', {
     'ignorePageRotation': True,
     'richTextEnabled': False
 }))
@@ -887,14 +887,14 @@ workflow.apply_action(BuildActions.apply_xfdf('/path/to/annotations.xfdf', {
 
 #### Redactions
 
-##### `BuildActions.create_redactions_text(text, options?, strategy_options?)`
+##### `BuildActions.createRedactionsText(text, options?, strategy_options?)`
 Creates an action to add redaction annotations based on text search.
 
 **Parameters:**
 - `text: str` - Text to search and redact.
-- `options: dict[str, Any] | None` - Redaction options (optional):
-  - `content: dict[str, Any]` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
-- `strategy_options: dict[str, Any] | None` - Redaction strategy options (optional):
+- `options: BaseCreateRedactionsOptions | None` - Redaction options (optional):
+  - `content: RedactionAnnotation` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
+- `strategy_options: CreateRedactionsStrategyOptionsText | None` - Redaction strategy options (optional):
   - `includeAnnotations: bool` - If True, redaction annotations are created on top of annotations whose content match the provided text (default: True)
   - `caseSensitive: bool` - If True, the search will be case sensitive (default: False)
   - `start: int` - The index of the page from where to start the search (default: 0)
@@ -903,10 +903,10 @@ Creates an action to add redaction annotations based on text search.
 **Example:**
 ```python
 # Create redactions for all occurrences of "Confidential"
-workflow.apply_action(BuildActions.create_redactions_text('Confidential'))
+workflow.apply_action(BuildActions.createRedactionsText('Confidential'))
 
 # Create redactions with custom appearance and search options
-workflow.apply_action(BuildActions.create_redactions_text('Confidential',
+workflow.apply_action(BuildActions.createRedactionsText('Confidential',
     {
         'content': {
             'backgroundColor': '#000000',
@@ -922,14 +922,14 @@ workflow.apply_action(BuildActions.create_redactions_text('Confidential',
 ))
 ```
 
-##### `BuildActions.create_redactions_regex(regex, options?, strategy_options?)`
+##### `BuildActions.createRedactionsRegex(regex, options?, strategy_options?)`
 Creates an action to add redaction annotations based on regex pattern matching.
 
 **Parameters:**
 - `regex: str` - Regex pattern to search and redact.
-- `options: dict[str, Any] | None` - Redaction options (optional):
-  - `content: dict[str, Any]` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
-- `strategy_options: dict[str, Any] | None` - Redaction strategy options (optional):
+- `options: BaseCreateRedactionsOptions | None` - Redaction options (optional):
+  - `content: RedactionAnnotation` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
+- `strategy_options: CreateRedactionsStrategyOptionsRegex | None` - Redaction strategy options (optional):
   - `includeAnnotations: bool` - If True, redaction annotations are created on top of annotations whose content match the provided regex (default: True)
   - `caseSensitive: bool` - If True, the search will be case sensitive (default: True)
   - `start: int` - The index of the page from where to start the search (default: 0)
@@ -938,10 +938,10 @@ Creates an action to add redaction annotations based on regex pattern matching.
 **Example:**
 ```python
 # Create redactions for email addresses
-workflow.apply_action(BuildActions.create_redactions_regex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'))
+workflow.apply_action(BuildActions.createRedactionsRegex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'))
 
 # Create redactions with custom appearance and search options
-workflow.apply_action(BuildActions.create_redactions_regex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+workflow.apply_action(BuildActions.createRedactionsRegex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
     {
         'content': {
             'backgroundColor': '#FF0000',
@@ -956,14 +956,14 @@ workflow.apply_action(BuildActions.create_redactions_regex(r'[a-zA-Z0-9._%+-]+@[
 ))
 ```
 
-##### `BuildActions.create_redactions_preset(preset, options?, strategy_options?)`
+##### `BuildActions.createRedactionsPreset(preset, options?, strategy_options?)`
 Creates an action to add redaction annotations based on a preset pattern.
 
 **Parameters:**
 - `preset: str` - Preset pattern to search and redact (e.g. 'email-address', 'credit-card-number', 'social-security-number', etc.)
-- `options: dict[str, Any] | None` - Redaction options (optional):
-  - `content: dict[str, Any]` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
-- `strategy_options: dict[str, Any] | None` - Redaction strategy options (optional):
+- `options: BaseCreateRedactionsOptions | None` - Redaction options (optional):
+  - `content: RedactionAnnotation` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
+- `strategy_options: CreateRedactionsStrategyOptionsPreset | None` - Redaction strategy options (optional):
   - `includeAnnotations: bool` - If True, redaction annotations are created on top of annotations whose content match the provided preset (default: True)
   - `start: int` - The index of the page from where to start the search (default: 0)
   - `limit: int` - Starting from start, the number of pages to search (default: to the end of the document)
@@ -971,10 +971,10 @@ Creates an action to add redaction annotations based on a preset pattern.
 **Example:**
 ```python
 # Create redactions for email addresses using preset
-workflow.apply_action(BuildActions.create_redactions_preset('email-address'))
+workflow.apply_action(BuildActions.createRedactionsPreset('email-address'))
 
 # Create redactions for credit card numbers with custom appearance
-workflow.apply_action(BuildActions.create_redactions_preset('credit-card-number',
+workflow.apply_action(BuildActions.createRedactionsPreset('credit-card-number',
     {
         'content': {
             'backgroundColor': '#000000',
@@ -988,16 +988,16 @@ workflow.apply_action(BuildActions.create_redactions_preset('credit-card-number'
 ))
 ```
 
-##### `BuildActions.apply_redactions()`
+##### `BuildActions.applyRedactions()`
 Creates an action to apply previously created redaction annotations, permanently removing the redacted content.
 
 **Example:**
 ```python
 # First create redactions
-workflow.apply_action(BuildActions.create_redactions_preset('email-address'))
+workflow.apply_action(BuildActions.createRedactionsPreset('email-address'))
 
 # Then apply them
-workflow.apply_action(BuildActions.apply_redactions())
+workflow.apply_action(BuildActions.applyRedactions())
 ```
 
 ### Stage 3: Set Output Format
@@ -1022,9 +1022,9 @@ Sets the output format to PDF.
 - `options: dict[str, Any] | None` - Additional options for PDF output, such as compression, encryption, etc. (optional)
   - `options['metadata']: dict[str, Any]` - Document metadata properties like title, author.
   - `options['labels']: list[dict[str, Any]]` - Custom labels to add to the document for organization and categorization.
-  - `options['userPassword']: str` - Password required to open the document. When set, the PDF will be encrypted.
-  - `options['ownerPassword']: str` - Password required to modify the document. Provides additional security beyond the user password.
-  - `options['userPermissions']: list[str]` - List of permissions granted to users who open the document with the user password.
+  - `options['user_password']: str` - Password required to open the document. When set, the PDF will be encrypted.
+  - `options['owner_password']: str` - Password required to modify the document. Provides additional security beyond the user password.
+  - `options['user_permissions']: list[str]` - List of permissions granted to users who open the document with the user password.
     Options include: "printing", "modification", "content-copying", "annotation", "form-filling", etc.
   - `options['optimize']: dict[str, Any]` - PDF optimization settings to reduce file size and improve performance.
     - `options['optimize']['mrcCompression']: bool` - When True, applies Mixed Raster Content compression to reduce file size.
@@ -1039,8 +1039,8 @@ workflow.output_pdf()
 
 # Set output format to PDF with specific options
 workflow.output_pdf({
-    'userPassword': 'secret',
-    'userPermissions': ["printing"],
+    'user_password': 'secret',
+    'user_permissions': ["printing"],
     'metadata': {
         'title': 'Important Document',
         'author': 'Document System'
@@ -1063,9 +1063,9 @@ Sets the output format to PDF/A (archival PDF).
   - `options['rasterization']: bool` - When True, converts vector graphics to raster images, which can help with compatibility in some cases.
   - `options['metadata']: dict[str, Any]` - Document metadata properties like title, author.
   - `options['labels']: list[dict[str, Any]]` - Custom labels to add to the document for organization and categorization.
-  - `options['userPassword']: str` - Password required to open the document. When set, the PDF will be encrypted.
-  - `options['ownerPassword']: str` - Password required to modify the document. Provides additional security beyond the user password.
-  - `options['userPermissions']: list[str]` - List of permissions granted to users who open the document with the user password.
+  - `options['user_password']: str` - Password required to open the document. When set, the PDF will be encrypted.
+  - `options['owner_password']: str` - Password required to modify the document. Provides additional security beyond the user password.
+  - `options['user_permissions']: list[str]` - List of permissions granted to users who open the document with the user password.
     Options include: "printing", "modification", "content-copying", "annotation", "form-filling", etc.
   - `options['optimize']: dict[str, Any]` - PDF optimization settings to reduce file size and improve performance.
     - `options['optimize']['mrcCompression']: bool` - When True, applies Mixed Raster Content compression to reduce file size.
@@ -1099,9 +1099,9 @@ Sets the output format to PDF/UA (Universal Accessibility).
 - `options: dict[str, Any] | None` - Additional options for PDF/UA output (optional):
   - `options['metadata']: dict[str, Any]` - Document metadata properties like title, author.
   - `options['labels']: list[dict[str, Any]]` - Custom labels to add to the document for organization and categorization.
-  - `options['userPassword']: str` - Password required to open the document. When set, the PDF will be encrypted.
-  - `options['ownerPassword']: str` - Password required to modify the document. Provides additional security beyond the user password.
-  - `options['userPermissions']: list[str]` - List of permissions granted to users who open the document with the user password.
+  - `options['user_password']: str` - Password required to open the document. When set, the PDF will be encrypted.
+  - `options['owner_password']: str` - Password required to modify the document. Provides additional security beyond the user password.
+  - `options['user_permissions']: list[str]` - List of permissions granted to users who open the document with the user password.
     Options include: "printing", "modification", "content-copying", "annotation", "form-filling", etc.
   - `options['optimize']: dict[str, Any]` - PDF optimization settings to reduce file size and improve performance.
     - `options['optimize']['mrcCompression']: bool` - When True, applies Mixed Raster Content compression to reduce file size.
@@ -1269,7 +1269,7 @@ Executes the workflow and returns the result.
 
 **Parameters:**
 - `options: dict[str, Any] | None` - Options for workflow execution (optional):
-  - `options['on_progress']: Callable[[int, int], None]` - Callback for progress updates.
+  - `options['onProgress']: Callable[[int, int], None]` - Callback for progress updates.
 
 **Returns:** `TypedWorkflowResult` - The workflow result.
 
@@ -1283,7 +1283,7 @@ def progress_callback(current: int, total: int) -> None:
     print(f'Processing step {current} of {total}')
 
 result = await workflow.execute({
-    'on_progress': progress_callback
+    'onProgress': progress_callback
 })
 ```
 
@@ -1375,7 +1375,7 @@ result = await (client
     .apply_actions([
         BuildActions.ocr({'language': 'english'}),
         BuildActions.watermarkText('CONFIDENTIAL'),
-        BuildActions.create_redactions_preset('email-address', 'apply')
+        BuildActions.createRedactionsPreset('email-address', 'apply')
     ])
     .output_pdfa({
         'level': 'pdfa-2b',
@@ -1384,7 +1384,7 @@ result = await (client
         }
     })
     .execute({
-        'on_progress': progress_callback
+        'onProgress': progress_callback
     }))
 ```
 
@@ -1484,5 +1484,5 @@ For optimal performance with workflows:
 1. **Minimize the number of parts**: Combine related files when possible
 2. **Use appropriate output formats**: Choose formats based on your needs
 3. **Consider dry runs**: Use `dry_run()` to estimate resource usage
-4. **Monitor progress**: Use the `on_progress` callback for long-running workflows
+4. **Monitor progress**: Use the `onProgress` callback for long-running workflows
 5. **Handle large files**: For very large files, consider splitting into smaller workflows

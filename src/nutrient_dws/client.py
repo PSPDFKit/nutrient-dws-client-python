@@ -1,6 +1,6 @@
 """Main client for interacting with the Nutrient Document Web Services API."""
 
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from nutrient_dws.builder.builder import StagedWorkflowBuilder
 from nutrient_dws.builder.constant import BuildActions
@@ -13,7 +13,7 @@ from nutrient_dws.builder.staged_builders import (
     WorkflowInitialStage,
 )
 from nutrient_dws.errors import NutrientError, ValidationError
-from nutrient_dws.http import NutrientClientOptions, send_request
+from nutrient_dws.http import NutrientClientOptions, SignRequestOptions, send_request
 from nutrient_dws.inputs import (
     FileInput,
     get_pdf_page_count,
@@ -23,13 +23,26 @@ from nutrient_dws.inputs import (
     process_remote_file_input,
 )
 from nutrient_dws.types.account_info import AccountInfo
-from nutrient_dws.types.build_output import Metadata, PDFUserPermission
+from nutrient_dws.types.build_actions import (
+    ImageWatermarkActionOptions,
+    TextWatermarkActionOptions,
+)
+from nutrient_dws.types.build_output import (
+    JSONContentOutputOptions,
+    Metadata,
+    PDFOutputOptions,
+    PDFUserPermission,
+)
 from nutrient_dws.types.create_auth_token import (
     CreateAuthTokenParameters,
     CreateAuthTokenResponse,
 )
 from nutrient_dws.types.misc import OcrLanguage, PageRange, Pages
+from nutrient_dws.types.redact_data import RedactData, RedactOptions
 from nutrient_dws.types.sign_request import CreateDigitalSignature
+
+if TYPE_CHECKING:
+    from nutrient_dws.types.input_parts import FilePartOptions
 
 
 def normalize_page_params(
@@ -264,7 +277,7 @@ class NutrientClient:
         self,
         pdf: FileInput,
         data: CreateDigitalSignature | None = None,
-        options: dict[str, FileInput] | None = None,
+        options: SignRequestOptions | None = None,
     ) -> BufferOutput:
         """Sign a PDF document.
 
@@ -357,7 +370,7 @@ class NutrientClient:
         self,
         file: FileInput,
         text: str,
-        options: dict[str, Any] | None = None,
+        options: TextWatermarkActionOptions | None = None,
     ) -> BufferOutput:
         """Add a text watermark to a document.
         This is a convenience method that uses the workflow builder.
@@ -385,7 +398,7 @@ class NutrientClient:
                 f.write(pdf_buffer)
             ```
         """
-        watermark_action = BuildActions.watermarkText(text, cast("Any", options))
+        watermark_action = BuildActions.watermarkText(text, options)
 
         builder = self.workflow().add_file_part(file, None, [watermark_action])
 
@@ -396,7 +409,7 @@ class NutrientClient:
         self,
         file: FileInput,
         image: FileInput,
-        options: dict[str, Any] | None = None,
+        options: ImageWatermarkActionOptions | None = None,
     ) -> BufferOutput:
         """Add an image watermark to a document.
         This is a convenience method that uses the workflow builder.
@@ -419,7 +432,7 @@ class NutrientClient:
             pdf_buffer = result['buffer']
             ```
         """
-        watermark_action = BuildActions.watermarkImage(image, cast("Any", options))
+        watermark_action = BuildActions.watermarkImage(image, options)
 
         builder = self.workflow().add_file_part(file, None, [watermark_action])
 
@@ -544,13 +557,17 @@ class NutrientClient:
         normalized_pages = normalize_page_params(pages) if pages else None
 
         part_options = (
-            cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+            cast("FilePartOptions", {"pages": normalized_pages})
+            if normalized_pages
+            else None
         )
 
         result = (
             await self.workflow()
             .add_file_part(file, part_options)
-            .output_json({"plainText": True, "tables": False})
+            .output_json(
+                cast("JSONContentOutputOptions", {"plainText": True, "tables": False})
+            )
             .execute()
         )
 
@@ -587,13 +604,17 @@ class NutrientClient:
         normalized_pages = normalize_page_params(pages) if pages else None
 
         part_options = (
-            cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+            cast("FilePartOptions", {"pages": normalized_pages})
+            if normalized_pages
+            else None
         )
 
         result = (
             await self.workflow()
             .add_file_part(file, part_options)
-            .output_json({"plainText": False, "tables": True})
+            .output_json(
+                cast("JSONContentOutputOptions", {"plainText": False, "tables": True})
+            )
             .execute()
         )
 
@@ -630,13 +651,20 @@ class NutrientClient:
         normalized_pages = normalize_page_params(pages) if pages else None
 
         part_options = (
-            cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+            cast("FilePartOptions", {"pages": normalized_pages})
+            if normalized_pages
+            else None
         )
 
         result = (
             await self.workflow()
             .add_file_part(file, part_options)
-            .output_json({"plainText": False, "tables": False, "keyValuePairs": True})
+            .output_json(
+                cast(
+                    "JSONContentOutputOptions",
+                    {"plainText": False, "tables": False, "keyValuePairs": True},
+                )
+            )
             .execute()
         )
 
@@ -674,19 +702,16 @@ class NutrientClient:
             )
             ```
         """
-        pdf_options: dict[str, Any] = {
-            "userPassword": user_password,
-            "ownerPassword": owner_password,
+        pdf_options: PDFOutputOptions = {
+            "user_password": user_password,
+            "owner_password": owner_password,
         }
 
         if permissions:
-            pdf_options["userPermissions"] = permissions
+            pdf_options["user_permissions"] = permissions
 
         result = (
-            await self.workflow()
-            .add_file_part(file)
-            .output_pdf(cast("Any", pdf_options))
-            .execute()
+            await self.workflow().add_file_part(file).output_pdf(pdf_options).execute()
         )
 
         return cast("BufferOutput", self._process_typed_workflow_result(result))
@@ -726,7 +751,7 @@ class NutrientClient:
         result = (
             await self.workflow()
             .add_file_part(pdf)
-            .output_pdf(cast("Any", {"metadata": metadata}))
+            .output_pdf(cast("PDFOutputOptions", {"metadata": metadata}))
             .execute()
         )
 
@@ -815,7 +840,7 @@ class NutrientClient:
         criteria: str,
         redaction_state: Literal["stage", "apply"] = "stage",
         pages: PageRange | None = None,
-        options: dict[str, Any] | None = None,
+        options: RedactOptions | None = None,
     ) -> BufferOutput:
         """Use AI to redact sensitive information in a document.
 
@@ -883,7 +908,7 @@ class NutrientClient:
             {
                 "method": "POST",
                 "endpoint": "/ai/redact",
-                "data": cast("Any", request_data),
+                "data": cast("RedactData", request_data),
                 "headers": None,
             },
             self.options,

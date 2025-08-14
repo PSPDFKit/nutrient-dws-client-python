@@ -19,7 +19,7 @@ from nutrient_dws.errors import (
     NutrientError,
     ValidationError,
 )
-from nutrient_dws.inputs import NormalizedFileData
+from nutrient_dws.inputs import FileInput, NormalizedFileData
 from nutrient_dws.types.build_instruction import BuildInstructions
 from nutrient_dws.types.create_auth_token import (
     CreateAuthTokenParameters,
@@ -36,6 +36,11 @@ class BuildRequestData(TypedDict):
 
 class AnalyzeBuildRequestData(TypedDict):
     instructions: BuildInstructions
+
+
+class SignRequestOptions(TypedDict):
+    image: NotRequired[FileInput]
+    graphicImage: NotRequired[FileInput]
 
 
 class SignRequestData(TypedDict):
@@ -69,6 +74,7 @@ Input = TypeVar(
     | AnalyzeBuildRequestData
     | SignRequestData
     | RedactRequestData
+    | RedactData
     | DeleteTokenRequestData
     | None,
 )

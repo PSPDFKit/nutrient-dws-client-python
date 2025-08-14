@@ -82,7 +82,7 @@ Signs a PDF document.
 **Parameters**:
 - `file: FileInput` - The PDF file to sign
 - `data: CreateDigitalSignature | None` - Signature data (optional)
-- `options: dict[str, FileInput] | None` - Additional options (image, graphicImage) (optional)
+- `options: SignRequestOptions | None` - Additional options (image, graphicImage) (optional)
 
 **Returns**: `BufferOutput` - The signed PDF file output
 
@@ -112,7 +112,7 @@ Uses AI to redact sensitive information in a document.
 - `criteria: str` - AI redaction criteria
 - `redaction_state: Literal['stage', 'apply']` - Whether to stage or apply redactions (default: 'stage')
 - `pages: PageRange | None` - Optional pages to redact
-- `options: dict[str, Any] | None` - Optional redaction options
+- `options: RedactOptions | None` - Optional redaction options
 
 **Returns**: `BufferOutput` - The redacted document
 
@@ -213,7 +213,7 @@ Adds an image watermark to a document.
 **Parameters**:
 - `file: FileInput` - The input file to watermark
 - `image: FileInput` - The watermark image
-- `options: dict[str, Any] | None` - Watermark options (optional)
+- `options: ImageWatermarkActionOptions | None` - Watermark options (optional)
 
 **Returns**: `BufferOutput` - The watermarked document
 

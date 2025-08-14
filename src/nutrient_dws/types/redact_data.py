@@ -18,7 +18,7 @@ class Confidence(TypedDict):
     threshold: float
 
 
-class Options(TypedDict):
+class RedactOptions(TypedDict):
     confidence: NotRequired[Confidence]
 
 
@@ -26,4 +26,4 @@ class RedactData(TypedDict):
     documents: list[Document]
     criteria: str
     redaction_state: NotRequired[Literal["stage", "apply"]]
-    options: NotRequired[Options]
+    options: NotRequired[RedactOptions]

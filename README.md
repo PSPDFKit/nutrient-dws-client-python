@@ -50,6 +50,8 @@ dws-add-cursor-rule
 dws-add-windsurf-rule
 ```
 
+The documentation for Nutrient DWS Python Client is also available on [Context7](https://context7.com/pspdfkit/nutrient-dws-client-python)
+
 ## Quick Start
 
 ## Authentication
