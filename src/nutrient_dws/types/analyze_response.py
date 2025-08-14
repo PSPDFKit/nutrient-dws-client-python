@@ -1,5 +1,7 @@
-from typing import TypedDict, Literal
+from typing import Literal, TypedDict
+
 from typing_extensions import NotRequired
+
 
 class RequiredFeatures(TypedDict):
     unit_cost: NotRequired[float]
@@ -7,6 +9,7 @@ class RequiredFeatures(TypedDict):
     units: NotRequired[int]
     cost: NotRequired[float]
     usage: NotRequired[list[str]]
+
 
 class AnalyzeBuildResponse(TypedDict):
     cost: NotRequired[float]

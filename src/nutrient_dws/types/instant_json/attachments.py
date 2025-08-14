@@ -1,4 +1,5 @@
-from typing import TypedDict, Optional
+from typing import Optional, TypedDict
+
 from typing_extensions import NotRequired
 
 

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import Literal, TypedDict, Union
+
 from typing_extensions import NotRequired
 
-from nutrient_dws.types.annotation.base import V1 as BaseV1, V2 as BaseV2, BaseShapeAnnotation
-from nutrient_dws.types.misc import FillColor, CloudyBorderIntensity, Point
+from nutrient_dws.types.annotation.base import V1 as BaseV1
+from nutrient_dws.types.annotation.base import V2 as BaseV2
+from nutrient_dws.types.annotation.base import BaseShapeAnnotation
+from nutrient_dws.types.misc import CloudyBorderIntensity, FillColor, Point
 
 
 class PolygonBase(TypedDict):
@@ -13,10 +16,11 @@ class PolygonBase(TypedDict):
     points: list[Point]
     cloudyBorderIntensity: NotRequired[CloudyBorderIntensity]
 
-class V1(BaseV1, BaseShapeAnnotation, PolygonBase):
-    ...
 
-class V2(BaseV2, BaseShapeAnnotation, PolygonBase):
-    ...
+class V1(BaseV1, BaseShapeAnnotation, PolygonBase): ...
+
+
+class V2(BaseV2, BaseShapeAnnotation, PolygonBase): ...
+
 
 PolygonAnnotation = Union[V1, V2]

@@ -2,7 +2,7 @@
 Provides consistent error handling across the library.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class NutrientError(Exception):
@@ -14,8 +14,8 @@ class NutrientError(Exception):
         self,
         message: str,
         code: str = "NUTRIENT_ERROR",
-        details: Optional[dict[str, Any]] = None,
-        status_code: Optional[int] = None,
+        details: dict[str, Any] | None = None,
+        status_code: int | None = None,
     ) -> None:
         """Initialize a NutrientError.
 
@@ -63,7 +63,7 @@ class NutrientError(Exception):
         return result
 
     @classmethod
-    def wrap(cls, error: Any, message: Optional[str] = None) -> "NutrientError":
+    def wrap(cls, error: Any, message: str | None = None) -> "NutrientError":
         """Wraps an unknown error into a NutrientError.
 
         Args:
@@ -98,8 +98,8 @@ class ValidationError(NutrientError):
     def __init__(
         self,
         message: str,
-        details: Optional[dict[str, Any]] = None,
-        status_code: Optional[int] = None,
+        details: dict[str, Any] | None = None,
+        status_code: int | None = None,
     ) -> None:
         """Initialize a ValidationError.
 
@@ -119,7 +119,7 @@ class APIError(NutrientError):
         self,
         message: str,
         status_code: int,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         """Initialize an APIError.
 
@@ -138,7 +138,7 @@ class AuthenticationError(NutrientError):
     def __init__(
         self,
         message: str,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
         status_code: int = 401,
     ) -> None:
         """Initialize an AuthenticationError.
@@ -158,8 +158,8 @@ class NetworkError(NutrientError):
     def __init__(
         self,
         message: str,
-        details: Optional[dict[str, Any]] = None,
-        status_code: Optional[int] = None,
+        details: dict[str, Any] | None = None,
+        status_code: int | None = None,
     ) -> None:
         """Initialize a NetworkError.
 

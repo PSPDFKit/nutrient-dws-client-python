@@ -1,13 +1,14 @@
-from typing import Optional, TypedDict, Literal, Union
+from typing import Literal, Optional, TypedDict, Union
+
 from typing_extensions import NotRequired
 
-from nutrient_dws.types.misc import PageRange, OcrLanguage
+from nutrient_dws.types.misc import OcrLanguage, PageRange
 
 Title = Optional[str]
 
 
 class Metadata(TypedDict):
-    title: NotRequired[Optional[Title]]
+    title: NotRequired[Title | None]
     author: NotRequired[str]
 
 
@@ -51,8 +52,10 @@ class BasePDFOutput(TypedDict):
 
 PDFOutputOptions = BasePDFOutput
 
+
 class PDFOutput(BasePDFOutput):
     type: NotRequired[Literal["pdf"]]
+
 
 class PDFAOutputOptions(PDFOutputOptions):
     conformance: NotRequired[
@@ -61,13 +64,17 @@ class PDFAOutputOptions(PDFOutputOptions):
     vectorization: NotRequired[bool]
     rasterization: NotRequired[bool]
 
+
 class PDFAOutput(PDFAOutputOptions):
     type: Literal["pdfa"]
 
+
 PDFUAOutputOptions = BasePDFOutput
+
 
 class PDFUAOutput(PDFUAOutputOptions):
     type: Literal["pdfua"]
+
 
 class ImageOutputOptions(TypedDict):
     format: NotRequired[Literal["png", "jpeg", "jpg", "webp"]]
@@ -76,15 +83,18 @@ class ImageOutputOptions(TypedDict):
     height: NotRequired[float]
     dpi: NotRequired[float]
 
+
 class ImageOutput(ImageOutputOptions):
     type: Literal["image"]
+
 
 class JSONContentOutputOptions(TypedDict):
     plainText: NotRequired[bool]
     structuredText: NotRequired[bool]
     keyValuePairs: NotRequired[bool]
     tables: NotRequired[bool]
-    language: NotRequired[Union[OcrLanguage, list[OcrLanguage]]]
+    language: NotRequired[OcrLanguage | list[OcrLanguage]]
+
 
 class JSONContentOutput(JSONContentOutputOptions):
     type: Literal["json-content"]
@@ -93,9 +103,11 @@ class JSONContentOutput(JSONContentOutputOptions):
 class OfficeOutput(TypedDict):
     type: Literal["docx", "xlsx", "pptx"]
 
+
 class HTMLOutput(TypedDict):
     type: Literal["html"]
     layout: NotRequired[Literal["page", "reflow"]]
+
 
 class MarkdownOutput(TypedDict):
     type: Literal["markdown"]

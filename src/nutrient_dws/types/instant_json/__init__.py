@@ -1,4 +1,5 @@
-from typing import TypedDict, Literal
+from typing import Literal, TypedDict
+
 from typing_extensions import NotRequired
 
 from nutrient_dws.types.annotation import Annotation
@@ -8,9 +9,11 @@ from nutrient_dws.types.instant_json.comment import CommentContent
 from nutrient_dws.types.instant_json.form_field import FormField
 from nutrient_dws.types.instant_json.form_field_value import FormFieldValue
 
+
 class PdfId(TypedDict):
     permanent: NotRequired[str]
     changing: NotRequired[str]
+
 
 class InstantJson(TypedDict):
     format: Literal["https://pspdfkit.com/instant-json/v1"]
@@ -22,4 +25,3 @@ class InstantJson(TypedDict):
     comments: NotRequired[list[CommentContent]]
     skippedPdfObjectIds: NotRequired[list[int]]
     pdfId: NotRequired[PdfId]
-

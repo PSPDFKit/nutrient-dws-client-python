@@ -1,7 +1,8 @@
 """HTTP request and response type definitions for API communication."""
+
 import json
 from collections.abc import Callable
-from typing import Any, Generic, Literal, Optional, TypedDict, TypeVar, Union, Dict, TypeGuard
+from typing import Any, Generic, Literal, TypedDict, TypeGuard, TypeVar
 
 import httpx
 from typing_extensions import NotRequired
@@ -52,8 +53,15 @@ Methods = Literal["GET", "POST", "DELETE"]
 Endpoints = Literal["/account/info", "/build", "/analyze_build", "/sign", "/ai/redact", "/tokens"]
 
 # Type variables for generic types
-I = TypeVar("I", bound=Union[CreateAuthTokenParameters, BuildRequestData, AnalyzeBuildRequestData, SignRequestData, RedactRequestData, DeleteTokenRequestData, None])
-O = TypeVar("O", bound=Union[CreateAuthTokenResponse, BufferOutput, ContentOutput, JsonContentOutput, AnalyzeBuildRequestData])
+I = TypeVar(
+    "I",
+    bound=CreateAuthTokenParameters | BuildRequestData | AnalyzeBuildRequestData | SignRequestData | RedactRequestData | DeleteTokenRequestData | None,
+)
+O = TypeVar(
+    "O",
+    bound=CreateAuthTokenResponse | BufferOutput | ContentOutput | JsonContentOutput | AnalyzeBuildRequestData,
+)
+
 
 # Request configuration
 class RequestConfig(TypedDict, Generic[I]):
@@ -62,28 +70,50 @@ class RequestConfig(TypedDict, Generic[I]):
     method: Methods
     endpoint: Endpoints
     data: I  # The actual type depends on the method and endpoint
-    headers: Optional[Dict[str, Any]]
+    headers: dict[str, Any] | None
 
-def is_get_account_info_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[None]]:
+
+def is_get_account_info_request_config(
+    request: RequestConfig[Any],
+) -> TypeGuard[RequestConfig[None]]:
     return request["method"] == "GET" and request["endpoint"] == "/account/info"
 
-def is_post_build_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[BuildRequestData]]:
+
+def is_post_build_request_config(
+    request: RequestConfig[Any],
+) -> TypeGuard[RequestConfig[BuildRequestData]]:
     return request["method"] == "POST" and request["endpoint"] == "/build"
 
-def is_post_analyse_build_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[AnalyzeBuildRequestData]]:
+
+def is_post_analyse_build_request_config(
+    request: RequestConfig[Any],
+) -> TypeGuard[RequestConfig[AnalyzeBuildRequestData]]:
     return request["method"] == "POST" and request["endpoint"] == "/analyze_build"
 
-def is_post_sign_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[SignRequestData]]:
+
+def is_post_sign_request_config(
+    request: RequestConfig[Any],
+) -> TypeGuard[RequestConfig[SignRequestData]]:
     return request["method"] == "POST" and request["endpoint"] == "/sign"
 
-def is_post_ai_redact_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[RedactRequestData]]:
+
+def is_post_ai_redact_request_config(
+    request: RequestConfig[Any],
+) -> TypeGuard[RequestConfig[RedactRequestData]]:
     return request["method"] == "POST" and request["endpoint"] == "/ai/redact"
 
-def is_post_tokens_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[CreateAuthTokenParameters]]:
+
+def is_post_tokens_request_config(
+    request: RequestConfig[Any],
+) -> TypeGuard[RequestConfig[CreateAuthTokenParameters]]:
     return request["method"] == "POST" and request["endpoint"] == "/tokens"
 
-def is_delete_tokens_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[DeleteTokenRequestData]]:
+
+def is_delete_tokens_request_config(
+    request: RequestConfig[Any],
+) -> TypeGuard[RequestConfig[DeleteTokenRequestData]]:
     return request["method"] == "DELETE" and request["endpoint"] == "/tokens"
+
 
 # API response
 class ApiResponse(TypedDict, Generic[O]):
@@ -92,19 +122,19 @@ class ApiResponse(TypedDict, Generic[O]):
     data: O  # The actual type depends on the method and endpoint
     status: int
     statusText: str
-    headers: Dict[str, Any]
+    headers: dict[str, Any]
 
 
 # Client options
 class NutrientClientOptions(TypedDict):
     """Client options for Nutrient DWS API."""
 
-    apiKey: Union[str, Callable[[], str]]
-    baseUrl: Optional[str]
-    timeout: Optional[int]
+    apiKey: str | Callable[[], str]
+    baseUrl: str | None
+    timeout: int | None
 
 
-def resolve_api_key(api_key: Union[str, Callable[[], str]]) -> str:
+def resolve_api_key(api_key: str | Callable[[], str]) -> str:
     """Resolves API key from string or function.
 
     Args:
@@ -153,7 +183,10 @@ def append_file_to_form_data(form_data: dict[str, Any], key: str, file: Normaliz
 
     form_data[key] = (filename, file_content)
 
-def prepare_request_body(request_config: dict[str, Any], config: RequestConfig[I]) -> dict[str, Any]:
+
+def prepare_request_body(
+    request_config: dict[str, Any], config: RequestConfig[I]
+) -> dict[str, Any]:
     """Prepares request body with files and data.
 
     Args:
@@ -171,9 +204,7 @@ def prepare_request_body(request_config: dict[str, Any], config: RequestConfig[I
                 append_file_to_form_data(files, key, value)
 
             request_config["files"] = files
-            request_config["data"] = {
-                "instructions": json.dumps(config["data"]["instructions"])
-            }
+            request_config["data"] = {"instructions": json.dumps(config["data"]["instructions"])}
         else:
             # JSON only request
             request_config["json"] = config["data"]["instructions"]
@@ -188,9 +219,7 @@ def prepare_request_body(request_config: dict[str, Any], config: RequestConfig[I
             append_file_to_form_data(files, "image", config["data"]["image"])
 
         if "graphicImage" in config["data"]:
-            append_file_to_form_data(
-                files, "graphicImage", config["data"]["graphicImage"]
-            )
+            append_file_to_form_data(files, "graphicImage", config["data"]["graphicImage"])
 
         data = {}
         if "data" in config["data"]:
@@ -231,7 +260,8 @@ def prepare_request_body(request_config: dict[str, Any], config: RequestConfig[I
 
     return request_config
 
-def extract_error_message(data: Any) -> Optional[str]:
+
+def extract_error_message(data: Any) -> str | None:
     """Extracts error message from response data with comprehensive DWS error handling.
 
     Args:
@@ -330,7 +360,7 @@ def handle_response(response: httpx.Response) -> ApiResponse[O]:
     """
     status = response.status_code
     status_text = response.reason_phrase
-    headers: Dict[str, Any] = dict(response.headers)
+    headers: dict[str, Any] = dict(response.headers)
 
     try:
         data = response.json()
@@ -416,7 +446,8 @@ def convert_error(error: Any, config: RequestConfig[I]) -> NutrientError:
 
 
 async def send_request(
-    config: RequestConfig[I], client_options: NutrientClientOptions,
+    config: RequestConfig[I],
+    client_options: NutrientClientOptions,
 ) -> ApiResponse[O]:
     """Sends HTTP request to Nutrient DWS Processor API.
     Handles authentication, file uploads, and error conversion.

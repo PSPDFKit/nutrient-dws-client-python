@@ -1,10 +1,11 @@
-from typing import TypedDict, Union, Optional, Literal
+from typing import Literal, TypedDict
+
 from typing_extensions import NotRequired
 
 
 class FormFieldValue(TypedDict):
     name: str
-    value: NotRequired[Union[Optional[str], list[str]]]
+    value: NotRequired[str | None | list[str]]
     type: Literal["pspdfkit/form-field-value"]
     v: Literal[1]
     optionIndexes: NotRequired[list[int]]

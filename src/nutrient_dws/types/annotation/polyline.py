@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 from typing import Literal, TypedDict, Union
+
 from typing_extensions import NotRequired
 
-from nutrient_dws.types.annotation.base import V1 as BaseV1, V2 as BaseV2, BaseShapeAnnotation
-from nutrient_dws.types.misc import FillColor, CloudyBorderIntensity, CloudyBorderInset, Point, LineCaps
+from nutrient_dws.types.annotation.base import V1 as BaseV1
+from nutrient_dws.types.annotation.base import V2 as BaseV2
+from nutrient_dws.types.annotation.base import BaseShapeAnnotation
+from nutrient_dws.types.misc import (
+    CloudyBorderInset,
+    CloudyBorderIntensity,
+    FillColor,
+    LineCaps,
+    Point,
+)
 
 
 class PolylineBase(TypedDict):
@@ -15,10 +24,11 @@ class PolylineBase(TypedDict):
     cloudyBorderIntensity: NotRequired[CloudyBorderIntensity]
     cloudyBorderInset: NotRequired[CloudyBorderInset]
 
-class V1(BaseV1, BaseShapeAnnotation, PolylineBase):
-    ...
 
-class V2(BaseV2, BaseShapeAnnotation, PolylineBase):
-    ...
+class V1(BaseV1, BaseShapeAnnotation, PolylineBase): ...
+
+
+class V2(BaseV2, BaseShapeAnnotation, PolylineBase): ...
+
 
 PolylineAnnotation = Union[V1, V2]

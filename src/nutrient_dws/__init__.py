@@ -15,7 +15,7 @@ __version__ = "1.0.2"
 __all__ = [
     "APIError",
     "AuthenticationError",
+    "NetworkError",
     "NutrientError",
     "ValidationError",
-    "NetworkError",
 ]

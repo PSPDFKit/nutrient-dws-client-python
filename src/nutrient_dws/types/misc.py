@@ -1,10 +1,12 @@
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, Optional, TypedDict
+
 from typing_extensions import NotRequired
 
 
 class PageRange(TypedDict):
     start: NotRequired[int]
     end: NotRequired[int]
+
 
 class Pages(TypedDict):
     start: int
@@ -22,15 +24,14 @@ class Margin(TypedDict):
     right: NotRequired[float]
     bottom: NotRequired[float]
 
+
 class PageLayout(TypedDict):
     orientation: NotRequired[Literal["portrait", "landscape"]]
     size: NotRequired[
-        Union[
-            Literal["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "Letter", "Legal"],
-            Size,
-        ]
+        Literal["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "Letter", "Legal"] | Size
     ]
     margin: NotRequired[Margin]
+
 
 OcrLanguage = Literal[
     "afrikaans",
@@ -184,9 +185,11 @@ OcrLanguage = Literal[
     "yor",
 ]
 
+
 class WatermarkDimension(TypedDict):
     value: float
     unit: Literal["pt", "%"]
+
 
 PageIndex = int
 
@@ -294,6 +297,7 @@ BorderStyle = Literal["solid", "dashed", "beveled", "inset", "underline"]
 class LineCaps(TypedDict):
     start: NotRequired[LineCap]
     end: NotRequired[LineCap]
+
 
 AnnotationPlainText = str
 

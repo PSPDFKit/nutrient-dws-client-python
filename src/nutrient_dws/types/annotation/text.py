@@ -1,11 +1,25 @@
 from __future__ import annotations
 
 from typing import Literal, TypedDict, Union
+
 from typing_extensions import NotRequired
 
-from nutrient_dws.types.annotation.base import V1 as BaseV1, V2 as BaseV2
-from nutrient_dws.types.misc import Point, LineCap, AnnotationPlainText, FontSizeInt, FontColor, Font, HorizontalAlign, \
-    VerticalAlign, AnnotationRotation, BorderStyle, CloudyBorderIntensity, CloudyBorderInset
+from nutrient_dws.types.annotation.base import V1 as BaseV1
+from nutrient_dws.types.annotation.base import V2 as BaseV2
+from nutrient_dws.types.misc import (
+    AnnotationPlainText,
+    AnnotationRotation,
+    BorderStyle,
+    CloudyBorderInset,
+    CloudyBorderIntensity,
+    Font,
+    FontColor,
+    FontSizeInt,
+    HorizontalAlign,
+    LineCap,
+    Point,
+    VerticalAlign,
+)
 
 
 class Callout(TypedDict):
@@ -38,7 +52,9 @@ class TextBase(TypedDict):
 class V1(BaseV1, TextBase):
     pass
 
+
 class V2(BaseV2, TextBase):
     pass
+
 
 TextAnnotation = Union[V1, V2]

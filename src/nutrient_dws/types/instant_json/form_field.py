@@ -1,4 +1,5 @@
 from typing import Literal, TypedDict, Union
+
 from typing_extensions import NotRequired
 
 from nutrient_dws.types.instant_json.actions import Action
@@ -65,7 +66,6 @@ class ComboBoxFormField(BaseFormField, ChoiceFormField):
     type: NotRequired[Literal["pspdfkit/form-field/combobox"]]
     edit: bool
     doNotSpellCheck: bool
-
 
 
 class CheckboxFormField(BaseFormField):

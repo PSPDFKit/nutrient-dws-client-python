@@ -1,4 +1,5 @@
-from typing import TypedDict, Literal, Union
+from typing import Literal, TypedDict, Union
+
 from typing_extensions import NotRequired
 
 from nutrient_dws.types.annotation.redaction import RedactionAnnotation
@@ -15,6 +16,7 @@ class ApplyXfdfActionOptions(TypedDict, total=False):
     ignorePageRotation: NotRequired[bool]
     richTextEnabled: NotRequired[bool]
 
+
 class ApplyXfdfAction(TypedDict):
     type: Literal["applyXfdf"]
     file: FileHandle
@@ -24,17 +26,18 @@ class ApplyXfdfAction(TypedDict):
 
 class FlattenAction(TypedDict):
     type: Literal["flatten"]
-    annotationIds: NotRequired[list[Union[str, int]]]
+    annotationIds: NotRequired[list[str | int]]
 
 
 class OcrAction(TypedDict):
     type: Literal["ocr"]
-    language: Union[OcrLanguage, list[OcrLanguage]]
+    language: OcrLanguage | list[OcrLanguage]
 
 
 class RotateAction(TypedDict):
     type: Literal["rotate"]
     rotateBy: Literal[90, 180, 270]
+
 
 class BaseWatermarkActionOptions(TypedDict):
     width: WatermarkDimension
@@ -46,14 +49,17 @@ class BaseWatermarkActionOptions(TypedDict):
     rotation: NotRequired[float]
     opacity: NotRequired[float]
 
+
 class BaseWatermarkAction(BaseWatermarkActionOptions):
     type: Literal["watermark"]
+
 
 class TextWatermarkActionOptions(BaseWatermarkActionOptions, total=False):
     fontFamily: NotRequired[str]
     fontSize: NotRequired[int]
     fontColor: NotRequired[str]
     fontStyle: NotRequired[list[Literal["bold", "italic"]]]
+
 
 class TextWatermarkAction(BaseWatermarkAction):
     text: str
@@ -62,8 +68,9 @@ class TextWatermarkAction(BaseWatermarkAction):
     fontColor: NotRequired[str]
     fontStyle: NotRequired[list[Literal["bold", "italic"]]]
 
-class ImageWatermarkActionOptions(BaseWatermarkActionOptions, total=False):
-    ...
+
+class ImageWatermarkActionOptions(BaseWatermarkActionOptions, total=False): ...
+
 
 class ImageWatermarkAction(BaseWatermarkAction):
     image: FileHandle
@@ -114,8 +121,10 @@ class CreateRedactionsStrategyOptionsText(TypedDict):
 class BaseCreateRedactionsOptions(TypedDict):
     content: NotRequired[RedactionAnnotation]
 
+
 class BaseCreateRedactionsAction(BaseCreateRedactionsOptions):
     type: Literal["createRedactions"]
+
 
 class CreateRedactionsActionPreset(TypedDict, BaseCreateRedactionsAction):
     strategy: Literal["preset"]

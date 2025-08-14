@@ -1,4 +1,5 @@
-from typing import TypedDict, Union, Literal
+from typing import Literal, TypedDict
+
 from typing_extensions import NotRequired
 
 from nutrient_dws.types.misc import Pages
@@ -7,9 +8,11 @@ from nutrient_dws.types.misc import Pages
 class RemoteFile(TypedDict):
     url: str
 
+
 class Document(TypedDict):
-    file: NotRequired[Union[str, RemoteFile]]
-    pages: NotRequired[Union[list[int], Pages]]
+    file: NotRequired[str | RemoteFile]
+    pages: NotRequired[list[int] | Pages]
+
 
 class Confidence(TypedDict):
     threshold: float
@@ -17,6 +20,7 @@ class Confidence(TypedDict):
 
 class Options(TypedDict):
     confidence: NotRequired[Confidence]
+
 
 class RedactData(TypedDict):
     documents: list[Document]

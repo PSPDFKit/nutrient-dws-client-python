@@ -1,15 +1,42 @@
 from collections.abc import Callable
-from typing import Any, Generic, Optional, Protocol, TypeVar, cast, Union, Literal, Dict
+from typing import Any, Literal, Protocol, TypeVar, cast
 
 from nutrient_dws.inputs import FileInput
-from nutrient_dws.types.build_actions import OcrAction, RotateAction, TextWatermarkAction, WatermarkAction, \
-    ImageWatermarkAction, FlattenAction, ApplyInstantJsonAction, ApplyXfdfAction, CreateRedactionsAction, SearchPreset, \
-    ApplyRedactionsAction, BuildAction, ImageWatermarkActionOptions, TextWatermarkActionOptions, ApplyXfdfActionOptions, \
-    BaseCreateRedactionsOptions, CreateRedactionsStrategyOptionsText, CreateRedactionsStrategyOptionsRegex, \
-    CreateRedactionsStrategyOptionsPreset
-from nutrient_dws.types.build_output import PDFOutput, PDFAOutput, PDFUAOutput, ImageOutput, JSONContentOutput, \
-    OfficeOutput, HTMLOutput, MarkdownOutput, PDFOutputOptions, PDFAOutputOptions, PDFUAOutputOptions, \
-    ImageOutputOptions, JSONContentOutputOptions
+from nutrient_dws.types.build_actions import (
+    ApplyInstantJsonAction,
+    ApplyRedactionsAction,
+    ApplyXfdfAction,
+    ApplyXfdfActionOptions,
+    BaseCreateRedactionsOptions,
+    BuildAction,
+    CreateRedactionsAction,
+    CreateRedactionsStrategyOptionsPreset,
+    CreateRedactionsStrategyOptionsRegex,
+    CreateRedactionsStrategyOptionsText,
+    FlattenAction,
+    ImageWatermarkAction,
+    ImageWatermarkActionOptions,
+    OcrAction,
+    RotateAction,
+    SearchPreset,
+    TextWatermarkAction,
+    TextWatermarkActionOptions,
+)
+from nutrient_dws.types.build_output import (
+    HTMLOutput,
+    ImageOutput,
+    ImageOutputOptions,
+    JSONContentOutput,
+    JSONContentOutputOptions,
+    MarkdownOutput,
+    OfficeOutput,
+    PDFAOutput,
+    PDFAOutputOptions,
+    PDFOutput,
+    PDFOutputOptions,
+    PDFUAOutput,
+    PDFUAOutputOptions,
+)
 from nutrient_dws.types.file_handle import FileHandle
 from nutrient_dws.types.misc import OcrLanguage, WatermarkDimension
 
@@ -32,7 +59,7 @@ class BuildActions:
     """Factory functions for creating common build actions"""
 
     @staticmethod
-    def ocr(language: Union[OcrLanguage, list[OcrLanguage]]) -> OcrAction:
+    def ocr(language: OcrLanguage | list[OcrLanguage]) -> OcrAction:
         """Create an OCR action
 
         Args:
@@ -62,7 +89,9 @@ class BuildActions:
         }
 
     @staticmethod
-    def watermarkText(text: str, options: Optional[TextWatermarkActionOptions] = None) -> TextWatermarkAction:
+    def watermarkText(
+        text: str, options: TextWatermarkActionOptions | None = None
+    ) -> TextWatermarkAction:
         """Create a text watermark action
 
         Args:
@@ -102,7 +131,7 @@ class BuildActions:
 
     @staticmethod
     def watermarkImage(
-        image: FileInput, options: Optional[ImageWatermarkActionOptions] = None
+        image: FileInput, options: ImageWatermarkActionOptions | None = None
     ) -> ActionWithFileInput:
         """Create an image watermark action
 
@@ -148,7 +177,7 @@ class BuildActions:
         return ImageWatermarkActionWithFileInput(image, options)
 
     @staticmethod
-    def flatten(annotationIds: Optional[list[Union[str, int]]] = None) -> FlattenAction:
+    def flatten(annotationIds: list[str | int] | None = None) -> FlattenAction:
         """Create a flatten action
 
         Args:
@@ -189,7 +218,7 @@ class BuildActions:
 
     @staticmethod
     def applyXfdf(
-        file: FileInput, options: Optional[ApplyXfdfActionOptions] = None
+        file: FileInput, options: ApplyXfdfActionOptions | None = None
     ) -> ActionWithFileInput:
         """Create an apply XFDF action
 
@@ -206,7 +235,7 @@ class BuildActions:
         class ApplyXfdfActionWithFileInput(ActionWithFileInput):
             __needsFileRegistration = True
 
-            def __init__(self, file_input: FileInput, opts: Optional[ApplyXfdfActionOptions]):
+            def __init__(self, file_input: FileInput, opts: ApplyXfdfActionOptions | None):
                 self.fileInput = file_input
                 self.options = opts or {}
 
@@ -222,8 +251,8 @@ class BuildActions:
     @staticmethod
     def createRedactionsText(
         text: str,
-        options: Optional[BaseCreateRedactionsOptions] = None,
-        strategyOptions: Optional[CreateRedactionsStrategyOptionsText] = None,
+        options: BaseCreateRedactionsOptions | None = None,
+        strategyOptions: CreateRedactionsStrategyOptionsText | None = None,
     ) -> CreateRedactionsAction:
         """Create redactions with text search
 
@@ -249,13 +278,13 @@ class BuildActions:
             },
             **(options or {}),
         }
-        return cast(CreateRedactionsAction, result)
+        return cast("CreateRedactionsAction", result)
 
     @staticmethod
     def createRedactionsRegex(
         regex: str,
-        options: Optional[BaseCreateRedactionsOptions] = None,
-        strategyOptions: Optional[CreateRedactionsStrategyOptionsRegex] = None,
+        options: BaseCreateRedactionsOptions | None = None,
+        strategyOptions: CreateRedactionsStrategyOptionsRegex | None = None,
     ) -> CreateRedactionsAction:
         """Create redactions with regex pattern
 
@@ -281,13 +310,13 @@ class BuildActions:
             },
             **(options or {}),
         }
-        return cast(CreateRedactionsAction, result)
+        return cast("CreateRedactionsAction", result)
 
     @staticmethod
     def createRedactionsPreset(
         preset: SearchPreset,
-        options: Optional[BaseCreateRedactionsOptions] = None,
-        strategyOptions: Optional[CreateRedactionsStrategyOptionsPreset] = None,
+        options: BaseCreateRedactionsOptions | None = None,
+        strategyOptions: CreateRedactionsStrategyOptionsPreset | None = None,
     ) -> CreateRedactionsAction:
         """Create redactions with preset pattern
 
@@ -312,7 +341,7 @@ class BuildActions:
             },
             **(options or {}),
         }
-        return cast(CreateRedactionsAction, result)
+        return cast("CreateRedactionsAction", result)
 
     @staticmethod
     def applyRedactions() -> ApplyRedactionsAction:
@@ -330,7 +359,7 @@ class BuildOutputs:
     """Factory functions for creating output configurations"""
 
     @staticmethod
-    def pdf(options: Optional[PDFOutputOptions] = None) -> PDFOutput:
+    def pdf(options: PDFOutputOptions | None = None) -> PDFOutput:
         """PDF output configuration
 
         Args:
@@ -361,10 +390,10 @@ class BuildOutputs:
             if "optimize" in options:
                 result["optimize"] = options["optimize"]
 
-        return cast(PDFOutput, result)
+        return cast("PDFOutput", result)
 
     @staticmethod
-    def pdfa(options: Optional[PDFAOutputOptions] = None) -> PDFAOutput:
+    def pdfa(options: PDFAOutputOptions | None = None) -> PDFAOutput:
         """PDF/A output configuration
 
         Args:
@@ -404,10 +433,10 @@ class BuildOutputs:
             if "optimize" in options:
                 result["optimize"] = options["optimize"]
 
-        return cast(PDFAOutput, result)
+        return cast("PDFAOutput", result)
 
     @staticmethod
-    def pdfua(options: Optional[PDFUAOutputOptions] = None) -> PDFUAOutput:
+    def pdfua(options: PDFUAOutputOptions | None = None) -> PDFUAOutput:
         """PDF/UA output configuration
 
         Args:
@@ -438,12 +467,11 @@ class BuildOutputs:
             if "optimize" in options:
                 result["optimize"] = options["optimize"]
 
-        return cast(PDFUAOutput, result)
+        return cast("PDFUAOutput", result)
 
     @staticmethod
     def image(
-        format: Literal["png", "jpeg", "jpg", "webp"],
-            options: Optional[ImageOutputOptions] = None
+        format: Literal["png", "jpeg", "jpg", "webp"], options: ImageOutputOptions | None = None
     ) -> ImageOutput:
         """Image output configuration
 
@@ -473,10 +501,10 @@ class BuildOutputs:
             if "dpi" in options:
                 result["dpi"] = options["dpi"]
 
-        return cast(ImageOutput, result)
+        return cast("ImageOutput", result)
 
     @staticmethod
-    def jsonContent(options: Optional[JSONContentOutputOptions] = None) -> JSONContentOutput:
+    def jsonContent(options: JSONContentOutputOptions | None = None) -> JSONContentOutput:
         """JSON content output configuration
 
         Args:
@@ -504,7 +532,7 @@ class BuildOutputs:
             if "language" in options:
                 result["language"] = options["language"]
 
-        return cast(JSONContentOutput, result)
+        return cast("JSONContentOutput", result)
 
     @staticmethod
     def office(type: Literal["docx", "xlsx", "pptx"]) -> OfficeOutput:
@@ -548,15 +576,7 @@ class BuildOutputs:
 
     @staticmethod
     def getMimeTypeForOutput(
-        output: Union[
-            PDFOutput,
-            PDFAOutput,
-            PDFUAOutput,
-            ImageOutput,
-            OfficeOutput,
-            HTMLOutput,
-            MarkdownOutput,
-        ],
+        output: PDFOutput | PDFAOutput | PDFUAOutput | ImageOutput | OfficeOutput | HTMLOutput | MarkdownOutput,
     ) -> dict[str, str]:
         """Get MIME type and filename for a given output configuration
 

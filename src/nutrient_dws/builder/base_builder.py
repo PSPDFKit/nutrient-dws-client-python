@@ -1,8 +1,11 @@
 """Base builder class that all builders extend from."""
-from abc import ABC, abstractmethod
-from typing import Any, Generic, Literal, TypeVar, Union
 
-from nutrient_dws.builder.staged_builders import TypedWorkflowResult, BufferOutput, ContentOutput, JsonContentOutput
+from abc import ABC, abstractmethod
+from typing import Any, Literal
+
+from nutrient_dws.builder.staged_builders import (
+    TypedWorkflowResult,
+)
 from nutrient_dws.http import (
     AnalyzeBuildRequestData,
     BuildRequestData,
@@ -22,15 +25,15 @@ class BaseBuilder(ABC):
 
     async def _send_request(
         self,
-        path: Union[Literal["/build"], Literal["/analyze_build"]],
-        options: Union[BuildRequestData, AnalyzeBuildRequestData],
+        path: Literal["/build"] | Literal["/analyze_build"],
+        options: BuildRequestData | AnalyzeBuildRequestData,
     ) -> Any:
         """Sends a request to the API."""
-        config: RequestConfig[Union[BuildRequestData, AnalyzeBuildRequestData]] = {
+        config: RequestConfig[BuildRequestData | AnalyzeBuildRequestData] = {
             "endpoint": path,
             "method": "POST",
             "data": options,
-            "headers": None
+            "headers": None,
         }
 
         response: Any = await send_request(config, self.client_options)

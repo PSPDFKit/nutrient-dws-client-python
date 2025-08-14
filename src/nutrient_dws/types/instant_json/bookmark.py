@@ -1,4 +1,5 @@
-from typing import TypedDict, Literal
+from typing import Literal, TypedDict
+
 from typing_extensions import NotRequired
 
 from nutrient_dws.types.instant_json.actions import Action

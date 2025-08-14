@@ -1,10 +1,12 @@
 """Staged workflow builder that provides compile-time safety through Python's type system."""
+
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, cast, List, TypeGuard, Dict, Callable
+from collections.abc import Callable
+from typing import Literal, TypeGuard, cast
 
 from nutrient_dws.builder.base_builder import BaseBuilder
-from nutrient_dws.builder.constant import BuildOutputs, ActionWithFileInput
+from nutrient_dws.builder.constant import ActionWithFileInput, BuildOutputs
 from nutrient_dws.builder.staged_builders import (
     ApplicableAction,
     BufferOutput,
@@ -14,13 +16,12 @@ from nutrient_dws.builder.staged_builders import (
     WorkflowDryRunResult,
     WorkflowError,
     WorkflowExecuteOptions,
-    WorkflowInitialStage,
     WorkflowWithActionsStage,
     WorkflowWithOutputStage,
     WorkflowWithPartsStage,
 )
 from nutrient_dws.errors import ValidationError
-from nutrient_dws.http import NutrientClientOptions, BuildRequestData, AnalyzeBuildRequestData
+from nutrient_dws.http import AnalyzeBuildRequestData, BuildRequestData, NutrientClientOptions
 from nutrient_dws.inputs import (
     FileInput,
     NormalizedFileData,
@@ -30,11 +31,26 @@ from nutrient_dws.inputs import (
 )
 from nutrient_dws.types.build_actions import BuildAction
 from nutrient_dws.types.build_instruction import BuildInstructions
-from nutrient_dws.types.build_output import PDFOutput, BuildOutput, PDFOutputOptions, PDFAOutputOptions, \
-    PDFUAOutputOptions, ImageOutputOptions, JSONContentOutputOptions
+from nutrient_dws.types.build_output import (
+    BuildOutput,
+    ImageOutputOptions,
+    JSONContentOutputOptions,
+    PDFAOutputOptions,
+    PDFOutput,
+    PDFOutputOptions,
+    PDFUAOutputOptions,
+)
 from nutrient_dws.types.file_handle import FileHandle, RemoteFileHandle
-from nutrient_dws.types.input_parts import FilePart, HTMLPart, NewPagePart, DocumentPart, FilePartOptions, \
-    HTMLPartOptions, NewPagePartOptions, DocumentPartOptions
+from nutrient_dws.types.input_parts import (
+    DocumentPart,
+    DocumentPartOptions,
+    FilePart,
+    FilePartOptions,
+    HTMLPart,
+    HTMLPartOptions,
+    NewPagePart,
+    NewPagePartOptions,
+)
 
 
 class StagedWorkflowBuilder(
@@ -54,7 +70,7 @@ class StagedWorkflowBuilder(
         """
         super().__init__(client_options)
         self.build_instructions: BuildInstructions = {"parts": []}
-        self.assets: Dict[str, FileInput] = {}
+        self.assets: dict[str, FileInput] = {}
         self.asset_index = 0
         self.current_step = 0
         self.is_executed = False
@@ -94,7 +110,7 @@ class StagedWorkflowBuilder(
             raise ValidationError("Workflow has no parts to execute")
 
         if "output" not in self.build_instructions:
-            self.build_instructions["output"] = cast(PDFOutput, {"type": "pdf"})
+            self.build_instructions["output"] = cast("PDFOutput", {"type": "pdf"})
 
     def _process_action(self, action: ApplicableAction) -> BuildAction:
         """Process an action, registering files if needed.
@@ -113,9 +129,11 @@ class StagedWorkflowBuilder(
                 file_handle = self._register_asset(action.fileInput)
             return action.createAction(file_handle)
         else:
-            return cast(BuildAction, action)
+            return cast("BuildAction", action)
 
-    def _is_action_with_file_input(self, action: ApplicableAction) -> TypeGuard[ActionWithFileInput]:
+    def _is_action_with_file_input(
+        self, action: ApplicableAction
+    ) -> TypeGuard[ActionWithFileInput]:
         """Type guard to check if action needs file registration.
 
         Args:
@@ -167,8 +185,8 @@ class StagedWorkflowBuilder(
     def add_file_part(
         self,
         file: FileInput,
-        options: Optional[FilePartOptions] = None,
-        actions: Optional[List[ApplicableAction]] = None,
+        options: FilePartOptions | None = None,
+        actions: list[ApplicableAction] | None = None,
     ) -> WorkflowWithPartsStage:
         """Add a file part to the workflow.
 
@@ -208,9 +226,9 @@ class StagedWorkflowBuilder(
     def add_html_part(
         self,
         html: FileInput,
-        assets: Optional[List[FileInput]] = None,
-        options: Optional[HTMLPartOptions] = None,
-        actions: Optional[List[ApplicableAction]] = None,
+        assets: list[FileInput] | None = None,
+        options: HTMLPartOptions | None = None,
+        actions: list[ApplicableAction] | None = None,
     ) -> WorkflowWithPartsStage:
         """Add an HTML part to the workflow.
 
@@ -265,8 +283,8 @@ class StagedWorkflowBuilder(
 
     def add_new_page(
         self,
-        options: Optional[NewPagePartOptions] = None,
-        actions: Optional[List[ApplicableAction]] = None,
+        options: NewPagePartOptions | None = None,
+        actions: list[ApplicableAction] | None = None,
     ) -> WorkflowWithPartsStage:
         """Add a new blank page to the workflow.
 
@@ -304,8 +322,8 @@ class StagedWorkflowBuilder(
     def add_document_part(
         self,
         document_id: str,
-        options: Optional[DocumentPartOptions] = None,
-        actions: Optional[List[ApplicableAction]] = None,
+        options: DocumentPartOptions | None = None,
+        actions: list[ApplicableAction] | None = None,
     ) -> WorkflowWithPartsStage:
         """Add a document part to the workflow by referencing an existing document by ID.
 
@@ -351,7 +369,7 @@ class StagedWorkflowBuilder(
 
     # Action methods (WorkflowWithPartsStage)
 
-    def apply_actions(self, actions: List[ApplicableAction]) -> WorkflowWithActionsStage:
+    def apply_actions(self, actions: list[ApplicableAction]) -> WorkflowWithActionsStage:
         """Apply multiple actions to the workflow.
 
         Args:
@@ -367,7 +385,7 @@ class StagedWorkflowBuilder(
 
         processed_actions = [self._process_action(action) for action in actions]
         self.build_instructions["actions"].extend(processed_actions)
-        return cast(WorkflowWithActionsStage, self)
+        return cast("WorkflowWithActionsStage", self)
 
     def apply_action(self, action: ApplicableAction) -> WorkflowWithActionsStage:
         """Apply a single action to the workflow.
@@ -390,32 +408,32 @@ class StagedWorkflowBuilder(
 
     def output_pdf(
         self,
-        options: Optional[PDFOutputOptions] = None,
+        options: PDFOutputOptions | None = None,
     ) -> WorkflowWithOutputStage:
         """Set the output format to PDF."""
         self._output(BuildOutputs.pdf(options))
-        return cast(WorkflowWithOutputStage, self)
+        return cast("WorkflowWithOutputStage", self)
 
     def output_pdfa(
         self,
-        options: Optional[PDFAOutputOptions] = None,
+        options: PDFAOutputOptions | None = None,
     ) -> WorkflowWithOutputStage:
         """Set the output format to PDF/A."""
         self._output(BuildOutputs.pdfa(options))
-        return cast(WorkflowWithOutputStage, self)
+        return cast("WorkflowWithOutputStage", self)
 
     def output_pdfua(
         self,
-        options: Optional[PDFUAOutputOptions] = None,
+        options: PDFUAOutputOptions | None = None,
     ) -> WorkflowWithOutputStage:
         """Set the output format to PDF/UA."""
         self._output(BuildOutputs.pdfua(options))
-        return cast(WorkflowWithOutputStage, self)
+        return cast("WorkflowWithOutputStage", self)
 
     def output_image(
         self,
         format: Literal["png", "jpeg", "jpg", "webp"],
-        options: Optional[ImageOutputOptions] = None,
+        options: ImageOutputOptions | None = None,
     ) -> WorkflowWithOutputStage:
         """Set the output format to an image format."""
         if not options or not any(k in options for k in ["dpi", "width", "height"]):
@@ -423,7 +441,7 @@ class StagedWorkflowBuilder(
                 "Image output requires at least one of the following options: dpi, height, width"
             )
         self._output(BuildOutputs.image(format, options))
-        return cast(WorkflowWithOutputStage, self)
+        return cast("WorkflowWithOutputStage", self)
 
     def output_office(
         self,
@@ -431,39 +449,38 @@ class StagedWorkflowBuilder(
     ) -> WorkflowWithOutputStage:
         """Set the output format to an Office document format."""
         self._output(BuildOutputs.office(format))
-        return cast(WorkflowWithOutputStage, self)
+        return cast("WorkflowWithOutputStage", self)
 
     def output_html(
-            self,
-            layout: Optional[Literal["page", "reflow"]] = None
+        self, layout: Literal["page", "reflow"] | None = None
     ) -> WorkflowWithOutputStage:
         """Set the output format to HTML."""
         casted_layout: Literal["page", "reflow"] = "page"
         if layout is not None:
             casted_layout = layout
         self._output(BuildOutputs.html(casted_layout))
-        return cast(WorkflowWithOutputStage, self)
+        return cast("WorkflowWithOutputStage", self)
 
     def output_markdown(
         self,
     ) -> WorkflowWithOutputStage:
         """Set the output format to Markdown."""
         self._output(BuildOutputs.markdown())
-        return cast(WorkflowWithOutputStage, self)
+        return cast("WorkflowWithOutputStage", self)
 
     def output_json(
         self,
-        options: Optional[JSONContentOutputOptions] = None,
+        options: JSONContentOutputOptions | None = None,
     ) -> WorkflowWithOutputStage:
         """Set the output format to JSON content."""
         self._output(BuildOutputs.jsonContent(options))
-        return cast(WorkflowWithOutputStage, self)
+        return cast("WorkflowWithOutputStage", self)
 
     # Execution methods (WorkflowWithOutputStage)
 
     async def execute(
         self,
-        options: Optional[WorkflowExecuteOptions] = None,
+        options: WorkflowExecuteOptions | None = None,
     ) -> TypedWorkflowResult:
         """Execute the workflow and return the result.
 
@@ -486,13 +503,13 @@ class StagedWorkflowBuilder(
             # Step 1: Validate
             self.current_step = 1
             if options and options.get("onProgress"):
-                cast(Callable[[int, int], None], options["onProgress"])(self.current_step, 3)
+                cast("Callable[[int, int], None]", options["onProgress"])(self.current_step, 3)
             self._validate()
 
             # Step 2: Prepare files
             self.current_step = 2
             if options and options.get("onProgress"):
-                cast(Callable[[int, int], None], options["onProgress"])(self.current_step, 3)
+                cast("Callable[[int, int], None]", options["onProgress"])(self.current_step, 3)
 
             output_config = self.build_instructions.get("output")
             if not output_config:
@@ -509,7 +526,7 @@ class StagedWorkflowBuilder(
             # Step 3: Process response
             self.current_step = 3
             if options and options.get("onProgress"):
-                cast(Callable[[int, int], None], options["onProgress"])(self.current_step, 3)
+                cast("Callable[[int, int], None]", options["onProgress"])(self.current_step, 3)
 
             if output_config["type"] == "json-content":
                 result["success"] = True
@@ -539,7 +556,7 @@ class StagedWorkflowBuilder(
                 "step": self.current_step,
                 "error": error if isinstance(error, Exception) else Exception(str(error)),
             }
-            cast(List[WorkflowError], result["errors"]).append(workflow_error)
+            cast("list[WorkflowError]", result["errors"]).append(workflow_error)
 
         finally:
             self._cleanup()
@@ -565,8 +582,7 @@ class StagedWorkflowBuilder(
             self._validate()
 
             response = await self._send_request(
-                "/analyze_build",
-                AnalyzeBuildRequestData(instructions=self.build_instructions)
+                "/analyze_build", AnalyzeBuildRequestData(instructions=self.build_instructions)
             )
 
             result["success"] = True
@@ -580,6 +596,6 @@ class StagedWorkflowBuilder(
                 "step": 0,
                 "error": error if isinstance(error, Exception) else Exception(str(error)),
             }
-            cast(List[WorkflowError], result["errors"]).append(workflow_error)
+            cast("list[WorkflowError]", result["errors"]).append(workflow_error)
 
         return result

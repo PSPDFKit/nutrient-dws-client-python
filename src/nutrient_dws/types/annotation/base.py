@@ -1,11 +1,21 @@
 from __future__ import annotations
 
-from typing import Literal, Optional, TypedDict, Union
+from typing import Literal, TypedDict, Union
+
 from typing_extensions import NotRequired
 
-from nutrient_dws.types.misc import AnnotationBbox, AnnotationCustomData, PageIndex, AnnotationOpacity, PdfObjectId, \
-    AnnotationNote, MeasurementPrecision, MeasurementScale
 from nutrient_dws.types.instant_json.actions import Action
+from nutrient_dws.types.misc import (
+    AnnotationBbox,
+    AnnotationCustomData,
+    AnnotationNote,
+    AnnotationOpacity,
+    MeasurementPrecision,
+    MeasurementScale,
+    PageIndex,
+    PdfObjectId,
+)
+
 
 class V1(TypedDict):
     v: Literal[1]
@@ -35,7 +45,7 @@ class V1(TypedDict):
     updatedAt: NotRequired[str]
     name: NotRequired[str]
     creatorName: NotRequired[str]
-    customData: NotRequired[Optional[AnnotationCustomData]]
+    customData: NotRequired[AnnotationCustomData | None]
 
 
 class V2(TypedDict):
@@ -66,7 +76,7 @@ class V2(TypedDict):
     updatedAt: NotRequired[str]
     name: NotRequired[str]
     creatorName: NotRequired[str]
-    customData: NotRequired[Optional[AnnotationCustomData]]
+    customData: NotRequired[AnnotationCustomData | None]
 
 
 class BaseShapeAnnotation(TypedDict):

@@ -1,5 +1,7 @@
-from typing import TypedDict, Literal
+from typing import Literal, TypedDict
+
 from typing_extensions import NotRequired
+
 
 class CreateAuthTokenParameters(TypedDict):
     allowedOperations: NotRequired[
@@ -25,6 +27,7 @@ class CreateAuthTokenParameters(TypedDict):
     ]
     allowedOrigins: NotRequired[list[str]]
     expirationTime: NotRequired[int]
+
 
 class CreateAuthTokenResponse(TypedDict):
     id: NotRequired[str]

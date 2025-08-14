@@ -1,5 +1,6 @@
 """Main client for interacting with the Nutrient Document Web Services API."""
-from typing import Any, Literal, Optional, Union, Dict, List, cast
+
+from typing import Any, Literal, cast
 
 from nutrient_dws.builder.builder import StagedWorkflowBuilder
 from nutrient_dws.builder.constant import BuildActions
@@ -21,15 +22,15 @@ from nutrient_dws.inputs import (
     process_file_input,
     process_remote_file_input,
 )
-from nutrient_dws.types.build_output import PDFUserPermission, Metadata
+from nutrient_dws.types.build_output import Metadata, PDFUserPermission
 from nutrient_dws.types.create_auth_token import CreateAuthTokenParameters, CreateAuthTokenResponse
-from nutrient_dws.types.misc import Pages, PageRange, OcrLanguage
+from nutrient_dws.types.misc import OcrLanguage, PageRange, Pages
 from nutrient_dws.types.sign_request import CreateDigitalSignature
 
 
 def normalize_page_params(
-    pages: Optional[PageRange] = None,
-    page_count: Optional[int] = None,
+    pages: PageRange | None = None,
+    page_count: int | None = None,
 ) -> Pages:
     """Normalize page parameters according to the requirements:
     - start and end are inclusive
@@ -139,7 +140,7 @@ class NutrientClient:
             self.options,
         )
 
-        return cast(dict[str, Any], response["data"])
+        return cast("dict[str, Any]", response["data"])
 
     async def create_token(self, params: CreateAuthTokenParameters) -> CreateAuthTokenResponse:
         """Create a new authentication token.
@@ -169,7 +170,7 @@ class NutrientClient:
             self.options,
         )
 
-        return cast(CreateAuthTokenResponse, response["data"])
+        return cast("CreateAuthTokenResponse", response["data"])
 
     async def delete_token(self, token_id: str) -> None:
         """Delete an authentication token.
@@ -186,13 +187,13 @@ class NutrientClient:
             {
                 "method": "DELETE",
                 "endpoint": "/tokens",
-                "data": cast(Any, {"id": token_id}),
+                "data": cast("Any", {"id": token_id}),
                 "headers": None,
             },
             self.options,
         )
 
-    def workflow(self, override_timeout: Optional[int] = None) -> WorkflowInitialStage:
+    def workflow(self, override_timeout: int | None = None) -> WorkflowInitialStage:
         """Create a new WorkflowBuilder for chaining multiple operations.
 
         Args:
@@ -218,7 +219,7 @@ class NutrientClient:
 
     def _process_typed_workflow_result(
         self, result: TypedWorkflowResult
-    ) -> Union[BufferOutput, ContentOutput, JsonContentOutput]:
+    ) -> BufferOutput | ContentOutput | JsonContentOutput:
         """Helper function that takes a TypedWorkflowResult, throws any errors, and returns the specific output type.
 
         Args:
@@ -254,8 +255,8 @@ class NutrientClient:
     async def sign(
         self,
         pdf: FileInput,
-        data: Optional[CreateDigitalSignature] = None,
-        options: Optional[Dict[str, FileInput]] = None,
+        data: CreateDigitalSignature | None = None,
+        options: dict[str, FileInput] | None = None,
     ) -> BufferOutput:
         """Sign a PDF document.
 
@@ -328,7 +329,7 @@ class NutrientClient:
             {
                 "method": "POST",
                 "endpoint": "/sign",
-                "data": cast(Any, request_data),
+                "data": cast("Any", request_data),
                 "headers": None,
             },
             self.options,
@@ -342,7 +343,7 @@ class NutrientClient:
         self,
         file: FileInput,
         text: str,
-        options: Optional[dict[str, Any]] = None,
+        options: dict[str, Any] | None = None,
     ) -> BufferOutput:
         """Add a text watermark to a document.
         This is a convenience method that uses the workflow builder.
@@ -370,18 +371,18 @@ class NutrientClient:
                 f.write(pdf_buffer)
             ```
         """
-        watermark_action = BuildActions.watermarkText(text, cast(Any, options))
+        watermark_action = BuildActions.watermarkText(text, cast("Any", options))
 
         builder = self.workflow().add_file_part(file, None, [watermark_action])
 
         result = await builder.output_pdf().execute()
-        return cast(BufferOutput, self._process_typed_workflow_result(result))
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def watermark_image(
         self,
         file: FileInput,
         image: FileInput,
-        options: Optional[dict[str, Any]] = None,
+        options: dict[str, Any] | None = None,
     ) -> BufferOutput:
         """Add an image watermark to a document.
         This is a convenience method that uses the workflow builder.
@@ -404,18 +405,18 @@ class NutrientClient:
             pdf_buffer = result['buffer']
             ```
         """
-        watermark_action = BuildActions.watermarkImage(image, cast(Any, options))
+        watermark_action = BuildActions.watermarkImage(image, cast("Any", options))
 
         builder = self.workflow().add_file_part(file, None, [watermark_action])
 
         result = await builder.output_pdf().execute()
-        return cast(BufferOutput, self._process_typed_workflow_result(result))
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def convert(
         self,
         file: FileInput,
         target_format: OutputFormat,
-    ) -> Union[BufferOutput, ContentOutput, JsonContentOutput]:
+    ) -> BufferOutput | ContentOutput | JsonContentOutput:
         """Convert a document to a different format.
         This is a convenience method that uses the workflow builder.
 
@@ -460,7 +461,9 @@ class NutrientClient:
         elif target_format == "markdown":
             result = await builder.output_markdown().execute()
         elif target_format in ["png", "jpeg", "jpg", "webp"]:
-            result = await builder.output_image(cast(Literal["png", "jpeg", "jpg", "webp"], target_format), {"dpi": 300}).execute()
+            result = await builder.output_image(
+                cast("Literal['png', 'jpeg', 'jpg', 'webp']", target_format), {"dpi": 300}
+            ).execute()
         else:
             raise ValidationError(f"Unsupported target format: {target_format}")
 
@@ -469,7 +472,7 @@ class NutrientClient:
     async def ocr(
         self,
         file: FileInput,
-        language: Union[OcrLanguage, list[OcrLanguage]],
+        language: OcrLanguage | list[OcrLanguage],
     ) -> BufferOutput:
         """Perform OCR (Optical Character Recognition) on a document.
         This is a convenience method that uses the workflow builder.
@@ -494,12 +497,12 @@ class NutrientClient:
         builder = self.workflow().add_file_part(file, None, [ocr_action])
 
         result = await builder.output_pdf().execute()
-        return cast(BufferOutput, self._process_typed_workflow_result(result))
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def extract_text(
         self,
         file: FileInput,
-        pages: Optional[PageRange] = None,
+        pages: PageRange | None = None,
     ) -> JsonContentOutput:
         """Extract text content from a document.
         This is a convenience method that uses the workflow builder.
@@ -525,7 +528,7 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = cast(Any, {"pages": normalized_pages}) if normalized_pages else None
+        part_options = cast("Any", {"pages": normalized_pages}) if normalized_pages else None
 
         result = (
             await self.workflow()
@@ -534,12 +537,12 @@ class NutrientClient:
             .execute()
         )
 
-        return cast(JsonContentOutput, self._process_typed_workflow_result(result))
+        return cast("JsonContentOutput", self._process_typed_workflow_result(result))
 
     async def extract_table(
         self,
         file: FileInput,
-        pages: Optional[PageRange] = None,
+        pages: PageRange | None = None,
     ) -> JsonContentOutput:
         """Extract table content from a document.
         This is a convenience method that uses the workflow builder.
@@ -566,7 +569,7 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = cast(Any, {"pages": normalized_pages}) if normalized_pages else None
+        part_options = cast("Any", {"pages": normalized_pages}) if normalized_pages else None
 
         result = (
             await self.workflow()
@@ -575,12 +578,12 @@ class NutrientClient:
             .execute()
         )
 
-        return cast(JsonContentOutput, self._process_typed_workflow_result(result))
+        return cast("JsonContentOutput", self._process_typed_workflow_result(result))
 
     async def extract_key_value_pairs(
         self,
         file: FileInput,
-        pages: Optional[PageRange] = None,
+        pages: PageRange | None = None,
     ) -> JsonContentOutput:
         """Extract key value pair content from a document.
         This is a convenience method that uses the workflow builder.
@@ -607,7 +610,7 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = cast(Any, {"pages": normalized_pages}) if normalized_pages else None
+        part_options = cast("Any", {"pages": normalized_pages}) if normalized_pages else None
 
         result = (
             await self.workflow()
@@ -616,14 +619,14 @@ class NutrientClient:
             .execute()
         )
 
-        return cast(JsonContentOutput, self._process_typed_workflow_result(result))
+        return cast("JsonContentOutput", self._process_typed_workflow_result(result))
 
     async def password_protect(
         self,
         file: FileInput,
         user_password: str,
         owner_password: str,
-        permissions: Optional[list[PDFUserPermission]] = None,
+        permissions: list[PDFUserPermission] | None = None,
     ) -> BufferOutput:
         """Password protect a PDF document.
         This is a convenience method that uses the workflow builder.
@@ -658,9 +661,11 @@ class NutrientClient:
         if permissions:
             pdf_options["userPermissions"] = permissions
 
-        result = await self.workflow().add_file_part(file).output_pdf(cast(Any, pdf_options)).execute()
+        result = (
+            await self.workflow().add_file_part(file).output_pdf(cast("Any", pdf_options)).execute()
+        )
 
-        return cast(BufferOutput, self._process_typed_workflow_result(result))
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def set_metadata(
         self,
@@ -695,12 +700,15 @@ class NutrientClient:
             raise ValidationError("Invalid pdf file", {"input": pdf})
 
         result = (
-            await self.workflow().add_file_part(pdf).output_pdf(cast(Any, {"metadata": metadata})).execute()
+            await self.workflow()
+            .add_file_part(pdf)
+            .output_pdf(cast("Any", {"metadata": metadata}))
+            .execute()
         )
 
-        return cast(BufferOutput, self._process_typed_workflow_result(result))
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
 
-    async def merge(self, files: List[FileInput]) -> BufferOutput:
+    async def merge(self, files: list[FileInput]) -> BufferOutput:
         """Merge multiple documents into a single document.
         This is a convenience method that uses the workflow builder.
 
@@ -731,12 +739,12 @@ class NutrientClient:
             workflow_builder = workflow_builder.add_file_part(file)
 
         result = await workflow_builder.output_pdf().execute()
-        return cast(BufferOutput, self._process_typed_workflow_result(result))
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def flatten(
         self,
         pdf: FileInput,
-        annotation_ids: Optional[list[Union[str, int]]] = None,
+        annotation_ids: list[str | int] | None = None,
     ) -> BufferOutput:
         """Flatten annotations in a PDF document.
         This is a convenience method that uses the workflow builder.
@@ -772,15 +780,15 @@ class NutrientClient:
             await self.workflow().add_file_part(pdf, None, [flatten_action]).output_pdf().execute()
         )
 
-        return cast(BufferOutput, self._process_typed_workflow_result(result))
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def create_redactions_ai(
         self,
         pdf: FileInput,
         criteria: str,
         redaction_state: Literal["stage", "apply"] = "stage",
-        pages: Optional[PageRange] = None,
-        options: Optional[dict[str, Any]] = None,
+        pages: PageRange | None = None,
+        options: dict[str, Any] | None = None,
     ) -> BufferOutput:
         """Use AI to redact sensitive information in a document.
 
@@ -848,7 +856,7 @@ class NutrientClient:
             {
                 "method": "POST",
                 "endpoint": "/ai/redact",
-                "data": cast(Any, request_data),
+                "data": cast("Any", request_data),
                 "headers": None,
             },
             self.options,

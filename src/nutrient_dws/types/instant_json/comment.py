@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Literal, Optional, TypedDict, Any, Union
+from typing import Any, Literal, Optional, TypedDict, Union
+
 from typing_extensions import NotRequired
 
 from nutrient_dws.types.misc import PageIndex, PdfObjectId
@@ -10,10 +11,12 @@ class AnnotationText(TypedDict):
     format: NotRequired[Literal["xhtml", "plain"]]
     value: NotRequired[str]
 
+
 IsoDateTime = str
 
 
 CustomData = Optional[dict[str, Any]]
+
 
 class V2(TypedDict):
     type: Literal["pspdfkit/comment"]
@@ -23,7 +26,7 @@ class V2(TypedDict):
     v: Literal[2]
     createdAt: NotRequired[IsoDateTime]
     creatorName: NotRequired[str]
-    customData: NotRequired[Optional[CustomData]]
+    customData: NotRequired[CustomData | None]
     pdfObjectId: NotRequired[PdfObjectId]
     updatedAt: NotRequired[IsoDateTime]
 
@@ -36,7 +39,7 @@ class V1(TypedDict):
     v: Literal[1]
     createdAt: NotRequired[IsoDateTime]
     creatorName: NotRequired[str]
-    customData: NotRequired[Optional[CustomData]]
+    customData: NotRequired[CustomData | None]
     pdfObjectId: NotRequired[PdfObjectId]
     updatedAt: NotRequired[IsoDateTime]
 

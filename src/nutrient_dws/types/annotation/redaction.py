@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Literal, Union, TypedDict
+from typing import Literal, TypedDict, Union
+
 from typing_extensions import NotRequired
 
-from nutrient_dws.types.annotation.base import V1 as BaseV1, V2 as BaseV2
-from nutrient_dws.types.misc import Rect, AnnotationRotation, AnnotationNote
+from nutrient_dws.types.annotation.base import V1 as BaseV1
+from nutrient_dws.types.annotation.base import V2 as BaseV2
+from nutrient_dws.types.misc import AnnotationNote, AnnotationRotation, Rect
 
 
 class RedactionBase(TypedDict):
@@ -18,11 +20,11 @@ class RedactionBase(TypedDict):
     rotation: NotRequired[AnnotationRotation]
     note: NotRequired[AnnotationNote]
 
-class V1(BaseV1, RedactionBase):
-    ...
+
+class V1(BaseV1, RedactionBase): ...
 
 
-class V2(BaseV2, RedactionBase):
-    ...
+class V2(BaseV2, RedactionBase): ...
+
 
 RedactionAnnotation = Union[V1, V2]
