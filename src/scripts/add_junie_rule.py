@@ -2,7 +2,7 @@ import os
 import sys
 
 
-def main():
+def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     doc_path = os.path.join(script_dir, "..", "LLM_DOC.md")
     type_path = os.path.join(script_dir, "..", "dist", "__init__.pyi")

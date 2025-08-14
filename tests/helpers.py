@@ -368,3 +368,8 @@ FILE_INPUT_TEST_CASES = [
     pytest.param(b"test content", False, id="bytes"),
     pytest.param(SAMPLE_PDF, False, id="sample_pdf_bytes"),
 ]
+
+# TypeScript compatibility aliases
+samplePDF = SAMPLE_PDF
+samplePNG = SAMPLE_PNG
+sampleDOCX = SAMPLE_DOCX

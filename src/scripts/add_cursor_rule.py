@@ -2,7 +2,7 @@ import os
 import sys
 
 
-def main():
+def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     doc_path = os.path.join(script_dir, "..", "LLM_DOC.md")
     with open(doc_path, encoding="utf-8") as file:
@@ -31,7 +31,9 @@ alwaysApply: false
         with open(output_file, "a", encoding="utf-8") as f:
             f.write(rule)
 
-        print(f"📄 Updated Cursor Rules to point to Nutrient DWS documentation at {output_file}.")
+        print(
+            f"📄 Updated Cursor Rules to point to Nutrient DWS documentation at {output_file}."
+        )
     except Exception as err:
         print(f"Failed to update Cursor Rule: {err}", file=sys.stderr)
         sys.exit(1)

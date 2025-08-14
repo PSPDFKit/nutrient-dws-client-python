@@ -2,7 +2,7 @@ import os
 import sys
 
 
-def main():
+def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     doc_path = os.path.join(script_dir, "..", "LLM_DOC.md")
     type_path = os.path.join(script_dir, "..", "dist", "__init__.pyi")
@@ -30,5 +30,8 @@ def main():
             f"📄 Updated GitHub Copilot Rules to point to Nutrient DWS documentation at {relative_doc_path} and {relative_type_path}."
         )
     except Exception as err:
-        print(f"Failed to update .github/copilot-instructions.md file: {err}", file=sys.stderr)
+        print(
+            f"Failed to update .github/copilot-instructions.md file: {err}",
+            file=sys.stderr,
+        )
         sys.exit(1)
