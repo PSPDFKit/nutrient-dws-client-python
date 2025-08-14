@@ -3,7 +3,7 @@ import io
 import os
 import re
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, TypeGuard
 from urllib.parse import urlparse
 
 import aiofiles
@@ -37,7 +37,7 @@ def is_valid_pdf(file_bytes: bytes) -> bool:
     return pdf_header == "%PDF-"
 
 
-def is_remote_file_input(file_input: FileInput) -> bool:
+def is_remote_file_input(file_input: FileInput) -> TypeGuard[str]:
     """Check if the file input is a remote URL.
 
     Args:
@@ -87,7 +87,7 @@ async def process_file_input(file_input: FileInput) -> NormalizedFileData:
                 if hasattr(file_input, "seek") and hasattr(file_input, "tell"):
                     try:
                         current_pos = (
-                            await file_input.tell()
+                            await file_input.atell()
                             if hasattr(file_input, "atell")
                             else file_input.tell()
                         )

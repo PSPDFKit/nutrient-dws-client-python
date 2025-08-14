@@ -1,7 +1,7 @@
 """HTTP request and response type definitions for API communication."""
 import json
 from collections.abc import Callable
-from typing import Any, Generic, Literal, Optional, TypedDict, TypeVar, Union
+from typing import Any, Generic, Literal, Optional, TypedDict, TypeVar, Union, Dict
 
 import httpx
 from typing_extensions import NotRequired
@@ -13,8 +13,10 @@ from nutrient_dws.errors import (
     NutrientError,
     ValidationError,
 )
-from nutrient_dws.generated import BuildInstructions, CreateDigitalSignature, RedactData
 from nutrient_dws.inputs import NormalizedFileData
+from nutrient_dws.types.build_instruction import BuildInstructions
+from nutrient_dws.types.redact_data import RedactData
+from nutrient_dws.types.sign_request import CreateDigitalSignature
 
 
 class BuildRequestData(TypedDict):
@@ -59,7 +61,7 @@ class RequestConfig(TypedDict, Generic[I]):
     method: Methods
     endpoint: Endpoints
     data: I  # The actual type depends on the method and endpoint
-    headers: NotRequired[Optional[dict[str, str]]]
+    headers: Optional[Dict[str, Any]]
 
 
 # API response
@@ -69,7 +71,7 @@ class ApiResponse(TypedDict, Generic[O]):
     data: O  # The actual type depends on the method and endpoint
     status: int
     statusText: str
-    headers: dict[str, str]
+    headers: Dict[str, Any]
 
 
 # Client options
@@ -214,7 +216,7 @@ def prepare_request_body(request_config: dict[str, Any], config: RequestConfig) 
 
     return request_config
 
-
+# TODO: Handle custom message type
 def extract_error_message(data: Any) -> Optional[str]:
     """Extracts error message from response data with comprehensive DWS error handling.
 
@@ -314,7 +316,7 @@ def handle_response(response: httpx.Response) -> ApiResponse:
     """
     status = response.status_code
     status_text = response.reason_phrase
-    headers = dict(response.headers)
+    headers: Dict[str, Any] = dict(response.headers)
 
     try:
         data = response.json()

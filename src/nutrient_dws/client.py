@@ -1,5 +1,5 @@
 """Main client for interacting with the Nutrient Document Web Services API."""
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union, Dict, List, cast
 
 from nutrient_dws.builder.builder import StagedWorkflowBuilder
 from nutrient_dws.builder.constant import BuildActions
@@ -12,14 +12,6 @@ from nutrient_dws.builder.staged_builders import (
     WorkflowInitialStage,
 )
 from nutrient_dws.errors import NutrientError, ValidationError
-from nutrient_dws.generated import (
-    CreateAuthTokenParameters,
-    CreateAuthTokenResponse,
-    CreateDigitalSignature,
-    Metadata,
-    OcrLanguage,
-    PDFUserPermission,
-)
 from nutrient_dws.http import NutrientClientOptions, send_request
 from nutrient_dws.inputs import (
     FileInput,
@@ -29,12 +21,16 @@ from nutrient_dws.inputs import (
     process_file_input,
     process_remote_file_input,
 )
+from nutrient_dws.types.build_output import PDFUserPermission, Metadata
+from nutrient_dws.types.create_auth_token import CreateAuthTokenParameters, CreateAuthTokenResponse
+from nutrient_dws.types.misc import Pages, PageRange, OcrLanguage
+from nutrient_dws.types.sign_request import CreateDigitalSignature
 
 
 def normalize_page_params(
-    pages: Optional[dict[str, int]] = None,
+    pages: Optional[PageRange] = None,
     page_count: Optional[int] = None,
-) -> dict[str, int]:
+) -> Pages:
     """Normalize page parameters according to the requirements:
     - start and end are inclusive
     - start defaults to 0 (first page)
@@ -138,6 +134,7 @@ class NutrientClient:
                 "method": "GET",
                 "endpoint": "/account/info",
                 "data": {},
+                "headers": None,
             },
             self.options,
             "json",
@@ -259,7 +256,7 @@ class NutrientClient:
         self,
         pdf: FileInput,
         data: Optional[CreateDigitalSignature] = None,
-        options: Optional[dict[str, FileInput]] = None,
+        options: Optional[Dict[str, FileInput]] = None,
     ) -> BufferOutput:
         """Sign a PDF document.
 
@@ -333,6 +330,7 @@ class NutrientClient:
                 "method": "POST",
                 "endpoint": "/sign",
                 "data": request_data,
+                "headers": None,
             },
             self.options,
             "arraybuffer",
@@ -464,7 +462,7 @@ class NutrientClient:
         elif target_format == "markdown":
             result = await builder.output_markdown().execute()
         elif target_format in ["png", "jpeg", "jpg", "webp"]:
-            result = await builder.output_image(target_format, {"dpi": 300}).execute()
+            result = await builder.output_image(cast(Literal["png", "jpeg", "jpg", "webp"], target_format), {"dpi": 300}).execute()
         else:
             raise ValidationError(f"Unsupported target format: {target_format}")
 
@@ -503,7 +501,7 @@ class NutrientClient:
     async def extract_text(
         self,
         file: FileInput,
-        pages: Optional[dict[str, int]] = None,
+        pages: Optional[PageRange] = None,
     ) -> JsonContentOutput:
         """Extract text content from a document.
         This is a convenience method that uses the workflow builder.
@@ -543,7 +541,7 @@ class NutrientClient:
     async def extract_table(
         self,
         file: FileInput,
-        pages: Optional[dict[str, int]] = None,
+        pages: Optional[PageRange] = None,
     ) -> JsonContentOutput:
         """Extract table content from a document.
         This is a convenience method that uses the workflow builder.
@@ -584,7 +582,7 @@ class NutrientClient:
     async def extract_key_value_pairs(
         self,
         file: FileInput,
-        pages: Optional[dict[str, int]] = None,
+        pages: Optional[PageRange] = None,
     ) -> JsonContentOutput:
         """Extract key value pair content from a document.
         This is a convenience method that uses the workflow builder.
@@ -704,7 +702,7 @@ class NutrientClient:
 
         return self._process_typed_workflow_result(result)
 
-    async def merge(self, files: list[FileInput]) -> BufferOutput:
+    async def merge(self, files: List[FileInput]) -> BufferOutput:
         """Merge multiple documents into a single document.
         This is a convenience method that uses the workflow builder.
 
@@ -783,7 +781,7 @@ class NutrientClient:
         pdf: FileInput,
         criteria: str,
         redaction_state: Literal["stage", "apply"] = "stage",
-        pages: Optional[dict[str, int]] = None,
+        pages: Optional[PageRange] = None,
         options: Optional[dict[str, Any]] = None,
     ) -> BufferOutput:
         """Use AI to redact sensitive information in a document.
@@ -853,6 +851,7 @@ class NutrientClient:
                 "method": "POST",
                 "endpoint": "/ai/redact",
                 "data": request_data,
+                "headers": None,
             },
             self.options,
             "arraybuffer",

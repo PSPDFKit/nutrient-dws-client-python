@@ -1,22 +1,31 @@
 from collections.abc import Callable
-from typing import Any, Generic, Optional, Protocol, TypeVar, cast
+from typing import Any, Generic, Optional, Protocol, TypeVar, cast, Union, Literal, Dict
 
-from nutrient_dws.generated import *
 from nutrient_dws.inputs import FileInput
+from nutrient_dws.types.build_actions import OcrAction, RotateAction, TextWatermarkAction, WatermarkAction, \
+    ImageWatermarkAction, FlattenAction, ApplyInstantJsonAction, ApplyXfdfAction, CreateRedactionsAction, SearchPreset, \
+    ApplyRedactionsAction, BuildAction, ImageWatermarkActionOptions, TextWatermarkActionOptions, ApplyXfdfActionOptions, \
+    BaseCreateRedactionsOptions, CreateRedactionsStrategyOptionsText, CreateRedactionsStrategyOptionsRegex, \
+    CreateRedactionsStrategyOptionsPreset
+from nutrient_dws.types.build_output import PDFOutput, PDFAOutput, PDFUAOutput, ImageOutput, JSONContentOutput, \
+    OfficeOutput, HTMLOutput, MarkdownOutput, PDFOutputOptions, PDFAOutputOptions, PDFUAOutputOptions, \
+    ImageOutputOptions, JSONContentOutputOptions
+from nutrient_dws.types.file_handle import FileHandle
+from nutrient_dws.types.misc import OcrLanguage, WatermarkDimension
 
 # Default dimension for watermarks
-DEFAULT_DIMENSION = {"value": 100, "unit": "%"}
+DEFAULT_DIMENSION: WatermarkDimension = {"value": 100, "unit": "%"}
 
 
 T = TypeVar("T")
 
 
-class ActionWithFileInput(Protocol, Generic[T]):
+class ActionWithFileInput(Protocol):
     """Internal action type that holds FileInput for deferred registration"""
 
     __needsFileRegistration: bool
     fileInput: FileInput
-    createAction: Callable[[FileHandle], T]
+    createAction: Callable[[FileHandle], BuildAction]
 
 
 class BuildActions:
@@ -53,7 +62,7 @@ class BuildActions:
         }
 
     @staticmethod
-    def watermarkText(text: str, options: dict[str, Any] = None) -> TextWatermarkAction:
+    def watermarkText(text: str, options: Optional[TextWatermarkActionOptions] = None) -> TextWatermarkAction:
         """Create a text watermark action
 
         Args:
@@ -93,8 +102,8 @@ class BuildActions:
 
     @staticmethod
     def watermarkImage(
-        image: FileInput, options: dict[str, Any] = None
-    ) -> ActionWithFileInput[WatermarkAction]:
+        image: FileInput, options: Optional[ImageWatermarkActionOptions] = None
+    ) -> ActionWithFileInput:
         """Create an image watermark action
 
         Args:
@@ -119,10 +128,10 @@ class BuildActions:
                 "rotation": 0,
             }
 
-        class ImageWatermarkActionWithFileInput(ActionWithFileInput[WatermarkAction]):
+        class ImageWatermarkActionWithFileInput(ActionWithFileInput):
             __needsFileRegistration = True
 
-            def __init__(self, file_input: FileInput, opts: dict[str, Any]):
+            def __init__(self, file_input: FileInput, opts: ImageWatermarkActionOptions):
                 self.fileInput = file_input
                 self.options = opts
 
@@ -154,7 +163,7 @@ class BuildActions:
         return result
 
     @staticmethod
-    def applyInstantJson(file: FileInput) -> ActionWithFileInput[ApplyInstantJsonAction]:
+    def applyInstantJson(file: FileInput) -> ActionWithFileInput:
         """Create an apply Instant JSON action
 
         Args:
@@ -164,7 +173,7 @@ class BuildActions:
             ActionWithFileInput object
         """
 
-        class ApplyInstantJsonActionWithFileInput(ActionWithFileInput[ApplyInstantJsonAction]):
+        class ApplyInstantJsonActionWithFileInput(ActionWithFileInput):
             __needsFileRegistration = True
 
             def __init__(self, file_input: FileInput):
@@ -180,8 +189,8 @@ class BuildActions:
 
     @staticmethod
     def applyXfdf(
-        file: FileInput, options: Optional[dict[str, Any]] = None
-    ) -> ActionWithFileInput[ApplyXfdfAction]:
+        file: FileInput, options: Optional[ApplyXfdfActionOptions] = None
+    ) -> ActionWithFileInput:
         """Create an apply XFDF action
 
         Args:
@@ -194,10 +203,10 @@ class BuildActions:
             ActionWithFileInput object
         """
 
-        class ApplyXfdfActionWithFileInput(ActionWithFileInput[ApplyXfdfAction]):
+        class ApplyXfdfActionWithFileInput(ActionWithFileInput):
             __needsFileRegistration = True
 
-            def __init__(self, file_input: FileInput, opts: Optional[dict[str, Any]]):
+            def __init__(self, file_input: FileInput, opts: Optional[ApplyXfdfActionOptions]):
                 self.fileInput = file_input
                 self.options = opts or {}
 
@@ -213,8 +222,8 @@ class BuildActions:
     @staticmethod
     def createRedactionsText(
         text: str,
-        options: Optional[dict[str, Any]] = None,
-        strategyOptions: Optional[dict[str, Any]] = None,
+        options: Optional[BaseCreateRedactionsOptions] = None,
+        strategyOptions: Optional[CreateRedactionsStrategyOptionsText] = None,
     ) -> CreateRedactionsAction:
         """Create redactions with text search
 
@@ -245,8 +254,8 @@ class BuildActions:
     @staticmethod
     def createRedactionsRegex(
         regex: str,
-        options: Optional[dict[str, Any]] = None,
-        strategyOptions: Optional[dict[str, Any]] = None,
+        options: Optional[BaseCreateRedactionsOptions] = None,
+        strategyOptions: Optional[CreateRedactionsStrategyOptionsRegex] = None,
     ) -> CreateRedactionsAction:
         """Create redactions with regex pattern
 
@@ -277,8 +286,8 @@ class BuildActions:
     @staticmethod
     def createRedactionsPreset(
         preset: SearchPreset,
-        options: Optional[dict[str, Any]] = None,
-        strategyOptions: Optional[dict[str, Any]] = None,
+        options: Optional[BaseCreateRedactionsOptions] = None,
+        strategyOptions: Optional[CreateRedactionsStrategyOptionsPreset] = None,
     ) -> CreateRedactionsAction:
         """Create redactions with preset pattern
 
@@ -321,16 +330,16 @@ class BuildOutputs:
     """Factory functions for creating output configurations"""
 
     @staticmethod
-    def pdf(options: Optional[dict[str, Any]] = None) -> PDFOutput:
+    def pdf(options: Optional[PDFOutputOptions] = None) -> PDFOutput:
         """PDF output configuration
 
         Args:
             options: PDF output options
                 metadata: Document metadata
                 labels: Page labels
-                userPassword: User password for the PDF
-                ownerPassword: Owner password for the PDF
-                userPermissions: User permissions
+                user_password: User password for the PDF
+                owner_password: Owner password for the PDF
+                user_permissions: User permissions
                 optimize: PDF optimization options
 
         Returns:
@@ -343,19 +352,19 @@ class BuildOutputs:
                 result["metadata"] = options["metadata"]
             if "labels" in options:
                 result["labels"] = options["labels"]
-            if "userPassword" in options:
-                result["user_password"] = options["userPassword"]
-            if "ownerPassword" in options:
-                result["owner_password"] = options["ownerPassword"]
-            if "userPermissions" in options:
-                result["user_permissions"] = options["userPermissions"]
+            if "user_password" in options:
+                result["user_password"] = options["user_password"]
+            if "owner_password" in options:
+                result["owner_password"] = options["owner_password"]
+            if "user_permissions" in options:
+                result["user_permissions"] = options["user_permissions"]
             if "optimize" in options:
                 result["optimize"] = options["optimize"]
 
         return cast(PDFOutput, result)
 
     @staticmethod
-    def pdfa(options: Optional[dict[str, Any]] = None) -> PDFAOutput:
+    def pdfa(options: Optional[PDFAOutputOptions] = None) -> PDFAOutput:
         """PDF/A output configuration
 
         Args:
@@ -365,9 +374,9 @@ class BuildOutputs:
                 rasterization: Enable rasterization
                 metadata: Document metadata
                 labels: Page labels
-                userPassword: User password for the PDF
-                ownerPassword: Owner password for the PDF
-                userPermissions: User permissions
+                user_password: User password for the PDF
+                owner_password: Owner password for the PDF
+                user_permissions: User permissions
                 optimize: PDF optimization options
 
         Returns:
@@ -386,28 +395,28 @@ class BuildOutputs:
                 result["metadata"] = options["metadata"]
             if "labels" in options:
                 result["labels"] = options["labels"]
-            if "userPassword" in options:
-                result["user_password"] = options["userPassword"]
-            if "ownerPassword" in options:
-                result["owner_password"] = options["ownerPassword"]
-            if "userPermissions" in options:
-                result["user_permissions"] = options["userPermissions"]
+            if "user_password" in options:
+                result["user_password"] = options["user_password"]
+            if "owner_password" in options:
+                result["owner_password"] = options["owner_password"]
+            if "user_permissions" in options:
+                result["user_permissions"] = options["user_permissions"]
             if "optimize" in options:
                 result["optimize"] = options["optimize"]
 
         return cast(PDFAOutput, result)
 
     @staticmethod
-    def pdfua(options: Optional[dict[str, Any]] = None) -> PDFUAOutput:
+    def pdfua(options: Optional[PDFUAOutputOptions] = None) -> PDFUAOutput:
         """PDF/UA output configuration
 
         Args:
             options: PDF/UA output options
                 metadata: Document metadata
                 labels: Page labels
-                userPassword: User password for the PDF
-                ownerPassword: Owner password for the PDF
-                userPermissions: User permissions
+                user_password: User password for the PDF
+                owner_password: Owner password for the PDF
+                user_permissions: User permissions
                 optimize: PDF optimization options
 
         Returns:
@@ -420,12 +429,12 @@ class BuildOutputs:
                 result["metadata"] = options["metadata"]
             if "labels" in options:
                 result["labels"] = options["labels"]
-            if "userPassword" in options:
-                result["user_password"] = options["userPassword"]
-            if "ownerPassword" in options:
-                result["owner_password"] = options["ownerPassword"]
-            if "userPermissions" in options:
-                result["user_permissions"] = options["userPermissions"]
+            if "user_password" in options:
+                result["user_password"] = options["user_password"]
+            if "owner_password" in options:
+                result["owner_password"] = options["owner_password"]
+            if "user_permissions" in options:
+                result["user_permissions"] = options["user_permissions"]
             if "optimize" in options:
                 result["optimize"] = options["optimize"]
 
@@ -433,7 +442,8 @@ class BuildOutputs:
 
     @staticmethod
     def image(
-        format: Literal["png", "jpeg", "jpg", "webp"], options: Optional[dict[str, Any]] = None
+        format: Literal["png", "jpeg", "jpg", "webp"],
+            options: Optional[ImageOutputOptions] = None
     ) -> ImageOutput:
         """Image output configuration
 
@@ -466,7 +476,7 @@ class BuildOutputs:
         return cast(ImageOutput, result)
 
     @staticmethod
-    def jsonContent(options: Optional[dict[str, Any]] = None) -> JSONContentOutput:
+    def jsonContent(options: Optional[JSONContentOutputOptions] = None) -> JSONContentOutput:
         """JSON content output configuration
 
         Args:

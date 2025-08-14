@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Generic, Literal, TypeVar, Union
 
+from nutrient_dws.builder.staged_builders import TypedWorkflowResult
 from nutrient_dws.http import (
     AnalyzeBuildRequestData,
     BuildRequestData,
@@ -10,10 +11,8 @@ from nutrient_dws.http import (
     send_request,
 )
 
-TResult = TypeVar("TResult")
 
-
-class BaseBuilder(ABC, Generic[TResult]):
+class BaseBuilder(ABC):
     """Base builder class that all builders extend from.
     Provides common functionality for API interaction.
     """
@@ -32,12 +31,13 @@ class BaseBuilder(ABC, Generic[TResult]):
             "endpoint": path,
             "method": "POST",
             "data": options,
+            "headers": None
         }
 
         response = await send_request(config, self.client_options, response_type)
         return response["data"]
 
     @abstractmethod
-    async def execute(self) -> TResult:
+    async def execute(self) -> TypedWorkflowResult:
         """Abstract method that child classes must implement for execution."""
         pass

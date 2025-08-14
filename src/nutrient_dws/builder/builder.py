@@ -1,14 +1,15 @@
 """Staged workflow builder that provides compile-time safety through Python's type system."""
-from typing import Any, Literal, Optional
+from __future__ import annotations
+
+from typing import Any, Literal, Optional, cast, List, TypeGuard, Dict, Callable
 
 from nutrient_dws.builder.base_builder import BaseBuilder
-from nutrient_dws.builder.constant import BuildOutputs
+from nutrient_dws.builder.constant import BuildOutputs, ActionWithFileInput
 from nutrient_dws.builder.staged_builders import (
     ApplicableAction,
     BufferOutput,
     ContentOutput,
     JsonContentOutput,
-    TOutput,
     TypedWorkflowResult,
     WorkflowDryRunResult,
     WorkflowError,
@@ -19,16 +20,7 @@ from nutrient_dws.builder.staged_builders import (
     WorkflowWithPartsStage,
 )
 from nutrient_dws.errors import ValidationError
-from nutrient_dws.generated import (
-    BuildInstructions,
-    BuildOutput,
-    DocumentPart,
-    FileHandle,
-    FilePart,
-    HTMLPart,
-    NewPagePart,
-)
-from nutrient_dws.http import NutrientClientOptions
+from nutrient_dws.http import NutrientClientOptions, BuildRequestData, AnalyzeBuildRequestData
 from nutrient_dws.inputs import (
     FileInput,
     NormalizedFileData,
@@ -36,14 +28,19 @@ from nutrient_dws.inputs import (
     process_file_input,
     validate_file_input,
 )
+from nutrient_dws.types.build_actions import BuildAction
+from nutrient_dws.types.build_instruction import BuildInstructions
+from nutrient_dws.types.build_output import PDFOutput, BuildOutput, PDFOutputOptions, PDFAOutputOptions, \
+    PDFUAOutputOptions, ImageOutputOptions, JSONContentOutputOptions
+from nutrient_dws.types.file_handle import FileHandle, RemoteFileHandle
+from nutrient_dws.types.input_parts import FilePart, HTMLPart, NewPagePart, DocumentPart, FilePartOptions, \
+    HTMLPartOptions, NewPagePartOptions, DocumentPartOptions
 
 
 class StagedWorkflowBuilder(
-    BaseBuilder[TypedWorkflowResult[TOutput]],
-    WorkflowInitialStage,
+    BaseBuilder,
     WorkflowWithPartsStage,
-    WorkflowWithActionsStage,
-    WorkflowWithOutputStage[TOutput],
+    WorkflowWithOutputStage,
 ):
     """Staged workflow builder that provides compile-time safety through Python's type system.
     This builder ensures methods are only available at appropriate stages of the workflow.
@@ -57,7 +54,7 @@ class StagedWorkflowBuilder(
         """
         super().__init__(client_options)
         self.build_instructions: BuildInstructions = {"parts": []}
-        self.assets: dict[str, FileInput] = {}
+        self.assets: Dict[str, FileInput] = {}
         self.asset_index = 0
         self.current_step = 0
         self.is_executed = False
@@ -97,9 +94,9 @@ class StagedWorkflowBuilder(
             raise ValidationError("Workflow has no parts to execute")
 
         if "output" not in self.build_instructions:
-            self.build_instructions["output"] = {"type": "pdf"}
+            self.build_instructions["output"] = cast(PDFOutput, {"type": "pdf"})
 
-    def _process_action(self, action: ApplicableAction) -> ApplicableAction:
+    def _process_action(self, action: ApplicableAction) -> BuildAction:
         """Process an action, registering files if needed.
 
         Args:
@@ -111,13 +108,14 @@ class StagedWorkflowBuilder(
         if self._is_action_with_file_input(action):
             # Register the file and create the actual action
             if is_remote_file_input(action.fileInput):
-                file_handle: FileHandle = action.fileInput
+                file_handle: FileHandle = RemoteFileHandle(url=action.fileInput)
             else:
                 file_handle = self._register_asset(action.fileInput)
             return action.createAction(file_handle)
-        return action
+        else:
+            return cast(BuildAction, action)
 
-    def _is_action_with_file_input(self, action: ApplicableAction) -> bool:
+    def _is_action_with_file_input(self, action: ApplicableAction) -> TypeGuard[ActionWithFileInput]:
         """Type guard to check if action needs file registration.
 
         Args:
@@ -169,8 +167,8 @@ class StagedWorkflowBuilder(
     def add_file_part(
         self,
         file: FileInput,
-        options: Optional[dict[str, Any]] = None,
-        actions: Optional[list[ApplicableAction]] = None,
+        options: Optional[FilePartOptions] = None,
+        actions: Optional[List[ApplicableAction]] = None,
     ) -> WorkflowWithPartsStage:
         """Add a file part to the workflow.
 
@@ -187,7 +185,7 @@ class StagedWorkflowBuilder(
         # Handle file field
         file_field: FileHandle
         if is_remote_file_input(file):
-            file_field = file
+            file_field = RemoteFileHandle(url=file)
         else:
             file_field = self._register_asset(file)
 
@@ -210,9 +208,9 @@ class StagedWorkflowBuilder(
     def add_html_part(
         self,
         html: FileInput,
-        assets: Optional[list[FileInput]] = None,
-        options: Optional[dict[str, Any]] = None,
-        actions: Optional[list[ApplicableAction]] = None,
+        assets: Optional[List[FileInput]] = None,
+        options: Optional[HTMLPartOptions] = None,
+        actions: Optional[List[ApplicableAction]] = None,
     ) -> WorkflowWithPartsStage:
         """Add an HTML part to the workflow.
 
@@ -230,7 +228,7 @@ class StagedWorkflowBuilder(
         # Handle HTML field
         html_field: FileHandle
         if is_remote_file_input(html):
-            html_field = html
+            html_field = RemoteFileHandle(url=html)
         else:
             html_field = self._register_asset(html)
 
@@ -251,8 +249,10 @@ class StagedWorkflowBuilder(
 
         html_part: HTMLPart = {
             "html": html_field,
-            **(options or {}),
         }
+
+        if options is not None and "layout" in options:
+            html_part["layout"] = options["layout"]
 
         if assets_field:
             html_part["assets"] = assets_field
@@ -265,8 +265,8 @@ class StagedWorkflowBuilder(
 
     def add_new_page(
         self,
-        options: Optional[dict[str, Any]] = None,
-        actions: Optional[list[ApplicableAction]] = None,
+        options: Optional[NewPagePartOptions] = None,
+        actions: Optional[List[ApplicableAction]] = None,
     ) -> WorkflowWithPartsStage:
         """Add a new blank page to the workflow.
 
@@ -286,8 +286,14 @@ class StagedWorkflowBuilder(
 
         new_page_part: NewPagePart = {
             "page": "new",
-            **(options or {}),
         }
+
+        if options is not None:
+            if "pageCount" in options:
+                new_page_part["pageCount"] = options["pageCount"]
+
+            if "layout" in options:
+                new_page_part["layout"] = options["layout"]
 
         if processed_actions:
             new_page_part["actions"] = processed_actions
@@ -298,8 +304,8 @@ class StagedWorkflowBuilder(
     def add_document_part(
         self,
         document_id: str,
-        options: Optional[dict[str, Any]] = None,
-        actions: Optional[list[ApplicableAction]] = None,
+        options: Optional[DocumentPartOptions] = None,
+        actions: Optional[List[ApplicableAction]] = None,
     ) -> WorkflowWithPartsStage:
         """Add a document part to the workflow by referencing an existing document by ID.
 
@@ -326,8 +332,13 @@ class StagedWorkflowBuilder(
 
         document_part: DocumentPart = {
             "document": {"id": document_id},
-            **document_options,
         }
+
+        if "password" in document_options:
+            document_part["password"] = document_options["password"]
+
+        if "pages" in document_options:
+            document_part["pages"] = document_options["pages"]
 
         if layer:
             document_part["document"]["layer"] = layer
@@ -340,7 +351,7 @@ class StagedWorkflowBuilder(
 
     # Action methods (WorkflowWithPartsStage)
 
-    def apply_actions(self, actions: list[ApplicableAction]) -> WorkflowWithActionsStage:
+    def apply_actions(self, actions: List[ApplicableAction]) -> WorkflowWithActionsStage:
         """Apply multiple actions to the workflow.
 
         Args:
@@ -356,7 +367,7 @@ class StagedWorkflowBuilder(
 
         processed_actions = [self._process_action(action) for action in actions]
         self.build_instructions["actions"].extend(processed_actions)
-        return self
+        return cast(WorkflowWithActionsStage, self)
 
     def apply_action(self, action: ApplicableAction) -> WorkflowWithActionsStage:
         """Apply a single action to the workflow.
@@ -371,7 +382,7 @@ class StagedWorkflowBuilder(
 
     # Output methods (WorkflowWithPartsStage)
 
-    def _output(self, output: BuildOutput) -> "StagedWorkflowBuilder[TOutput]":
+    def _output(self, output: BuildOutput) -> StagedWorkflowBuilder:
         """Set the output configuration."""
         self._ensure_not_executed()
         self.build_instructions["output"] = output
@@ -379,81 +390,81 @@ class StagedWorkflowBuilder(
 
     def output_pdf(
         self,
-        options: Optional[dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["pdf"]]':
+        options: Optional[PDFOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set the output format to PDF."""
         self._output(BuildOutputs.pdf(options))
-        return self
+        return cast(WorkflowWithOutputStage, self)
 
     def output_pdfa(
         self,
-        options: Optional[dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["pdfa"]]':
+        options: Optional[PDFAOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set the output format to PDF/A."""
         self._output(BuildOutputs.pdfa(options))
-        return self
+        return cast(WorkflowWithOutputStage, self)
 
     def output_pdfua(
         self,
-        options: Optional[dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["pdfua"]]':
+        options: Optional[PDFUAOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set the output format to PDF/UA."""
         self._output(BuildOutputs.pdfua(options))
-        return self
+        return cast(WorkflowWithOutputStage, self)
 
     def output_image(
         self,
         format: Literal["png", "jpeg", "jpg", "webp"],
-        options: Optional[dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["png"]]':
+        options: Optional[ImageOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set the output format to an image format."""
         if not options or not any(k in options for k in ["dpi", "width", "height"]):
             raise ValidationError(
                 "Image output requires at least one of the following options: dpi, height, width"
             )
         self._output(BuildOutputs.image(format, options))
-        return self
+        return cast(WorkflowWithOutputStage, self)
 
     def output_office(
         self,
         format: Literal["docx", "xlsx", "pptx"],
-    ) -> 'WorkflowWithOutputStage[Literal["docx"]]':
+    ) -> WorkflowWithOutputStage:
         """Set the output format to an Office document format."""
         self._output(BuildOutputs.office(format))
-        return self
+        return cast(WorkflowWithOutputStage, self)
 
     def output_html(
-        self,
-        layout: Optional[Literal["page", "reflow"]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["html"]]':
+            self,
+            layout: Optional[Literal["page", "reflow"]] = None
+    ) -> WorkflowWithOutputStage:
         """Set the output format to HTML."""
-        if layout is None:
-            layout = "page"
-        self._output(BuildOutputs.html(layout))
-        return self
+        casted_layout: Literal["page", "reflow"] = "page"
+        if layout is not None:
+            casted_layout = layout
+        self._output(BuildOutputs.html(casted_layout))
+        return cast(WorkflowWithOutputStage, self)
 
     def output_markdown(
         self,
-        options: Optional[dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["markdown"]]':
+    ) -> WorkflowWithOutputStage:
         """Set the output format to Markdown."""
         self._output(BuildOutputs.markdown())
-        return self
+        return cast(WorkflowWithOutputStage, self)
 
     def output_json(
         self,
-        options: Optional[dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["json-content"]]':
+        options: Optional[JSONContentOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set the output format to JSON content."""
         self._output(BuildOutputs.jsonContent(options))
-        return self
+        return cast(WorkflowWithOutputStage, self)
 
     # Execution methods (WorkflowWithOutputStage)
 
     async def execute(
         self,
         options: Optional[WorkflowExecuteOptions] = None,
-    ) -> TypedWorkflowResult[TOutput]:
+    ) -> TypedWorkflowResult:
         """Execute the workflow and return the result.
 
         Args:
@@ -465,22 +476,23 @@ class StagedWorkflowBuilder(
         self._ensure_not_executed()
         self.current_step = 0
 
-        result: TypedWorkflowResult[TOutput] = {
+        result: TypedWorkflowResult = {
             "success": False,
             "errors": [],
+            "output": None,
         }
 
         try:
             # Step 1: Validate
             self.current_step = 1
             if options and options.get("onProgress"):
-                options["onProgress"](self.current_step, 3)
+                cast(Callable[[int, int], None], options["onProgress"])(self.current_step, 3)
             self._validate()
 
             # Step 2: Prepare files
             self.current_step = 2
             if options and options.get("onProgress"):
-                options["onProgress"](self.current_step, 3)
+                cast(Callable[[int, int], None], options["onProgress"])(self.current_step, 3)
 
             output_config = self.build_instructions.get("output")
             if not output_config:
@@ -498,17 +510,14 @@ class StagedWorkflowBuilder(
             # Make the request
             response = await self._send_request(
                 "/build",
-                {
-                    "instructions": self.build_instructions,
-                    "files": files,
-                },
+                BuildRequestData(instructions=self.build_instructions, files=files),
                 response_type,
             )
 
             # Step 3: Process response
             self.current_step = 3
             if options and options.get("onProgress"):
-                options["onProgress"](self.current_step, 3)
+                cast(Callable[[int, int], None], options["onProgress"])(self.current_step, 3)
 
             if output_config["type"] == "json-content":
                 result["success"] = True
@@ -538,7 +547,7 @@ class StagedWorkflowBuilder(
                 "step": self.current_step,
                 "error": error if isinstance(error, Exception) else Exception(str(error)),
             }
-            result["errors"].append(workflow_error)
+            cast(List[WorkflowError], result["errors"]).append(workflow_error)
 
         finally:
             self._cleanup()
@@ -557,6 +566,7 @@ class StagedWorkflowBuilder(
         result: WorkflowDryRunResult = {
             "success": False,
             "errors": [],
+            "analysis": None,
         }
 
         try:
@@ -564,7 +574,7 @@ class StagedWorkflowBuilder(
 
             response = await self._send_request(
                 "/analyze_build",
-                {"instructions": self.build_instructions},
+                AnalyzeBuildRequestData(instructions=self.build_instructions),
                 "json",
             )
 
@@ -579,6 +589,6 @@ class StagedWorkflowBuilder(
                 "step": 0,
                 "error": error if isinstance(error, Exception) else Exception(str(error)),
             }
-            result["errors"].append(workflow_error)
+            cast(List[WorkflowError], result["errors"]).append(workflow_error)
 
         return result

@@ -1,13 +1,20 @@
 """Staged builder interfaces for workflow pattern implementation."""
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import (
-    Generic,
-    TypeVar,
+    Literal, TypedDict, Optional, List, Union, Dict, Any,
 )
 
-from nutrient_dws.generated import *
+from nutrient_dws.builder.constant import ActionWithFileInput
 from nutrient_dws.inputs import FileInput
+from nutrient_dws.types.analyze_response import AnalyzeBuildResponse
+from nutrient_dws.types.build_actions import BuildAction
+from nutrient_dws.types.build_output import PDFOutputOptions, PDFAOutputOptions, PDFUAOutputOptions, ImageOutputOptions, \
+    JSONContentOutputOptions
+from nutrient_dws.types.build_response_json import BuildResponseJsonContents
+from nutrient_dws.types.input_parts import FilePartOptions, HTMLPartOptions, NewPagePartOptions, DocumentPartOptions
 
 # Type aliases for output types
 OutputFormat = Literal[
@@ -44,11 +51,8 @@ class JsonContentOutput(TypedDict):
     data: BuildResponseJsonContents
 
 
-# Type variable for output type
-TOutput = TypeVar("TOutput", bound=OutputFormat)
-
 # Applicable actions type - actions that can be applied to workflows
-ApplicableAction = BuildAction
+ApplicableAction = BuildAction | ActionWithFileInput
 
 
 class WorkflowError(TypedDict):
@@ -74,7 +78,7 @@ class WorkflowResult(TypedDict):
     errors: Optional[List[WorkflowError]]
 
 
-class TypedWorkflowResult(TypedDict, Generic[TOutput]):
+class TypedWorkflowResult(TypedDict):
     """Typed result of a workflow execution based on output configuration."""
 
     success: bool
@@ -103,9 +107,9 @@ class WorkflowInitialStage(ABC):
     def add_file_part(
         self,
         file: FileInput,
-        options: Optional[Dict[str, Any]] = None,
+        options: Optional[FilePartOptions] = None,
         actions: Optional[List[ApplicableAction]] = None,
-    ) -> "WorkflowWithPartsStage":
+    ) -> WorkflowWithPartsStage:
         """Add a file part to the workflow."""
         pass
 
@@ -114,18 +118,18 @@ class WorkflowInitialStage(ABC):
         self,
         html: FileInput,
         assets: Optional[List[FileInput]] = None,
-        options: Optional[Dict[str, Any]] = None,
+        options: Optional[HTMLPartOptions] = None,
         actions: Optional[List[ApplicableAction]] = None,
-    ) -> "WorkflowWithPartsStage":
+    ) -> WorkflowWithPartsStage:
         """Add an HTML part to the workflow."""
         pass
 
     @abstractmethod
     def add_new_page(
         self,
-        options: Optional[Dict[str, Any]] = None,
+        options: Optional[NewPagePartOptions] = None,
         actions: Optional[List[ApplicableAction]] = None,
-    ) -> "WorkflowWithPartsStage":
+    ) -> WorkflowWithPartsStage:
         """Add a new page part to the workflow."""
         pass
 
@@ -133,24 +137,24 @@ class WorkflowInitialStage(ABC):
     def add_document_part(
         self,
         document_id: str,
-        options: Optional[Dict[str, Any]] = None,
+        options: Optional[DocumentPartOptions] = None,
         actions: Optional[List[ApplicableAction]] = None,
-    ) -> "WorkflowWithPartsStage":
+    ) -> WorkflowWithPartsStage:
         """Add a document part to the workflow."""
         pass
 
 
-class WorkflowWithPartsStage(ABC, WorkflowInitialStage):
+class WorkflowWithPartsStage(WorkflowInitialStage):
     """Stage 2: After parts added - parts, actions, and output methods available."""
 
     # Action methods
     @abstractmethod
-    def apply_actions(self, actions: List[ApplicableAction]) -> "WorkflowWithActionsStage":
+    def apply_actions(self, actions: List[ApplicableAction]) -> WorkflowWithPartsStage:
         """Apply multiple actions to the workflow."""
         pass
 
     @abstractmethod
-    def apply_action(self, action: ApplicableAction) -> "WorkflowWithActionsStage":
+    def apply_action(self, action: ApplicableAction) -> WorkflowWithPartsStage:
         """Apply a single action to the workflow."""
         pass
 
@@ -158,24 +162,24 @@ class WorkflowWithPartsStage(ABC, WorkflowInitialStage):
     @abstractmethod
     def output_pdf(
         self,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["pdf"]]':
+        options: Optional[PDFOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set PDF output for the workflow."""
         pass
 
     @abstractmethod
     def output_pdfa(
         self,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["pdfa"]]':
+        options: Optional[PDFAOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set PDF/A output for the workflow."""
         pass
 
     @abstractmethod
     def output_pdfua(
         self,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["pdfua"]]':
+        options: Optional[PDFUAOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set PDF/UA output for the workflow."""
         pass
 
@@ -183,8 +187,8 @@ class WorkflowWithPartsStage(ABC, WorkflowInitialStage):
     def output_image(
         self,
         format: Literal["png", "jpeg", "jpg", "webp"],
-        options: Optional[Dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["png"]]':
+        options: Optional[ImageOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set image output for the workflow."""
         pass
 
@@ -192,7 +196,7 @@ class WorkflowWithPartsStage(ABC, WorkflowInitialStage):
     def output_office(
         self,
         format: Literal["docx", "xlsx", "pptx"],
-    ) -> 'WorkflowWithOutputStage[Literal["docx"]]':
+    ) -> WorkflowWithOutputStage:
         """Set Office format output for the workflow."""
         pass
 
@@ -200,23 +204,22 @@ class WorkflowWithPartsStage(ABC, WorkflowInitialStage):
     def output_html(
         self,
         layout: Optional[Literal["page", "reflow"]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["html"]]':
+    ) -> WorkflowWithOutputStage:
         """Set HTML output for the workflow."""
         pass
 
     @abstractmethod
     def output_markdown(
         self,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["markdown"]]':
+    ) -> WorkflowWithOutputStage:
         """Set Markdown output for the workflow."""
         pass
 
     @abstractmethod
     def output_json(
         self,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> 'WorkflowWithOutputStage[Literal["json-content"]]':
+        options: Optional[JSONContentOutputOptions] = None,
+    ) -> WorkflowWithOutputStage:
         """Set JSON content output for the workflow."""
         pass
 
@@ -225,14 +228,14 @@ class WorkflowWithPartsStage(ABC, WorkflowInitialStage):
 WorkflowWithActionsStage = WorkflowWithPartsStage
 
 
-class WorkflowWithOutputStage(ABC, Generic[TOutput]):
+class WorkflowWithOutputStage(ABC):
     """Stage 4: After output set - only execute and dryRun available."""
 
     @abstractmethod
     async def execute(
         self,
         options: Optional[WorkflowExecuteOptions] = None,
-    ) -> TypedWorkflowResult[TOutput]:
+    ) -> TypedWorkflowResult:
         """Execute the workflow and return the result."""
         pass
 
