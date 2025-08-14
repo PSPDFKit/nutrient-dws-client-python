@@ -1,22 +1,26 @@
 # Nutrient DWS Python Client
 
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen.svg)](https://github.com/jdrhyne/nutrient-dws-client-python/actions)
+[![PyPI version](https://badge.fury.io/py/nutrient-dws.svg)](https://badge.fury.io/py/nutrient-dws)
+[![CI](https://github.com/PSPDFKit/nutrient-dws-client-python/actions/workflows/ci.yml/badge.svg)](https://github.com/PSPDFKit/nutrient-dws-client-python/actions/workflows/ci.yml)
+[![Integration Tests](https://github.com/PSPDFKit/nutrient-dws-client-python/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/PSPDFKit/nutrient-dws-client-python/actions/workflows/integration-tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![PyPI version](https://img.shields.io/pypi/v/nutrient-dws.svg)](https://pypi.org/project/nutrient-dws/)
 
-A Python client library for the [Nutrient Document Web Services (DWS) API](https://www.nutrient.io/). This library provides a Pythonic interface to interact with Nutrient's document processing services, supporting both Direct API calls and Builder API workflows.
+A Python client library for [Nutrient Document Web Services (DWS) API](https://nutrient.io/). This library provides a fully async, type-safe, and ergonomic interface for document processing operations including conversion, merging, compression, watermarking, OCR, and text extraction.
+
+> **Note**: This package is published as `nutrient-dws` on PyPI. The package provides full type support and is designed for async Python environments (Python 3.10+).
 
 ## Features
 
-- 🚀 **Two API styles**: Direct API for single operations, Builder API for complex workflows
-- 📄 **Comprehensive document tools**: Convert, merge, rotate, OCR, watermark, and more
-- 🔄 **Automatic retries**: Built-in retry logic for transient failures
-- 📁 **Flexible file handling**: Support for file paths, bytes, and file-like objects
-- 🔒 **Type-safe**: Full type hints for better IDE support
-- ⚡ **Streaming support**: Memory-efficient processing of large files
-- 🧪 **Well-tested**: Comprehensive test suite with high coverage
+- 📄 **Powerful document processing**: Convert, OCR, edit, compress, watermark, redact, and digitally sign documents
+- 🤖 **LLM friendly**: Built-in support for popular Coding Agents (Claude Code, GitHub Copilot, JetBrains Junie, Cursor, Windsurf) with auto-generated rules
+- 🔄 **100% mapping with DWS Processor API**: Complete coverage of all Nutrient DWS Processor API capabilities
+- 🛠️ **Convenient functions with sane defaults**: Simple interfaces for common operations with smart default settings
+- ⛓️ **Chainable operations**: Build complex document workflows with intuitive method chaining
+- 🚀 **Fully async**: Built from the ground up with async/await support for optimal performance
+- 🔐 **Flexible authentication and security**: Support for API keys and async token providers with secure handling
+- ✅ **Highly tested**: Comprehensive test suite ensuring reliability and stability
+- 🔒 **Type-safe**: Full type annotations with comprehensive type definitions
+- 🐍 **Pythonic**: Follows Python conventions and best practices
 
 ## Installation
 
@@ -24,305 +28,244 @@ A Python client library for the [Nutrient Document Web Services (DWS) API](https
 pip install nutrient-dws
 ```
 
+
+## Integration with Coding Agents
+
+This package has built-in support with popular coding agents like Claude Code, GitHub Copilot, Cursor, and Windsurf by exposing scripts that will inject rules instructing the coding agents on how to use the package. This ensures that the coding agent doesn't hallucinate documentation, as well as making full use of all the features offered in Nutrient DWS Python Client.
+
+```bash
+# Adding code rule to Claude Code
+dws-add-claude-code-rule
+
+# Adding code rule to GitHub Copilot
+dws-add-github-copilot-rule
+
+# Adding code rule to Junie (Jetbrains)
+dws-add-junie-rule
+
+# Adding code rule to Cursor
+dws-add-cursor-rule
+
+# Adding code rule to Windsurf
+dws-add-windsurf-rule
+```
+
 ## Quick Start
+
+## Authentication
+
+### Direct API Key
+
+Provide your API key directly:
 
 ```python
 from nutrient_dws import NutrientClient
 
-# Initialize the client
-client = NutrientClient(api_key="your-api-key")
-
-# Direct API - Flatten PDF annotations
-client.flatten_annotations(
-    input_file="document.pdf",
-    output_path="flattened.pdf"
-)
-
-# Builder API - Chain multiple operations
-client.build(input_file="document.pdf") \
-    .add_step("rotate-pages", {"degrees": 90}) \
-    .add_step("ocr-pdf", {"language": "en"}) \
-    .add_step("watermark-pdf", {"text": "CONFIDENTIAL"}) \
-    .execute(output_path="processed.pdf")
+client = NutrientClient({
+    'apiKey': 'nutr_sk_your_secret_key'
+})
 ```
 
-## Authentication
+### Token Provider
 
-The client supports API key authentication through multiple methods:
+Use an async token provider to fetch tokens from a secure source:
 
 ```python
-# 1. Pass directly to client
-client = NutrientClient(api_key="your-api-key")
+import httpx
+from nutrient_dws import NutrientClient
 
-# 2. Set environment variable
-# export NUTRIENT_API_KEY=your-api-key
-client = NutrientClient()  # Will use env variable
+async def get_token():
+    async with httpx.AsyncClient() as http_client:
+        response = await http_client.get('/api/get-nutrient-token')
+        data = response.json()
+        return data['token']
 
-# 3. Use context manager for automatic cleanup
-with NutrientClient(api_key="your-api-key") as client:
-    client.convert_to_pdf("document.docx")
+client = NutrientClient({
+    'apiKey': get_token
+})
 ```
 
-## Direct API Examples
+## Direct Methods
 
-### Flatten Annotations
+The client provides numerous async methods for document processing:
 
 ```python
-# Flatten all annotations and form fields
-client.flatten_annotations(
-    input_file="form.pdf",
-    output_path="flattened.pdf"
-)
+import asyncio
+from nutrient_dws import NutrientClient
+
+async def main():
+    client = NutrientClient({'apiKey': 'your_api_key'})
+
+    # Convert a document
+    pdf_result = await client.convert('document.docx', 'pdf')
+
+    # Extract text
+    text_result = await client.extract_text('document.pdf')
+
+    # Add a watermark
+    watermarked_doc = await client.watermark_text('document.pdf', 'CONFIDENTIAL')
+
+    # Merge multiple documents
+    merged_pdf = await client.merge(['doc1.pdf', 'doc2.pdf', 'doc3.pdf'])
+
+asyncio.run(main())
 ```
 
-### Merge PDFs
+For a complete list of available methods with examples, see the [Methods Documentation](./METHODS.md).
+
+## Workflow System
+
+The client also provides a fluent builder pattern with staged interfaces to create document processing workflows:
 
 ```python
-# Merge multiple PDFs
-client.merge_pdfs(
-    input_files=["doc1.pdf", "doc2.pdf", "doc3.pdf"],
-    output_path="merged.pdf"
-)
+from nutrient_dws.builder.constant import BuildActions
+
+async def main():
+    client = NutrientClient({'apiKey': 'your_api_key'})
+
+    result = await (client
+        .workflow()
+        .add_file_part('document.pdf')
+        .add_file_part('appendix.pdf')
+        .apply_action(BuildActions.watermarkText('CONFIDENTIAL', {
+            'opacity': 0.5,
+            'fontSize': 48
+        }))
+        .output_pdf({
+            'optimize': {
+                'mrcCompression': True,
+                'imageOptimizationQuality': 2
+            }
+        })
+        .execute())
+
+asyncio.run(main())
 ```
 
-### OCR PDF
+The workflow system follows a staged approach:
+1. Add document parts (files, HTML, pages)
+2. Apply actions (optional)
+3. Set output format
+4. Execute or perform a dry run
 
-```python
-# Add OCR layer to scanned PDF
-client.ocr_pdf(
-    input_file="scanned.pdf",
-    output_path="searchable.pdf",
-    language="en"
-)
-```
-
-### Rotate Pages
-
-```python
-# Rotate all pages
-client.rotate_pages(
-    input_file="document.pdf",
-    output_path="rotated.pdf",
-    degrees=180
-)
-
-# Rotate specific pages
-client.rotate_pages(
-    input_file="document.pdf",
-    output_path="rotated.pdf",
-    degrees=90,
-    page_indexes=[0, 2, 4]  # Pages 1, 3, and 5
-)
-```
-
-### Watermark PDF
-
-```python
-# Add text watermark (width/height required)
-client.watermark_pdf(
-    input_file="document.pdf",
-    output_path="watermarked.pdf",
-    text="DRAFT",
-    width=200,
-    height=100,
-    opacity=0.5,
-    position="center"
-)
-
-# Add image watermark from URL
-client.watermark_pdf(
-    input_file="document.pdf",
-    output_path="watermarked.pdf",
-    image_url="https://example.com/logo.png",
-    width=150,
-    height=75,
-    opacity=0.8,
-    position="bottom-right"
-)
-
-# Add image watermark from local file (NEW!)
-client.watermark_pdf(
-    input_file="document.pdf",
-    output_path="watermarked.pdf",
-    image_file="logo.png",  # Can be path, bytes, or file-like object
-    width=150,
-    height=75,
-    opacity=0.8,
-    position="bottom-right"
-)
-```
-
-## Builder API Examples
-
-The Builder API allows you to chain multiple operations in a single workflow:
-
-```python
-# Complex document processing pipeline
-result = client.build(input_file="raw-scan.pdf") \
-    .add_step("ocr-pdf", {"language": "en"}) \
-    .add_step("rotate-pages", {"degrees": -90, "page_indexes": [0]}) \
-    .add_step("watermark-pdf", {
-        "text": "PROCESSED",
-        "opacity": 0.3,
-        "position": "top-right"
-    }) \
-    .add_step("flatten-annotations") \
-    .set_output_options(
-        metadata={"title": "Processed Document", "author": "DWS Client"},
-        optimize=True
-    ) \
-    .execute(output_path="final.pdf")
-
-# Using image file in builder API
-result = client.build(input_file="document.pdf") \
-    .add_step("watermark-pdf", {
-        "image_file": "company-logo.png",  # Local file
-        "width": 100,
-        "height": 50,
-        "opacity": 0.5,
-        "position": "bottom-left"
-    }) \
-    .execute()
-```
-
-## File Input Options
-
-The library supports multiple ways to provide input files:
-
-```python
-# File path (string or Path object)
-client.convert_to_pdf("document.docx")
-client.convert_to_pdf(Path("document.docx"))
-
-# Bytes
-with open("document.docx", "rb") as f:
-    file_bytes = f.read()
-client.convert_to_pdf(file_bytes)
-
-# File-like object
-with open("document.docx", "rb") as f:
-    client.convert_to_pdf(f)
-
-# URL (for supported operations)
-client.import_from_url("https://example.com/document.pdf")
-```
+For detailed information about the workflow system, including examples and best practices, see the [Workflow Documentation](./WORKFLOW.md).
 
 ## Error Handling
 
-The library provides specific exceptions for different error scenarios:
+The library provides a comprehensive error hierarchy:
 
 ```python
 from nutrient_dws import (
+    NutrientClient,
     NutrientError,
-    AuthenticationError,
-    APIError,
     ValidationError,
-    TimeoutError,
-    FileProcessingError
+    APIError,
+    AuthenticationError,
+    NetworkError
 )
 
-try:
-    client.convert_to_pdf("document.docx")
-except AuthenticationError:
-    print("Invalid API key")
-except ValidationError as e:
-    print(f"Invalid parameters: {e.errors}")
-except APIError as e:
-    print(f"API error: {e.status_code} - {e.message}")
-except TimeoutError:
-    print("Request timed out")
-except FileProcessingError as e:
-    print(f"File processing failed: {e}")
+async def main():
+    client = NutrientClient({'apiKey': 'your_api_key'})
+
+    try:
+        result = await client.convert('file.docx', 'pdf')
+    except ValidationError as error:
+        # Invalid input parameters
+        print(f'Invalid input: {error.message} - Details: {error.details}')
+    except AuthenticationError as error:
+        # Authentication failed
+        print(f'Auth error: {error.message} - Status: {error.status_code}')
+    except APIError as error:
+        # API returned an error
+        print(f'API error: {error.message} - Status: {error.status_code} - Details: {error.details}')
+    except NetworkError as error:
+        # Network request failed
+        print(f'Network error: {error.message} - Details: {error.details}')
+
+asyncio.run(main())
 ```
 
-## Advanced Configuration
+## Testing
 
-### Custom Timeout
+The library includes comprehensive unit and integration tests:
 
-```python
-# Set timeout to 10 minutes for large files
-client = NutrientClient(api_key="your-api-key", timeout=600)
+```bash
+# Run all tests
+python -m pytest
+
+# Run with coverage report
+python -m pytest --cov=nutrient_dws --cov-report=html
+
+# Run only unit tests
+python -m pytest tests/unit/
+
+# Run integration tests (requires API key)
+NUTRIENT_API_KEY=your_key python -m pytest tests/integration/
 ```
 
-### Streaming Large Files
-
-Files larger than 10MB are automatically streamed to avoid memory issues:
-
-```python
-# This will stream the file instead of loading it into memory
-client.flatten_annotations("large-document.pdf")
-```
-
-## Available Operations
-
-### PDF Manipulation
-- `merge_pdfs` - Merge multiple PDFs into one
-- `rotate_pages` - Rotate PDF pages (all or specific pages)
-- `flatten_annotations` - Flatten form fields and annotations
-
-### PDF Enhancement
-- `ocr_pdf` - Add searchable text layer (English and German)
-- `watermark_pdf` - Add text or image watermarks
-
-### PDF Security
-- `apply_redactions` - Apply existing redaction annotations
-
-### Builder API
-The Builder API allows chaining multiple operations:
-```python
-client.build(input_file="document.pdf") \
-    .add_step("rotate-pages", {"degrees": 90}) \
-    .add_step("ocr-pdf", {"language": "english"}) \
-    .add_step("watermark-pdf", {"text": "DRAFT", "width": 200, "height": 100}) \
-    .execute(output_path="processed.pdf")
-```
-
-Note: See [SUPPORTED_OPERATIONS.md](SUPPORTED_OPERATIONS.md) for detailed documentation of all supported operations and their parameters.
+The library maintains high test coverage across all API methods, including:
+- Unit tests for all public methods
+- Integration tests for real API interactions
+- Type checking with mypy
 
 ## Development
 
-### Setup
+For development, install the package in development mode:
 
 ```bash
 # Clone the repository
-git clone https://github.com/jdrhyne/nutrient-dws-client-python.git
+git clone https://github.com/PSPDFKit/nutrient-dws-client-python.git
 cd nutrient-dws-client-python
 
 # Install in development mode
 pip install -e ".[dev]"
 
-# Run tests
-pytest
+# Run type checking
+mypy src/
 
 # Run linting
-ruff check .
+ruff check src/
 
-# Run type checking
-mypy src tests
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=nutrient --cov-report=html
-
-# Run specific test file
-pytest tests/unit/test_client.py
+# Run formatting
+ruff format src/
 ```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+We welcome contributions to improve the library! Please follow our development standards to ensure code quality and maintainability.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Quick start for contributors:
+
+1. Clone and setup the repository
+2. Make changes following atomic commit practices
+3. Use conventional commits for clear change history
+4. Include appropriate tests for new features
+5. Ensure type checking passes with mypy
+6. Follow Python code style with ruff
+
+For detailed contribution guidelines, see the [Contributing Guide](./CONTRIBUTING.md).
+
+## Project Structure
+
+```
+src/
+├── nutrient_dws/
+│   ├── builder/         # Builder classes and constants
+│   ├── generated/       # Generated type definitions
+│   ├── types/          # Type definitions
+│   ├── client.py       # Main NutrientClient class
+│   ├── errors.py       # Error classes
+│   ├── http.py         # HTTP layer
+│   ├── inputs.py       # Input handling
+│   ├── workflow.py     # Workflow factory
+│   └── __init__.py     # Public exports
+├── scripts/            # CLI scripts for coding agents
+└── tests/              # Test files
+```
+
+## Python Version Support
+
+This library supports Python 3.10 and higher. The async-first design requires modern Python features for optimal performance and type safety.
 
 ## License
 
@@ -330,6 +273,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- 📧 Email: support@nutrient.io
-- 📚 Documentation: https://www.nutrient.io/docs/
-- 🐛 Issues: https://github.com/jdrhyne/nutrient-dws-client-python/issues
+For issues and feature requests, please use the [GitHub issue tracker](https://github.com/PSPDFKit/nutrient-dws-client-python/issues).
+
+For questions about the Nutrient DWS Processor API, refer to the [official documentation](https://nutrient.io/docs/).

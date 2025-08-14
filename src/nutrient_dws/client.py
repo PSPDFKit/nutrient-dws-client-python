@@ -22,6 +22,7 @@ from nutrient_dws.inputs import (
     process_file_input,
     process_remote_file_input,
 )
+from nutrient_dws.types.account_info import AccountInfo
 from nutrient_dws.types.build_output import Metadata, PDFUserPermission
 from nutrient_dws.types.create_auth_token import (
     CreateAuthTokenParameters,
@@ -123,7 +124,7 @@ class NutrientClient:
         if base_url is not None and not isinstance(base_url, str):
             raise ValidationError("Base URL must be a string")
 
-    async def get_account_info(self) -> dict[str, Any]:
+    async def get_account_info(self) -> AccountInfo:
         """Get account information for the current API key.
 
         Returns:
@@ -145,7 +146,7 @@ class NutrientClient:
             self.options,
         )
 
-        return cast("dict[str, Any]", response["data"])
+        return cast("AccountInfo", response["data"])
 
     async def create_token(
         self, params: CreateAuthTokenParameters

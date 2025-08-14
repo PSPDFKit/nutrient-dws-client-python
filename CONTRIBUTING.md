@@ -70,7 +70,7 @@ By participating in this project, you agree to abide by our Code of Conduct: be 
 
 5. Run linting:
    ```bash
-   ruff check src/ tests/
+   ruff check src/
    ```
 
 6. Commit your changes:
@@ -120,7 +120,7 @@ Example test:
 ```python
 def test_new_feature():
     """Test description."""
-    client = NutrientClient(api_key="test-key")
+    client = NutrientClient({'apiKey': 'your_api_key'})
     result = client.new_feature()
     assert result == expected_value
 ```

@@ -155,4 +155,4 @@ openapi_spec.yml
 .claude/settings.local.json
 
 # Integration test configuration
-tests/integration/integration_config.py
+src/tests/integration/integration_config.py
