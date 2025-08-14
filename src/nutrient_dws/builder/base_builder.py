@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Generic, Literal, TypeVar, Union
 
-from nutrient_dws.builder.staged_builders import TypedWorkflowResult
+from nutrient_dws.builder.staged_builders import TypedWorkflowResult, BufferOutput, ContentOutput, JsonContentOutput
 from nutrient_dws.http import (
     AnalyzeBuildRequestData,
     BuildRequestData,
@@ -24,7 +24,6 @@ class BaseBuilder(ABC):
         self,
         path: Union[Literal["/build"], Literal["/analyze_build"]],
         options: Union[BuildRequestData, AnalyzeBuildRequestData],
-        response_type: str = "json",
     ) -> Any:
         """Sends a request to the API."""
         config: RequestConfig[Union[BuildRequestData, AnalyzeBuildRequestData]] = {
@@ -34,7 +33,7 @@ class BaseBuilder(ABC):
             "headers": None
         }
 
-        response = await send_request(config, self.client_options, response_type)
+        response: Any = await send_request(config, self.client_options)
         return response["data"]
 
     @abstractmethod

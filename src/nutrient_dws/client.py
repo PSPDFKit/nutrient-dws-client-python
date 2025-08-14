@@ -129,18 +129,17 @@ class NutrientClient:
             print(account_info['subscriptionType'])
             ```
         """
-        response = await send_request(
+        response: Any = await send_request(
             {
                 "method": "GET",
                 "endpoint": "/account/info",
-                "data": {},
+                "data": None,
                 "headers": None,
             },
             self.options,
-            "json",
         )
 
-        return response["data"]
+        return cast(dict[str, Any], response["data"])
 
     async def create_token(self, params: CreateAuthTokenParameters) -> CreateAuthTokenResponse:
         """Create a new authentication token.
@@ -160,17 +159,17 @@ class NutrientClient:
             print(token['id'])
             ```
         """
-        response = await send_request(
+        response: Any = await send_request(
             {
                 "method": "POST",
                 "endpoint": "/tokens",
                 "data": params,
+                "headers": None,
             },
             self.options,
-            "json",
         )
 
-        return response["data"]
+        return cast(CreateAuthTokenResponse, response["data"])
 
     async def delete_token(self, token_id: str) -> None:
         """Delete an authentication token.
@@ -187,10 +186,10 @@ class NutrientClient:
             {
                 "method": "DELETE",
                 "endpoint": "/tokens",
-                "data": {"id": token_id},
+                "data": cast(Any, {"id": token_id}),
+                "headers": None,
             },
             self.options,
-            "json",
         )
 
     def workflow(self, override_timeout: Optional[int] = None) -> WorkflowInitialStage:
@@ -218,7 +217,7 @@ class NutrientClient:
         return StagedWorkflowBuilder(options)
 
     def _process_typed_workflow_result(
-        self, result: TypedWorkflowResult[Union[BufferOutput, ContentOutput, JsonContentOutput]]
+        self, result: TypedWorkflowResult
     ) -> Union[BufferOutput, ContentOutput, JsonContentOutput]:
         """Helper function that takes a TypedWorkflowResult, throws any errors, and returns the specific output type.
 
@@ -325,15 +324,14 @@ class NutrientClient:
         if normalized_graphic_image:
             request_data["graphicImage"] = normalized_graphic_image
 
-        response = await send_request(
+        response: Any = await send_request(
             {
                 "method": "POST",
                 "endpoint": "/sign",
-                "data": request_data,
+                "data": cast(Any, request_data),
                 "headers": None,
             },
             self.options,
-            "arraybuffer",
         )
 
         buffer = response["data"]
@@ -372,12 +370,12 @@ class NutrientClient:
                 f.write(pdf_buffer)
             ```
         """
-        watermark_action = BuildActions.watermarkText(text, options or {})
+        watermark_action = BuildActions.watermarkText(text, cast(Any, options))
 
         builder = self.workflow().add_file_part(file, None, [watermark_action])
 
         result = await builder.output_pdf().execute()
-        return self._process_typed_workflow_result(result)
+        return cast(BufferOutput, self._process_typed_workflow_result(result))
 
     async def watermark_image(
         self,
@@ -406,12 +404,12 @@ class NutrientClient:
             pdf_buffer = result['buffer']
             ```
         """
-        watermark_action = BuildActions.watermarkImage(image, options or {})
+        watermark_action = BuildActions.watermarkImage(image, cast(Any, options))
 
         builder = self.workflow().add_file_part(file, None, [watermark_action])
 
         result = await builder.output_pdf().execute()
-        return self._process_typed_workflow_result(result)
+        return cast(BufferOutput, self._process_typed_workflow_result(result))
 
     async def convert(
         self,
@@ -496,7 +494,7 @@ class NutrientClient:
         builder = self.workflow().add_file_part(file, None, [ocr_action])
 
         result = await builder.output_pdf().execute()
-        return self._process_typed_workflow_result(result)
+        return cast(BufferOutput, self._process_typed_workflow_result(result))
 
     async def extract_text(
         self,
@@ -527,7 +525,7 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = {"pages": normalized_pages} if normalized_pages else None
+        part_options = cast(Any, {"pages": normalized_pages}) if normalized_pages else None
 
         result = (
             await self.workflow()
@@ -536,7 +534,7 @@ class NutrientClient:
             .execute()
         )
 
-        return self._process_typed_workflow_result(result)
+        return cast(JsonContentOutput, self._process_typed_workflow_result(result))
 
     async def extract_table(
         self,
@@ -568,7 +566,7 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = {"pages": normalized_pages} if normalized_pages else None
+        part_options = cast(Any, {"pages": normalized_pages}) if normalized_pages else None
 
         result = (
             await self.workflow()
@@ -577,7 +575,7 @@ class NutrientClient:
             .execute()
         )
 
-        return self._process_typed_workflow_result(result)
+        return cast(JsonContentOutput, self._process_typed_workflow_result(result))
 
     async def extract_key_value_pairs(
         self,
@@ -609,7 +607,7 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = {"pages": normalized_pages} if normalized_pages else None
+        part_options = cast(Any, {"pages": normalized_pages}) if normalized_pages else None
 
         result = (
             await self.workflow()
@@ -618,7 +616,7 @@ class NutrientClient:
             .execute()
         )
 
-        return self._process_typed_workflow_result(result)
+        return cast(JsonContentOutput, self._process_typed_workflow_result(result))
 
     async def password_protect(
         self,
@@ -660,9 +658,9 @@ class NutrientClient:
         if permissions:
             pdf_options["userPermissions"] = permissions
 
-        result = await self.workflow().add_file_part(file).output_pdf(pdf_options).execute()
+        result = await self.workflow().add_file_part(file).output_pdf(cast(Any, pdf_options)).execute()
 
-        return self._process_typed_workflow_result(result)
+        return cast(BufferOutput, self._process_typed_workflow_result(result))
 
     async def set_metadata(
         self,
@@ -697,10 +695,10 @@ class NutrientClient:
             raise ValidationError("Invalid pdf file", {"input": pdf})
 
         result = (
-            await self.workflow().add_file_part(pdf).output_pdf({"metadata": metadata}).execute()
+            await self.workflow().add_file_part(pdf).output_pdf(cast(Any, {"metadata": metadata})).execute()
         )
 
-        return self._process_typed_workflow_result(result)
+        return cast(BufferOutput, self._process_typed_workflow_result(result))
 
     async def merge(self, files: List[FileInput]) -> BufferOutput:
         """Merge multiple documents into a single document.
@@ -733,7 +731,7 @@ class NutrientClient:
             workflow_builder = workflow_builder.add_file_part(file)
 
         result = await workflow_builder.output_pdf().execute()
-        return self._process_typed_workflow_result(result)
+        return cast(BufferOutput, self._process_typed_workflow_result(result))
 
     async def flatten(
         self,
@@ -774,7 +772,7 @@ class NutrientClient:
             await self.workflow().add_file_part(pdf, None, [flatten_action]).output_pdf().execute()
         )
 
-        return self._process_typed_workflow_result(result)
+        return cast(BufferOutput, self._process_typed_workflow_result(result))
 
     async def create_redactions_ai(
         self,
@@ -844,17 +842,16 @@ class NutrientClient:
         }
 
         if options:
-            request_data["data"]["options"] = options
+            request_data["data"]["options"] = options  # type: ignore
 
-        response = await send_request(
+        response: Any = await send_request(
             {
                 "method": "POST",
                 "endpoint": "/ai/redact",
-                "data": request_data,
+                "data": cast(Any, request_data),
                 "headers": None,
             },
             self.options,
-            "arraybuffer",
         )
 
         buffer = response["data"]

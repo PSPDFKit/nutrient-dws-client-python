@@ -1,11 +1,12 @@
 """HTTP request and response type definitions for API communication."""
 import json
 from collections.abc import Callable
-from typing import Any, Generic, Literal, Optional, TypedDict, TypeVar, Union, Dict
+from typing import Any, Generic, Literal, Optional, TypedDict, TypeVar, Union, Dict, TypeGuard
 
 import httpx
 from typing_extensions import NotRequired
 
+from nutrient_dws.builder.staged_builders import BufferOutput, ContentOutput, JsonContentOutput
 from nutrient_dws.errors import (
     APIError,
     AuthenticationError,
@@ -15,6 +16,7 @@ from nutrient_dws.errors import (
 )
 from nutrient_dws.inputs import NormalizedFileData
 from nutrient_dws.types.build_instruction import BuildInstructions
+from nutrient_dws.types.create_auth_token import CreateAuthTokenParameters, CreateAuthTokenResponse
 from nutrient_dws.types.redact_data import RedactData
 from nutrient_dws.types.sign_request import CreateDigitalSignature
 
@@ -50,9 +52,8 @@ Methods = Literal["GET", "POST", "DELETE"]
 Endpoints = Literal["/account/info", "/build", "/analyze_build", "/sign", "/ai/redact", "/tokens"]
 
 # Type variables for generic types
-I = TypeVar("I")
-O = TypeVar("O")
-
+I = TypeVar("I", bound=Union[CreateAuthTokenParameters, BuildRequestData, AnalyzeBuildRequestData, SignRequestData, RedactRequestData, DeleteTokenRequestData, None])
+O = TypeVar("O", bound=Union[CreateAuthTokenResponse, BufferOutput, ContentOutput, JsonContentOutput, AnalyzeBuildRequestData])
 
 # Request configuration
 class RequestConfig(TypedDict, Generic[I]):
@@ -63,6 +64,26 @@ class RequestConfig(TypedDict, Generic[I]):
     data: I  # The actual type depends on the method and endpoint
     headers: Optional[Dict[str, Any]]
 
+def is_get_account_info_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[None]]:
+    return request["method"] == "GET" and request["endpoint"] == "/account/info"
+
+def is_post_build_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[BuildRequestData]]:
+    return request["method"] == "POST" and request["endpoint"] == "/build"
+
+def is_post_analyse_build_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[AnalyzeBuildRequestData]]:
+    return request["method"] == "POST" and request["endpoint"] == "/analyze_build"
+
+def is_post_sign_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[SignRequestData]]:
+    return request["method"] == "POST" and request["endpoint"] == "/sign"
+
+def is_post_ai_redact_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[RedactRequestData]]:
+    return request["method"] == "POST" and request["endpoint"] == "/ai/redact"
+
+def is_post_tokens_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[CreateAuthTokenParameters]]:
+    return request["method"] == "POST" and request["endpoint"] == "/tokens"
+
+def is_delete_tokens_request_config(request: RequestConfig[Any]) -> TypeGuard[RequestConfig[DeleteTokenRequestData]]:
+    return request["method"] == "DELETE" and request["endpoint"] == "/tokens"
 
 # API response
 class ApiResponse(TypedDict, Generic[O]):
@@ -132,8 +153,7 @@ def append_file_to_form_data(form_data: dict[str, Any], key: str, file: Normaliz
 
     form_data[key] = (filename, file_content)
 
-
-def prepare_request_body(request_config: dict[str, Any], config: RequestConfig) -> dict[str, Any]:
+def prepare_request_body(request_config: dict[str, Any], config: RequestConfig[I]) -> dict[str, Any]:
     """Prepares request body with files and data.
 
     Args:
@@ -143,72 +163,67 @@ def prepare_request_body(request_config: dict[str, Any], config: RequestConfig) 
     Returns:
         Updated request configuration
     """
-    if config["method"] == "POST":
-        if config["endpoint"] in ["/build", "/analyze_build"]:
-            typed_config = config
-
-            if "files" in typed_config["data"] and typed_config["data"]["files"]:
-                # Use multipart/form-data for file uploads
-                files = {}
-                for key, value in typed_config["data"]["files"].items():
-                    append_file_to_form_data(files, key, value)
-
-                request_config["files"] = files
-                request_config["data"] = {
-                    "instructions": json.dumps(typed_config["data"]["instructions"])
-                }
-            else:
-                # JSON only request
-                request_config["json"] = typed_config["data"]["instructions"]
-
-            return request_config
-
-        elif config["endpoint"] == "/sign":
-            typed_config = config
-
-            files = {}
-            append_file_to_form_data(files, "file", typed_config["data"]["file"])
-
-            if "image" in typed_config["data"]:
-                append_file_to_form_data(files, "image", typed_config["data"]["image"])
-
-            if "graphicImage" in typed_config["data"]:
-                append_file_to_form_data(
-                    files, "graphicImage", typed_config["data"]["graphicImage"]
-                )
-
-            data = {}
-            if "data" in typed_config["data"]:
-                data["data"] = json.dumps(typed_config["data"]["data"])
-            else:
-                data["data"] = json.dumps(
-                    {
-                        "signatureType": "cades",
-                        "cadesLevel": "b-lt",
-                    }
-                )
+    if is_post_build_request_config(config) or is_post_analyse_build_request_config(config):
+        if is_post_build_request_config(config):
+            # Use multipart/form-data for file uploads
+            files: dict[str, Any] = {}
+            for key, value in config["data"]["files"].items():
+                append_file_to_form_data(files, key, value)
 
             request_config["files"] = files
-            request_config["data"] = data
+            request_config["data"] = {
+                "instructions": json.dumps(config["data"]["instructions"])
+            }
+        else:
+            # JSON only request
+            request_config["json"] = config["data"]["instructions"]
 
-            return request_config
+        return request_config
 
-        elif config["endpoint"] == "/ai/redact":
-            typed_config = config
+    if is_post_sign_request_config(config):
+        files = {}
+        append_file_to_form_data(files, "file", config["data"]["file"])
 
-            if "file" in typed_config["data"] and "fileKey" in typed_config["data"]:
-                files = {}
-                append_file_to_form_data(
-                    files, typed_config["data"]["fileKey"], typed_config["data"]["file"]
-                )
+        if "image" in config["data"]:
+            append_file_to_form_data(files, "image", config["data"]["image"])
 
-                request_config["files"] = files
-                request_config["data"] = {"data": json.dumps(typed_config["data"]["data"])}
-            else:
-                # JSON only request
-                request_config["json"] = typed_config["data"]["data"]
+        if "graphicImage" in config["data"]:
+            append_file_to_form_data(
+                files, "graphicImage", config["data"]["graphicImage"]
+            )
 
-            return request_config
+        data = {}
+        if "data" in config["data"]:
+            data["data"] = json.dumps(config["data"]["data"])
+        else:
+            data["data"] = json.dumps(
+                {
+                    "signatureType": "cades",
+                    "cadesLevel": "b-lt",
+                }
+            )
+
+        request_config["files"] = files
+        request_config["data"] = data
+
+        return request_config
+
+    if is_post_ai_redact_request_config(config):
+        typed_config = config
+
+        if "file" in typed_config["data"] and "fileKey" in typed_config["data"]:
+            files = {}
+            append_file_to_form_data(
+                files, typed_config["data"]["fileKey"], typed_config["data"]["file"]
+            )
+
+            request_config["files"] = files
+            request_config["data"] = {"data": json.dumps(typed_config["data"]["data"])}
+        else:
+            # JSON only request
+            request_config["json"] = typed_config["data"]["data"]
+
+        return request_config
 
     # Fallback, passing data as JSON
     if "data" in config:
@@ -216,7 +231,6 @@ def prepare_request_body(request_config: dict[str, Any], config: RequestConfig) 
 
     return request_config
 
-# TODO: Handle custom message type
 def extract_error_message(data: Any) -> Optional[str]:
     """Extracts error message from response data with comprehensive DWS error handling.
 
@@ -302,7 +316,7 @@ def create_http_error(status: int, status_text: str, data: Any) -> NutrientError
     return APIError(message, status, details)
 
 
-def handle_response(response: httpx.Response) -> ApiResponse:
+def handle_response(response: httpx.Response) -> ApiResponse[O]:
     """Handles HTTP response and converts to standardized format.
 
     Args:
@@ -335,7 +349,7 @@ def handle_response(response: httpx.Response) -> ApiResponse:
     }
 
 
-def convert_error(error: Any, config: RequestConfig) -> NutrientError:
+def convert_error(error: Any, config: RequestConfig[I]) -> NutrientError:
     """Converts various error types to NutrientError.
 
     Args:
@@ -363,7 +377,7 @@ def convert_error(error: Any, config: RequestConfig) -> NutrientError:
 
         if request is not None:
             # Network error (request made but no response)
-            sanitized_headers = config.get("headers", {}).copy()
+            sanitized_headers = (config.get("headers") or {}).copy()
             if "Authorization" in sanitized_headers:
                 del sanitized_headers["Authorization"]
 
@@ -402,8 +416,8 @@ def convert_error(error: Any, config: RequestConfig) -> NutrientError:
 
 
 async def send_request(
-    config: RequestConfig, client_options: NutrientClientOptions, response_type: str = "json"
-) -> ApiResponse:
+    config: RequestConfig[I], client_options: NutrientClientOptions,
+) -> ApiResponse[O]:
     """Sends HTTP request to Nutrient DWS Processor API.
     Handles authentication, file uploads, and error conversion.
 
@@ -423,14 +437,17 @@ async def send_request(
         api_key = resolve_api_key(client_options["apiKey"])
 
         # Build full URL
-        base_url: str = client_options.get("baseUrl", "https://api.nutrient.io")
+        base_url: str = client_options.get("baseUrl") or "https://api.nutrient.io"
         url = f"{base_url.rstrip('/')}{config['endpoint']}"
 
+        headers = config.get("headers") or {}
+        headers["Authorization"] = f"Bearer {api_key}"
+
         # Prepare request configuration
-        request_config = {
+        request_config: dict[str, Any] = {
             "method": config["method"],
             "url": url,
-            "headers": {"Authorization": f"Bearer {api_key}", **(config.get("headers", {}))},
+            "headers": headers,
             "timeout": client_options.get("timeout", None),
         }
 

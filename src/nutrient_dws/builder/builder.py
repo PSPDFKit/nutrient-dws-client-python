@@ -500,18 +500,10 @@ class StagedWorkflowBuilder(
 
             files = await self._prepare_files()
 
-            # Determine response type
-            response_type = "arraybuffer"
-            if output_config["type"] == "json-content":
-                response_type = "json"
-            elif output_config["type"] in ["html", "markdown"]:
-                response_type = "text"
-
             # Make the request
             response = await self._send_request(
                 "/build",
                 BuildRequestData(instructions=self.build_instructions, files=files),
-                response_type,
             )
 
             # Step 3: Process response
@@ -574,8 +566,7 @@ class StagedWorkflowBuilder(
 
             response = await self._send_request(
                 "/analyze_build",
-                AnalyzeBuildRequestData(instructions=self.build_instructions),
-                "json",
+                AnalyzeBuildRequestData(instructions=self.build_instructions)
             )
 
             result["success"] = True
