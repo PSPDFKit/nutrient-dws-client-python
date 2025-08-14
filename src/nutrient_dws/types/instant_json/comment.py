@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict, Union
 
 from typing_extensions import NotRequired
 
-from nutrient_dws.types.misc import PageIndex, PdfObjectId
+if TYPE_CHECKING:
+    from nutrient_dws.types.misc import PageIndex, PdfObjectId
 
 
 class AnnotationText(TypedDict):

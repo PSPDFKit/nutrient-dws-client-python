@@ -6,7 +6,7 @@ from nutrient_dws.http import NutrientClientOptions
 
 
 def workflow(client_options: NutrientClientOptions) -> WorkflowInitialStage:
-    """Factory function to create a new workflow builder with staged interface.
+    r"""Factory function to create a new workflow builder with staged interface.
 
     Args:
         client_options: Client configuration options

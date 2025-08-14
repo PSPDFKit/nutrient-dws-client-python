@@ -7,7 +7,11 @@ from typing import Any, Generic, Literal, TypedDict, TypeGuard, TypeVar
 import httpx
 from typing_extensions import NotRequired
 
-from nutrient_dws.builder.staged_builders import BufferOutput, ContentOutput, JsonContentOutput
+from nutrient_dws.builder.staged_builders import (
+    BufferOutput,
+    ContentOutput,
+    JsonContentOutput,
+)
 from nutrient_dws.errors import (
     APIError,
     AuthenticationError,
@@ -17,7 +21,10 @@ from nutrient_dws.errors import (
 )
 from nutrient_dws.inputs import NormalizedFileData
 from nutrient_dws.types.build_instruction import BuildInstructions
-from nutrient_dws.types.create_auth_token import CreateAuthTokenParameters, CreateAuthTokenResponse
+from nutrient_dws.types.create_auth_token import (
+    CreateAuthTokenParameters,
+    CreateAuthTokenResponse,
+)
 from nutrient_dws.types.redact_data import RedactData
 from nutrient_dws.types.sign_request import CreateDigitalSignature
 
@@ -50,26 +57,38 @@ class DeleteTokenRequestData(TypedDict):
 
 # Methods and Endpoints types
 Methods = Literal["GET", "POST", "DELETE"]
-Endpoints = Literal["/account/info", "/build", "/analyze_build", "/sign", "/ai/redact", "/tokens"]
+Endpoints = Literal[
+    "/account/info", "/build", "/analyze_build", "/sign", "/ai/redact", "/tokens"
+]
 
 # Type variables for generic types
-I = TypeVar(
-    "I",
-    bound=CreateAuthTokenParameters | BuildRequestData | AnalyzeBuildRequestData | SignRequestData | RedactRequestData | DeleteTokenRequestData | None,
+Input = TypeVar(
+    "Input",
+    bound=CreateAuthTokenParameters
+    | BuildRequestData
+    | AnalyzeBuildRequestData
+    | SignRequestData
+    | RedactRequestData
+    | DeleteTokenRequestData
+    | None,
 )
-O = TypeVar(
-    "O",
-    bound=CreateAuthTokenResponse | BufferOutput | ContentOutput | JsonContentOutput | AnalyzeBuildRequestData,
+Output = TypeVar(
+    "Output",
+    bound=CreateAuthTokenResponse
+    | BufferOutput
+    | ContentOutput
+    | JsonContentOutput
+    | AnalyzeBuildRequestData,
 )
 
 
 # Request configuration
-class RequestConfig(TypedDict, Generic[I]):
+class RequestConfig(TypedDict, Generic[Input]):
     """HTTP request configuration for API calls."""
 
     method: Methods
     endpoint: Endpoints
-    data: I  # The actual type depends on the method and endpoint
+    data: Input  # The actual type depends on the method and endpoint
     headers: dict[str, Any] | None
 
 
@@ -116,10 +135,10 @@ def is_delete_tokens_request_config(
 
 
 # API response
-class ApiResponse(TypedDict, Generic[O]):
+class ApiResponse(TypedDict, Generic[Output]):
     """Response from API call."""
 
-    data: O  # The actual type depends on the method and endpoint
+    data: Output  # The actual type depends on the method and endpoint
     status: int
     statusText: str
     headers: dict[str, Any]
@@ -160,10 +179,14 @@ def resolve_api_key(api_key: str | Callable[[], str]) -> str:
     except Exception as error:
         if isinstance(error, AuthenticationError):
             raise error
-        raise AuthenticationError("Failed to resolve API key from function", {"error": str(error)})
+        raise AuthenticationError(
+            "Failed to resolve API key from function", {"error": str(error)}
+        )
 
 
-def append_file_to_form_data(form_data: dict[str, Any], key: str, file: NormalizedFileData) -> None:
+def append_file_to_form_data(
+    form_data: dict[str, Any], key: str, file: NormalizedFileData
+) -> None:
     """Appends file to form data with proper format.
 
     Args:
@@ -185,7 +208,7 @@ def append_file_to_form_data(form_data: dict[str, Any], key: str, file: Normaliz
 
 
 def prepare_request_body(
-    request_config: dict[str, Any], config: RequestConfig[I]
+    request_config: dict[str, Any], config: RequestConfig[Input]
 ) -> dict[str, Any]:
     """Prepares request body with files and data.
 
@@ -196,7 +219,9 @@ def prepare_request_body(
     Returns:
         Updated request configuration
     """
-    if is_post_build_request_config(config) or is_post_analyse_build_request_config(config):
+    if is_post_build_request_config(config) or is_post_analyse_build_request_config(
+        config
+    ):
         if is_post_build_request_config(config):
             # Use multipart/form-data for file uploads
             files: dict[str, Any] = {}
@@ -204,7 +229,9 @@ def prepare_request_body(
                 append_file_to_form_data(files, key, value)
 
             request_config["files"] = files
-            request_config["data"] = {"instructions": json.dumps(config["data"]["instructions"])}
+            request_config["data"] = {
+                "instructions": json.dumps(config["data"]["instructions"])
+            }
         else:
             # JSON only request
             request_config["json"] = config["data"]["instructions"]
@@ -219,7 +246,9 @@ def prepare_request_body(
             append_file_to_form_data(files, "image", config["data"]["image"])
 
         if "graphicImage" in config["data"]:
-            append_file_to_form_data(files, "graphicImage", config["data"]["graphicImage"])
+            append_file_to_form_data(
+                files, "graphicImage", config["data"]["graphicImage"]
+            )
 
         data = {}
         if "data" in config["data"]:
@@ -274,10 +303,14 @@ def extract_error_message(data: Any) -> str | None:
         error_data = data
 
         # DWS-specific error fields (prioritized)
-        if "error_description" in error_data and isinstance(error_data["error_description"], str):
+        if "error_description" in error_data and isinstance(
+            error_data["error_description"], str
+        ):
             return error_data["error_description"]
 
-        if "error_message" in error_data and isinstance(error_data["error_message"], str):
+        if "error_message" in error_data and isinstance(
+            error_data["error_message"], str
+        ):
             return error_data["error_message"]
 
         # Common error message fields
@@ -300,7 +333,9 @@ def extract_error_message(data: Any) -> str | None:
             if "message" in nested_error and isinstance(nested_error["message"], str):
                 return nested_error["message"]
 
-            if "description" in nested_error and isinstance(nested_error["description"], str):
+            if "description" in nested_error and isinstance(
+                nested_error["description"], str
+            ):
                 return nested_error["description"]
 
         # Handle errors array (common in validation responses)
@@ -346,7 +381,7 @@ def create_http_error(status: int, status_text: str, data: Any) -> NutrientError
     return APIError(message, status, details)
 
 
-def handle_response(response: httpx.Response) -> ApiResponse[O]:
+def handle_response(response: httpx.Response) -> ApiResponse[Output]:
     """Handles HTTP response and converts to standardized format.
 
     Args:
@@ -379,7 +414,7 @@ def handle_response(response: httpx.Response) -> ApiResponse[O]:
     }
 
 
-def convert_error(error: Any, config: RequestConfig[I]) -> NutrientError:
+def convert_error(error: Any, config: RequestConfig[Input]) -> NutrientError:
     """Converts various error types to NutrientError.
 
     Args:
@@ -403,7 +438,9 @@ def convert_error(error: Any, config: RequestConfig[I]) -> NutrientError:
                 response_data = response.json()
             except (ValueError, json.JSONDecodeError):
                 response_data = response.text
-            return create_http_error(response.status_code, response.reason_phrase, response_data)
+            return create_http_error(
+                response.status_code, response.reason_phrase, response_data
+            )
 
         if request is not None:
             # Network error (request made but no response)
@@ -446,9 +483,9 @@ def convert_error(error: Any, config: RequestConfig[I]) -> NutrientError:
 
 
 async def send_request(
-    config: RequestConfig[I],
+    config: RequestConfig[Input],
     client_options: NutrientClientOptions,
-) -> ApiResponse[O]:
+) -> ApiResponse[Output]:
     """Sends HTTP request to Nutrient DWS Processor API.
     Handles authentication, file uploads, and error conversion.
 

@@ -48,7 +48,7 @@ T = TypeVar("T")
 
 
 class ActionWithFileInput(Protocol):
-    """Internal action type that holds FileInput for deferred registration"""
+    """Internal action type that holds FileInput for deferred registration."""
 
     __needsFileRegistration: bool
     fileInput: FileInput
@@ -56,11 +56,11 @@ class ActionWithFileInput(Protocol):
 
 
 class BuildActions:
-    """Factory functions for creating common build actions"""
+    """Factory functions for creating common build actions."""
 
     @staticmethod
     def ocr(language: OcrLanguage | list[OcrLanguage]) -> OcrAction:
-        """Create an OCR action
+        """Create an OCR action.
 
         Args:
             language: Language(s) for OCR
@@ -75,7 +75,7 @@ class BuildActions:
 
     @staticmethod
     def rotate(rotateBy: Literal[90, 180, 270]) -> RotateAction:
-        """Create a rotation action
+        """Create a rotation action.
 
         Args:
             rotateBy: Rotation angle (90, 180, or 270)
@@ -92,7 +92,7 @@ class BuildActions:
     def watermarkText(
         text: str, options: TextWatermarkActionOptions | None = None
     ) -> TextWatermarkAction:
-        """Create a text watermark action
+        """Create a text watermark action.
 
         Args:
             text: Watermark text
@@ -133,7 +133,7 @@ class BuildActions:
     def watermarkImage(
         image: FileInput, options: ImageWatermarkActionOptions | None = None
     ) -> ActionWithFileInput:
-        """Create an image watermark action
+        """Create an image watermark action.
 
         Args:
             image: Watermark image
@@ -160,7 +160,9 @@ class BuildActions:
         class ImageWatermarkActionWithFileInput(ActionWithFileInput):
             __needsFileRegistration = True
 
-            def __init__(self, file_input: FileInput, opts: ImageWatermarkActionOptions):
+            def __init__(
+                self, file_input: FileInput, opts: ImageWatermarkActionOptions
+            ):
                 self.fileInput = file_input
                 self.options = opts
 
@@ -178,7 +180,7 @@ class BuildActions:
 
     @staticmethod
     def flatten(annotationIds: list[str | int] | None = None) -> FlattenAction:
-        """Create a flatten action
+        """Create a flatten action.
 
         Args:
             annotationIds: Optional annotation IDs to flatten (all if not specified)
@@ -193,7 +195,7 @@ class BuildActions:
 
     @staticmethod
     def applyInstantJson(file: FileInput) -> ActionWithFileInput:
-        """Create an apply Instant JSON action
+        """Create an apply Instant JSON action.
 
         Args:
             file: Instant JSON file input
@@ -220,7 +222,7 @@ class BuildActions:
     def applyXfdf(
         file: FileInput, options: ApplyXfdfActionOptions | None = None
     ) -> ActionWithFileInput:
-        """Create an apply XFDF action
+        """Create an apply XFDF action.
 
         Args:
             file: XFDF file input
@@ -235,7 +237,9 @@ class BuildActions:
         class ApplyXfdfActionWithFileInput(ActionWithFileInput):
             __needsFileRegistration = True
 
-            def __init__(self, file_input: FileInput, opts: ApplyXfdfActionOptions | None):
+            def __init__(
+                self, file_input: FileInput, opts: ApplyXfdfActionOptions | None
+            ):
                 self.fileInput = file_input
                 self.options = opts or {}
 
@@ -254,7 +258,7 @@ class BuildActions:
         options: BaseCreateRedactionsOptions | None = None,
         strategyOptions: CreateRedactionsStrategyOptionsText | None = None,
     ) -> CreateRedactionsAction:
-        """Create redactions with text search
+        """Create redactions with text search.
 
         Args:
             text: Text to search and redact
@@ -286,7 +290,7 @@ class BuildActions:
         options: BaseCreateRedactionsOptions | None = None,
         strategyOptions: CreateRedactionsStrategyOptionsRegex | None = None,
     ) -> CreateRedactionsAction:
-        """Create redactions with regex pattern
+        """Create redactions with regex pattern.
 
         Args:
             regex: Regex pattern to search and redact
@@ -318,7 +322,7 @@ class BuildActions:
         options: BaseCreateRedactionsOptions | None = None,
         strategyOptions: CreateRedactionsStrategyOptionsPreset | None = None,
     ) -> CreateRedactionsAction:
-        """Create redactions with preset pattern
+        """Create redactions with preset pattern.
 
         Args:
             preset: Preset pattern to search and redact (e.g. 'email-address', 'credit-card-number', 'social-security-number', etc.)
@@ -345,7 +349,7 @@ class BuildActions:
 
     @staticmethod
     def applyRedactions() -> ApplyRedactionsAction:
-        """Apply previously created redactions
+        """Apply previously created redactions.
 
         Returns:
             ApplyRedactionsAction object
@@ -356,11 +360,11 @@ class BuildActions:
 
 
 class BuildOutputs:
-    """Factory functions for creating output configurations"""
+    """Factory functions for creating output configurations."""
 
     @staticmethod
     def pdf(options: PDFOutputOptions | None = None) -> PDFOutput:
-        """PDF output configuration
+        """PDF output configuration.
 
         Args:
             options: PDF output options
@@ -394,7 +398,7 @@ class BuildOutputs:
 
     @staticmethod
     def pdfa(options: PDFAOutputOptions | None = None) -> PDFAOutput:
-        """PDF/A output configuration
+        """PDF/A output configuration.
 
         Args:
             options: PDF/A output options
@@ -437,7 +441,7 @@ class BuildOutputs:
 
     @staticmethod
     def pdfua(options: PDFUAOutputOptions | None = None) -> PDFUAOutput:
-        """PDF/UA output configuration
+        """PDF/UA output configuration.
 
         Args:
             options: PDF/UA output options
@@ -471,9 +475,10 @@ class BuildOutputs:
 
     @staticmethod
     def image(
-        format: Literal["png", "jpeg", "jpg", "webp"], options: ImageOutputOptions | None = None
+        format: Literal["png", "jpeg", "jpg", "webp"],
+        options: ImageOutputOptions | None = None,
     ) -> ImageOutput:
-        """Image output configuration
+        """Image output configuration.
 
         Args:
             format: Image format type
@@ -504,8 +509,10 @@ class BuildOutputs:
         return cast("ImageOutput", result)
 
     @staticmethod
-    def jsonContent(options: JSONContentOutputOptions | None = None) -> JSONContentOutput:
-        """JSON content output configuration
+    def jsonContent(
+        options: JSONContentOutputOptions | None = None,
+    ) -> JSONContentOutput:
+        """JSON content output configuration.
 
         Args:
             options: JSON content extraction options
@@ -536,7 +543,7 @@ class BuildOutputs:
 
     @staticmethod
     def office(type: Literal["docx", "xlsx", "pptx"]) -> OfficeOutput:
-        """Office document output configuration
+        """Office document output configuration.
 
         Args:
             type: Office document type
@@ -550,7 +557,7 @@ class BuildOutputs:
 
     @staticmethod
     def html(layout: Literal["page", "reflow"]) -> HTMLOutput:
-        """HTML output configuration
+        """HTML output configuration.
 
         Args:
             layout: The layout type to use for conversion to HTML
@@ -565,7 +572,7 @@ class BuildOutputs:
 
     @staticmethod
     def markdown() -> MarkdownOutput:
-        """Markdown output configuration
+        """Markdown output configuration.
 
         Returns:
             MarkdownOutput object
@@ -576,9 +583,15 @@ class BuildOutputs:
 
     @staticmethod
     def getMimeTypeForOutput(
-        output: PDFOutput | PDFAOutput | PDFUAOutput | ImageOutput | OfficeOutput | HTMLOutput | MarkdownOutput,
+        output: PDFOutput
+        | PDFAOutput
+        | PDFUAOutput
+        | ImageOutput
+        | OfficeOutput
+        | HTMLOutput
+        | MarkdownOutput,
     ) -> dict[str, str]:
-        """Get MIME type and filename for a given output configuration
+        """Get MIME type and filename for a given output configuration.
 
         Args:
             output: The output configuration

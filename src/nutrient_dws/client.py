@@ -23,7 +23,10 @@ from nutrient_dws.inputs import (
     process_remote_file_input,
 )
 from nutrient_dws.types.build_output import Metadata, PDFUserPermission
-from nutrient_dws.types.create_auth_token import CreateAuthTokenParameters, CreateAuthTokenResponse
+from nutrient_dws.types.create_auth_token import (
+    CreateAuthTokenParameters,
+    CreateAuthTokenResponse,
+)
 from nutrient_dws.types.misc import OcrLanguage, PageRange, Pages
 from nutrient_dws.types.sign_request import CreateDigitalSignature
 
@@ -36,7 +39,7 @@ def normalize_page_params(
     - start and end are inclusive
     - start defaults to 0 (first page)
     - end defaults to -1 (last page)
-    - negative end values loop from the end of the document
+    - negative end values loop from the end of the document.
 
     Args:
         pages: The page parameters to normalize
@@ -112,7 +115,9 @@ class NutrientClient:
 
         api_key = options["apiKey"]
         if not isinstance(api_key, (str, type(lambda: None))):
-            raise ValidationError("API key must be a string or a function that returns a string")
+            raise ValidationError(
+                "API key must be a string or a function that returns a string"
+            )
 
         base_url = options.get("baseUrl")
         if base_url is not None and not isinstance(base_url, str):
@@ -142,7 +147,9 @@ class NutrientClient:
 
         return cast("dict[str, Any]", response["data"])
 
-    async def create_token(self, params: CreateAuthTokenParameters) -> CreateAuthTokenResponse:
+    async def create_token(
+        self, params: CreateAuthTokenParameters
+    ) -> CreateAuthTokenResponse:
         """Create a new authentication token.
 
         Args:
@@ -194,7 +201,7 @@ class NutrientClient:
         )
 
     def workflow(self, override_timeout: int | None = None) -> WorkflowInitialStage:
-        """Create a new WorkflowBuilder for chaining multiple operations.
+        r"""Create a new WorkflowBuilder for chaining multiple operations.
 
         Args:
             override_timeout: Set a custom timeout for the workflow (in milliseconds)
@@ -311,7 +318,9 @@ class NutrientClient:
             if "graphicImage" in options:
                 graphic_image = options["graphicImage"]
                 if is_remote_file_input(graphic_image):
-                    normalized_graphic_image = await process_remote_file_input(str(graphic_image))
+                    normalized_graphic_image = await process_remote_file_input(
+                        str(graphic_image)
+                    )
                 else:
                     normalized_graphic_image = await process_file_input(graphic_image)
 
@@ -337,7 +346,11 @@ class NutrientClient:
 
         buffer = response["data"]
 
-        return {"mimeType": "application/pdf", "filename": "output.pdf", "buffer": buffer}
+        return {
+            "mimeType": "application/pdf",
+            "filename": "output.pdf",
+            "buffer": buffer,
+        }
 
     async def watermark_text(
         self,
@@ -462,7 +475,8 @@ class NutrientClient:
             result = await builder.output_markdown().execute()
         elif target_format in ["png", "jpeg", "jpg", "webp"]:
             result = await builder.output_image(
-                cast("Literal['png', 'jpeg', 'jpg', 'webp']", target_format), {"dpi": 300}
+                cast("Literal['png', 'jpeg', 'jpg', 'webp']", target_format),
+                {"dpi": 300},
             ).execute()
         else:
             raise ValidationError(f"Unsupported target format: {target_format}")
@@ -528,7 +542,9 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+        part_options = (
+            cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+        )
 
         result = (
             await self.workflow()
@@ -569,7 +585,9 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+        part_options = (
+            cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+        )
 
         result = (
             await self.workflow()
@@ -610,7 +628,9 @@ class NutrientClient:
         """
         normalized_pages = normalize_page_params(pages) if pages else None
 
-        part_options = cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+        part_options = (
+            cast("Any", {"pages": normalized_pages}) if normalized_pages else None
+        )
 
         result = (
             await self.workflow()
@@ -662,7 +682,10 @@ class NutrientClient:
             pdf_options["userPermissions"] = permissions
 
         result = (
-            await self.workflow().add_file_part(file).output_pdf(cast("Any", pdf_options)).execute()
+            await self.workflow()
+            .add_file_part(file)
+            .output_pdf(cast("Any", pdf_options))
+            .execute()
         )
 
         return cast("BufferOutput", self._process_typed_workflow_result(result))
@@ -777,7 +800,10 @@ class NutrientClient:
         flatten_action = BuildActions.flatten(annotation_ids)
 
         result = (
-            await self.workflow().add_file_part(pdf, None, [flatten_action]).output_pdf().execute()
+            await self.workflow()
+            .add_file_part(pdf, None, [flatten_action])
+            .output_pdf()
+            .execute()
         )
 
         return cast("BufferOutput", self._process_typed_workflow_result(result))
@@ -864,4 +890,8 @@ class NutrientClient:
 
         buffer = response["data"]
 
-        return {"mimeType": "application/pdf", "filename": "output.pdf", "buffer": buffer}
+        return {
+            "mimeType": "application/pdf",
+            "filename": "output.pdf",
+            "buffer": buffer,
+        }

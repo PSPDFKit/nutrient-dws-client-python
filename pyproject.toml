@@ -72,7 +72,7 @@ dws-add-windsurf-rule = "scripts.add_windsurf_rule:main"
 
 [tool.ruff]
 target-version = "py310"
-line-length = 100
+
 
 [tool.ruff.lint]
 select = [
@@ -90,10 +90,21 @@ select = [
     "RUF",  # Ruff-specific rules
 ]
 ignore = [
+    "E501",  # Line too long
+    "B904",  # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D103",  # Missing docstring in public function
     "D104",  # Missing docstring in public package
     "D107",  # Missing docstring in __init__
+    "D205",  # 1 blank line required between summary line and description
+    "UP007", # Use `X | Y` for type annotations
     "UP038", # Use `X | Y` in `isinstance` call instead of `(X, Y)` - not supported in Python 3.10 runtime
+    "UP045", # Use `X | None` for type annotations
+    "N802",  # Function name should be lowercase
+    "N803",  # Argument name should be lowercase
+    "N815",  # Variable in class scope should not be mixedCase
+    "N811",  # Constant imported as non-constant
 ]
 
 [tool.ruff.lint.pydocstyle]

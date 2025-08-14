@@ -3,30 +3,34 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from typing import (
+    TYPE_CHECKING,
     Literal,
     TypedDict,
 )
 
 from nutrient_dws.builder.constant import ActionWithFileInput
-from nutrient_dws.inputs import FileInput
-from nutrient_dws.types.analyze_response import AnalyzeBuildResponse
 from nutrient_dws.types.build_actions import BuildAction
-from nutrient_dws.types.build_output import (
-    ImageOutputOptions,
-    JSONContentOutputOptions,
-    PDFAOutputOptions,
-    PDFOutputOptions,
-    PDFUAOutputOptions,
-)
-from nutrient_dws.types.build_response_json import BuildResponseJsonContents
-from nutrient_dws.types.input_parts import (
-    DocumentPartOptions,
-    FilePartOptions,
-    HTMLPartOptions,
-    NewPagePartOptions,
-)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from nutrient_dws.inputs import FileInput
+    from nutrient_dws.types.analyze_response import AnalyzeBuildResponse
+    from nutrient_dws.types.build_output import (
+        ImageOutputOptions,
+        JSONContentOutputOptions,
+        PDFAOutputOptions,
+        PDFOutputOptions,
+        PDFUAOutputOptions,
+    )
+    from nutrient_dws.types.build_response_json import BuildResponseJsonContents
+    from nutrient_dws.types.input_parts import (
+        DocumentPartOptions,
+        FilePartOptions,
+        HTMLPartOptions,
+        NewPagePartOptions,
+    )
 
 # Type aliases for output types
 OutputFormat = Literal[

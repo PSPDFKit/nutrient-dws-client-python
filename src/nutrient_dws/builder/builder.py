@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Literal, TypeGuard, cast
+from typing import TYPE_CHECKING, Literal, TypeGuard, cast
 
 from nutrient_dws.builder.base_builder import BaseBuilder
 from nutrient_dws.builder.constant import ActionWithFileInput, BuildOutputs
@@ -21,7 +20,11 @@ from nutrient_dws.builder.staged_builders import (
     WorkflowWithPartsStage,
 )
 from nutrient_dws.errors import ValidationError
-from nutrient_dws.http import AnalyzeBuildRequestData, BuildRequestData, NutrientClientOptions
+from nutrient_dws.http import (
+    AnalyzeBuildRequestData,
+    BuildRequestData,
+    NutrientClientOptions,
+)
 from nutrient_dws.inputs import (
     FileInput,
     NormalizedFileData,
@@ -29,28 +32,32 @@ from nutrient_dws.inputs import (
     process_file_input,
     validate_file_input,
 )
-from nutrient_dws.types.build_actions import BuildAction
-from nutrient_dws.types.build_instruction import BuildInstructions
-from nutrient_dws.types.build_output import (
-    BuildOutput,
-    ImageOutputOptions,
-    JSONContentOutputOptions,
-    PDFAOutputOptions,
-    PDFOutput,
-    PDFOutputOptions,
-    PDFUAOutputOptions,
-)
 from nutrient_dws.types.file_handle import FileHandle, RemoteFileHandle
-from nutrient_dws.types.input_parts import (
-    DocumentPart,
-    DocumentPartOptions,
-    FilePart,
-    FilePartOptions,
-    HTMLPart,
-    HTMLPartOptions,
-    NewPagePart,
-    NewPagePartOptions,
-)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from nutrient_dws.types.build_actions import BuildAction
+    from nutrient_dws.types.build_instruction import BuildInstructions
+    from nutrient_dws.types.build_output import (
+        BuildOutput,
+        ImageOutputOptions,
+        JSONContentOutputOptions,
+        PDFAOutputOptions,
+        PDFOutput,
+        PDFOutputOptions,
+        PDFUAOutputOptions,
+    )
+    from nutrient_dws.types.input_parts import (
+        DocumentPart,
+        DocumentPartOptions,
+        FilePart,
+        FilePartOptions,
+        HTMLPart,
+        HTMLPartOptions,
+        NewPagePart,
+        NewPagePartOptions,
+    )
 
 
 class StagedWorkflowBuilder(
@@ -85,7 +92,9 @@ class StagedWorkflowBuilder(
             The asset key that can be used in BuildActions
         """
         if not validate_file_input(asset):
-            raise ValidationError("Invalid file input provided to workflow", {"asset": asset})
+            raise ValidationError(
+                "Invalid file input provided to workflow", {"asset": asset}
+            )
 
         if is_remote_file_input(asset):
             raise ValidationError(
@@ -256,7 +265,9 @@ class StagedWorkflowBuilder(
             assets_field = []
             for asset in assets:
                 if is_remote_file_input(asset):
-                    raise ValidationError("Assets file input cannot be a URL", {"input": asset})
+                    raise ValidationError(
+                        "Assets file input cannot be a URL", {"input": asset}
+                    )
                 asset_key = self._register_asset(asset)
                 assets_field.append(asset_key)
 
@@ -369,7 +380,9 @@ class StagedWorkflowBuilder(
 
     # Action methods (WorkflowWithPartsStage)
 
-    def apply_actions(self, actions: list[ApplicableAction]) -> WorkflowWithActionsStage:
+    def apply_actions(
+        self, actions: list[ApplicableAction]
+    ) -> WorkflowWithActionsStage:
         """Apply multiple actions to the workflow.
 
         Args:
@@ -503,13 +516,17 @@ class StagedWorkflowBuilder(
             # Step 1: Validate
             self.current_step = 1
             if options and options.get("onProgress"):
-                cast("Callable[[int, int], None]", options["onProgress"])(self.current_step, 3)
+                cast("Callable[[int, int], None]", options["onProgress"])(
+                    self.current_step, 3
+                )
             self._validate()
 
             # Step 2: Prepare files
             self.current_step = 2
             if options and options.get("onProgress"):
-                cast("Callable[[int, int], None]", options["onProgress"])(self.current_step, 3)
+                cast("Callable[[int, int], None]", options["onProgress"])(
+                    self.current_step, 3
+                )
 
             output_config = self.build_instructions.get("output")
             if not output_config:
@@ -526,7 +543,9 @@ class StagedWorkflowBuilder(
             # Step 3: Process response
             self.current_step = 3
             if options and options.get("onProgress"):
-                cast("Callable[[int, int], None]", options["onProgress"])(self.current_step, 3)
+                cast("Callable[[int, int], None]", options["onProgress"])(
+                    self.current_step, 3
+                )
 
             if output_config["type"] == "json-content":
                 result["success"] = True
@@ -554,7 +573,9 @@ class StagedWorkflowBuilder(
 
             workflow_error: WorkflowError = {
                 "step": self.current_step,
-                "error": error if isinstance(error, Exception) else Exception(str(error)),
+                "error": error
+                if isinstance(error, Exception)
+                else Exception(str(error)),
             }
             cast("list[WorkflowError]", result["errors"]).append(workflow_error)
 
@@ -582,7 +603,8 @@ class StagedWorkflowBuilder(
             self._validate()
 
             response = await self._send_request(
-                "/analyze_build", AnalyzeBuildRequestData(instructions=self.build_instructions)
+                "/analyze_build",
+                AnalyzeBuildRequestData(instructions=self.build_instructions),
             )
 
             result["success"] = True
@@ -594,7 +616,9 @@ class StagedWorkflowBuilder(
 
             workflow_error: WorkflowError = {
                 "step": 0,
-                "error": error if isinstance(error, Exception) else Exception(str(error)),
+                "error": error
+                if isinstance(error, Exception)
+                else Exception(str(error)),
             }
             cast("list[WorkflowError]", result["errors"]).append(workflow_error)
 
