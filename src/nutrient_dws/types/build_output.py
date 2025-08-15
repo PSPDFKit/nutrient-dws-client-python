@@ -1,14 +1,12 @@
-from typing import Literal, Optional, TypedDict, Union
+from typing import Literal, TypedDict, Union
 
 from typing_extensions import NotRequired
 
 from nutrient_dws.types.misc import OcrLanguage, PageRange
 
-Title = Optional[str]
-
 
 class Metadata(TypedDict):
-    title: NotRequired[Title | None]
+    title: NotRequired[str]
     author: NotRequired[str]
 
 
@@ -59,7 +57,9 @@ class PDFOutput(BasePDFOutput):
 
 class PDFAOutputOptions(PDFOutputOptions):
     conformance: NotRequired[
-        Literal["pdfa-1a", "pdfa-1b", "pdfa-2a", "pdfa-2u", "pdfa-2b", "pdfa-3a", "pdfa-3u"]
+        Literal[
+            "pdfa-1a", "pdfa-1b", "pdfa-2a", "pdfa-2u", "pdfa-2b", "pdfa-3a", "pdfa-3u"
+        ]
     ]
     vectorization: NotRequired[bool]
     rasterization: NotRequired[bool]

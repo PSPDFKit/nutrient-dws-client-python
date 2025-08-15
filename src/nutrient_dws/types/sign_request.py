@@ -4,7 +4,9 @@ from typing_extensions import NotRequired
 
 
 class Appearance(TypedDict):
-    mode: NotRequired[Literal["signatureOnly", "signatureAndDescription", "descriptionOnly"]]
+    mode: NotRequired[
+        Literal["signatureOnly", "signatureAndDescription", "descriptionOnly"]
+    ]
     contentType: NotRequired[str]
     showWatermark: NotRequired[bool]
     showSignDate: NotRequired[bool]

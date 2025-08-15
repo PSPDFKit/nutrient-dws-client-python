@@ -256,8 +256,10 @@ def prepare_request_body(
                 files, "graphicImage", config["data"]["graphicImage"]
             )
 
+        request_config["files"] = files
+
         data = {}
-        if "data" in config["data"]:
+        if "data" in config["data"] and config["data"]["data"] is not None:
             data["data"] = json.dumps(config["data"]["data"])
         else:
             data["data"] = json.dumps(
@@ -267,25 +269,22 @@ def prepare_request_body(
                 }
             )
 
-        request_config["files"] = files
         request_config["data"] = data
 
         return request_config
 
     if is_post_ai_redact_request_config(config):
-        typed_config = config
-
-        if "file" in typed_config["data"] and "fileKey" in typed_config["data"]:
+        if "file" in config["data"] and "fileKey" in config["data"]:
             files = {}
             append_file_to_form_data(
-                files, typed_config["data"]["fileKey"], typed_config["data"]["file"]
+                files, config["data"]["fileKey"], config["data"]["file"]
             )
 
             request_config["files"] = files
-            request_config["data"] = {"data": json.dumps(typed_config["data"]["data"])}
+            request_config["data"] = {"data": json.dumps(config["data"]["data"])}
         else:
             # JSON only request
-            request_config["json"] = typed_config["data"]["data"]
+            request_config["json"] = config["data"]["data"]
 
         return request_config
 

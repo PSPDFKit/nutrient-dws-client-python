@@ -15,7 +15,12 @@ from nutrient_dws.builder.staged_builders import (
     WorkflowWithPartsStage,
 )
 from nutrient_dws.errors import NutrientError, ValidationError
-from nutrient_dws.http import NutrientClientOptions, SignRequestOptions, send_request
+from nutrient_dws.http import (
+    NutrientClientOptions,
+    SignRequestData,
+    SignRequestOptions,
+    send_request,
+)
 from nutrient_dws.inputs import (
     FileInput,
     get_pdf_page_count,
@@ -362,7 +367,7 @@ class NutrientClient:
             {
                 "method": "POST",
                 "endpoint": "/sign",
-                "data": cast("Any", request_data),
+                "data": cast("SignRequestData", request_data),
                 "headers": None,
             },
             self.options,

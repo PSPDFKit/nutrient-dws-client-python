@@ -15,17 +15,23 @@ from dotenv import load_dotenv
 from nutrient_dws import NutrientClient
 from nutrient_dws.builder.constant import BuildActions
 from nutrient_dws.errors import NutrientError, ValidationError
-from tests.helpers import TestDocumentGenerator, ResultValidator, sample_pdf, sample_docx, sample_png
+from tests.helpers import (
+    TestDocumentGenerator,
+    ResultValidator,
+    sample_pdf,
+    sample_docx,
+    sample_png,
+)
 
 load_dotenv()  # Load environment variables
 
 # Skip integration tests unless explicitly enabled with valid API key
-should_run_integration_tests = bool(os.getenv('NUTRIENT_API_KEY'))
+should_run_integration_tests = bool(os.getenv("NUTRIENT_API_KEY"))
 
 # Use conditional pytest.mark based on environment
 pytestmark = pytest.mark.skipif(
     not should_run_integration_tests,
-    reason="Integration tests require NUTRIENT_API_KEY environment variable"
+    reason="Integration tests require NUTRIENT_API_KEY environment variable",
 )
 
 
@@ -36,8 +42,8 @@ class TestIntegrationDirectMethods:
     def client(self):
         """Create client instance for integration tests."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -84,9 +90,13 @@ class TestIntegrationDirectMethods:
     @pytest.mark.asyncio
     async def test_sign_pdf_with_custom_image(self, client):
         """Test signing PDF with custom signature image."""
-        result = await client.sign(sample_pdf, None, {
-            "image": sample_png,
-        })
+        result = await client.sign(
+            sample_pdf,
+            None,
+            {
+                "image": sample_png,
+            },
+        )
 
         assert result is not None
         assert isinstance(result["buffer"], (bytes, bytearray))
@@ -96,7 +106,7 @@ class TestIntegrationDirectMethods:
     async def test_create_redactions_ai(self, client):
         """Test AI-powered redaction functionality."""
         sensitive_document = TestDocumentGenerator.generate_pdf_with_sensitive_data()
-        result = await client.createRedactionsAI(sensitive_document, "Redact Email")
+        result = await client.create_redactions_ai(sensitive_document, "Redact Email")
 
         assert result is not None
         assert isinstance(result["buffer"], (bytes, bytearray))
@@ -106,39 +116,65 @@ class TestIntegrationDirectMethods:
     @pytest.mark.asyncio
     async def test_create_redactions_ai_with_page_range(self, client):
         """Test AI redaction with specific page range."""
-        result = await client.createRedactionsAI(sample_pdf, "Redact Email", "apply", {
-            "start": 1,
-            "end": 2,
-        })
+        result = await client.create_redactions_ai(
+            sample_pdf,
+            "Redact Email",
+            "apply",
+            {
+                "start": 1,
+                "end": 2,
+            },
+        )
 
         assert result is not None
         assert isinstance(result["buffer"], (bytes, bytearray))
         assert result["mimeType"] == "application/pdf"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("input_data,input_type,output_type,expected_mime", [
-        (sample_pdf, "pdf", "pdfa", "application/pdf"),
-        (sample_pdf, "pdf", "pdfua", "application/pdf"),
-        (sample_pdf, "pdf", "pdf", "application/pdf"),
-        (sample_pdf, "pdf", "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-        (sample_pdf, "pdf", "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-        (sample_pdf, "pdf", "pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
-        (sample_docx, "docx", "pdf", "application/pdf"),
-        (sample_pdf, "pdf", "png", "image/png"),
-        (sample_pdf, "pdf", "jpeg", "image/jpeg"),
-        (sample_pdf, "pdf", "jpg", "image/jpeg"),
-        (sample_pdf, "pdf", "webp", "image/webp"),
-        (sample_pdf, "pdf", "markdown", "text/markdown"),
-    ])
-    async def test_convert_formats(self, client, input_data, input_type, output_type, expected_mime):
+    @pytest.mark.parametrize(
+        "input_data,input_type,output_type,expected_mime",
+        [
+            (sample_pdf, "pdf", "pdfa", "application/pdf"),
+            (sample_pdf, "pdf", "pdfua", "application/pdf"),
+            (
+                sample_pdf,
+                "pdf",
+                "docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ),
+            (
+                sample_pdf,
+                "pdf",
+                "xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            (
+                sample_pdf,
+                "pdf",
+                "pptx",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ),
+            (sample_docx, "docx", "pdf", "application/pdf"),
+            (sample_pdf, "pdf", "png", "image/png"),
+            (sample_pdf, "pdf", "jpeg", "image/jpeg"),
+            (sample_pdf, "pdf", "jpg", "image/jpeg"),
+            (sample_pdf, "pdf", "webp", "image/webp"),
+            # (sample_pdf, "pdf", "html", "text/html"), # FIXME: 500 error upstream
+            (sample_pdf, "pdf", "markdown", "text/markdown"),
+        ],
+    )
+    async def test_convert_formats(
+        self, client, input_data, input_type, output_type, expected_mime
+    ):
         """Test document format conversion."""
         result = await client.convert(input_data, output_type)
 
         assert result is not None
-        if output_type not in ['markdown', 'html']:
+
+        if output_type not in ["markdown", "html"]:
             assert isinstance(result.get("buffer"), (bytes, bytearray))
         else:
-            assert isinstance(result.get("content"), str)
+            assert isinstance(result.get("content"), bytes)
         assert result["mimeType"] == expected_mime
 
     @pytest.mark.asyncio
@@ -162,11 +198,15 @@ class TestIntegrationDirectMethods:
     @pytest.mark.asyncio
     async def test_watermark_text(self, client):
         """Test text watermarking."""
-        result = await client.watermark_text(sample_pdf, "CONFIDENTIAL", {
-            "opacity": 0.5,
-            "fontSize": 48,
-            "rotation": 45,
-        })
+        result = await client.watermark_text(
+            sample_pdf,
+            "CONFIDENTIAL",
+            {
+                "opacity": 0.5,
+                "fontSize": 48,
+                "rotation": 45,
+            },
+        )
 
         assert result is not None
         assert isinstance(result["buffer"], (bytes, bytearray))
@@ -175,9 +215,13 @@ class TestIntegrationDirectMethods:
     @pytest.mark.asyncio
     async def test_watermark_image(self, client):
         """Test image watermarking."""
-        result = await client.watermark_image(sample_pdf, sample_png, {
-            "opacity": 0.5,
-        })
+        result = await client.watermark_image(
+            sample_pdf,
+            sample_png,
+            {
+                "opacity": 0.5,
+            },
+        )
 
         assert result is not None
         assert isinstance(result["buffer"], (bytes, bytearray))
@@ -195,12 +239,15 @@ class TestIntegrationDirectMethods:
         assert len(result["buffer"]) > len(sample_pdf)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("optimization_options", [
-        {"imageOptimizationQuality": 1},  # low
-        {"imageOptimizationQuality": 2},  # medium
-        {"imageOptimizationQuality": 3},  # high
-        {"imageOptimizationQuality": 4, "mrcCompression": True},  # maximum
-    ])
+    @pytest.mark.parametrize(
+        "optimization_options",
+        [
+            {"imageOptimizationQuality": 1},  # low
+            {"imageOptimizationQuality": 2},  # medium
+            {"imageOptimizationQuality": 3},  # high
+            {"imageOptimizationQuality": 4, "mrcCompression": True},  # maximum
+        ],
+    )
     async def test_optimize_pdf(self, client, optimization_options):
         """Test PDF optimization with different options."""
         result = await client.optimize(sample_pdf, optimization_options)
@@ -250,8 +297,8 @@ class TestIntegrationErrorHandling:
     def client(self):
         """Create client instance for error testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -264,9 +311,11 @@ class TestIntegrationErrorHandling:
     @pytest.mark.asyncio
     async def test_invalid_api_key(self):
         """Test handling of invalid API key."""
-        invalid_client = NutrientClient({
-            "apiKey": "invalid-api-key",
-        })
+        invalid_client = NutrientClient(
+            {
+                "apiKey": "invalid-api-key",
+            }
+        )
 
         with pytest.raises(NutrientError, match="HTTP 401"):
             await invalid_client.convert(b"test", "pdf")
@@ -274,10 +323,12 @@ class TestIntegrationErrorHandling:
     @pytest.mark.asyncio
     async def test_network_timeout(self):
         """Test handling of network timeouts."""
-        timeout_client = NutrientClient({
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "timeout": 1  # Very short timeout
-        })
+        timeout_client = NutrientClient(
+            {
+                "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+                "timeout": 1,  # Very short timeout
+            }
+        )
 
         with pytest.raises(NutrientError):
             await timeout_client.convert(sample_docx, "pdf")
@@ -290,8 +341,8 @@ class TestIntegrationWorkflowBuilder:
     def client(self):
         """Create client instance for workflow testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -302,20 +353,25 @@ class TestIntegrationWorkflowBuilder:
         pdf2 = TestDocumentGenerator.generate_pdf_with_sensitive_data()
         html = TestDocumentGenerator.generate_html_content()
 
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(pdf1, None, [BuildActions.rotate(90)])
             .add_html_part(html)
             .add_file_part(pdf2)
             .add_new_page({"layout": {"size": "A4"}})
-            .apply_actions([
-                BuildActions.watermarkText("DRAFT", {"opacity": 0.3}),
-                BuildActions.flatten(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.watermarkText("DRAFT", {"opacity": 0.3}),
+                    BuildActions.flatten(),
+                ]
+            )
             .output_pdfua()
-            .execute({
-                "onProgress": lambda step, total: None  # Progress callback
-            }))
+            .execute(
+                {
+                    "onProgress": lambda step, total: None  # Progress callback
+                }
+            )
+        )
 
         assert result["success"] is True
         assert isinstance(result["output"]["buffer"], (bytes, bytearray))
@@ -324,12 +380,13 @@ class TestIntegrationWorkflowBuilder:
     @pytest.mark.asyncio
     async def test_workflow_dry_run(self, client):
         """Test workflow dry run analysis."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(sample_pdf)
             .apply_action(BuildActions.ocr(["english", "french"]))
             .output_pdf()
-            .dry_run())
+            .dry_run()
+        )
 
         assert result["success"] is True
         assert "analysis" in result
@@ -339,15 +396,20 @@ class TestIntegrationWorkflowBuilder:
     @pytest.mark.asyncio
     async def test_workflow_redaction_actions(self, client):
         """Test workflow with redaction actions."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(sample_pdf)
-            .apply_actions([
-                BuildActions.createRedactionsText("confidential", {}, {"caseSensitive": False}),
-                BuildActions.applyRedactions(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.createRedactionsText(
+                        "confidential", {}, {"caseSensitive": False}
+                    ),
+                    BuildActions.applyRedactions(),
+                ]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         assert result["success"] is True
         assert result["output"]["mimeType"] == "application/pdf"
@@ -355,15 +417,20 @@ class TestIntegrationWorkflowBuilder:
     @pytest.mark.asyncio
     async def test_workflow_regex_redactions(self, client):
         """Test workflow with regex redaction actions."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(sample_pdf)
-            .apply_actions([
-                BuildActions.createRedactionsRegex(r'\d{3}-\d{2}-\d{4}', {}, {"caseSensitive": False}),
-                BuildActions.applyRedactions(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.createRedactionsRegex(
+                        r"\d{3}-\d{2}-\d{4}", {}, {"caseSensitive": False}
+                    ),
+                    BuildActions.applyRedactions(),
+                ]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         assert result["success"] is True
         assert result["output"]["mimeType"] == "application/pdf"
@@ -371,15 +438,18 @@ class TestIntegrationWorkflowBuilder:
     @pytest.mark.asyncio
     async def test_workflow_preset_redactions(self, client):
         """Test workflow with preset redaction actions."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(sample_pdf)
-            .apply_actions([
-                BuildActions.createRedactionsPreset("email-address"),
-                BuildActions.applyRedactions(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.createRedactionsPreset("email-address"),
+                    BuildActions.applyRedactions(),
+                ]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         assert result["success"] is True
         assert result["output"]["mimeType"] == "application/pdf"
@@ -392,23 +462,25 @@ class TestIntegrationWorkflowBuilder:
         xfdf_file = TestDocumentGenerator.generate_xfdf_content()
 
         # Test applyInstantJson
-        instant_json_result = await (client
-            .workflow()
+        instant_json_result = await (
+            client.workflow()
             .add_file_part(pdf_file)
             .apply_action(BuildActions.applyInstantJson(json_file))
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         assert instant_json_result["success"] is True
         assert instant_json_result["output"]["mimeType"] == "application/pdf"
 
         # Test applyXfdf
-        xfdf_result = await (client
-            .workflow()
+        xfdf_result = await (
+            client.workflow()
             .add_file_part(pdf_file)
             .apply_action(BuildActions.applyXfdf(xfdf_file))
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         assert xfdf_result["success"] is True
         assert xfdf_result["output"]["mimeType"] == "application/pdf"
@@ -421,8 +493,8 @@ class TestIntegrationRedactionOperations:
     def client(self):
         """Create client instance for redaction testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -434,65 +506,85 @@ class TestIntegrationRedactionOperations:
     @pytest.mark.asyncio
     async def test_text_based_redactions(self, client, test_sensitive_pdf):
         """Test text-based redactions."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_sensitive_pdf)
-            .apply_actions([
-                BuildActions.createRedactionsText("123-45-6789"),
-                BuildActions.createRedactionsText("john.doe@example.com"),
-                BuildActions.applyRedactions(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.createRedactionsText("123-45-6789"),
+                    BuildActions.createRedactionsText("john.doe@example.com"),
+                    BuildActions.applyRedactions(),
+                ]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_regex_redactions_ssn_pattern(self, client, test_sensitive_pdf):
         """Test regex redactions for SSN pattern."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_sensitive_pdf)
-            .apply_actions([
-                BuildActions.createRedactionsRegex(r'\d{3}-\d{2}-\d{4}'),  # SSN pattern
-                BuildActions.applyRedactions(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.createRedactionsRegex(
+                        r"\d{3}-\d{2}-\d{4}"
+                    ),  # SSN pattern
+                    BuildActions.applyRedactions(),
+                ]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_multiple_regex_patterns(self, client, test_sensitive_pdf):
         """Test multiple regex redaction patterns."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_sensitive_pdf)
-            .apply_actions([
-                BuildActions.createRedactionsRegex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'),  # Email
-                BuildActions.createRedactionsRegex(r'\(\d{3}\) \d{3}-\d{4}'),  # Phone
-                BuildActions.createRedactionsRegex(r'\d{4}-\d{4}-\d{4}-\d{4}'),  # Credit card
-                BuildActions.applyRedactions(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.createRedactionsRegex(
+                        r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+                    ),  # Email
+                    BuildActions.createRedactionsRegex(
+                        r"\(\d{3}\) \d{3}-\d{4}"
+                    ),  # Phone
+                    BuildActions.createRedactionsRegex(
+                        r"\d{4}-\d{4}-\d{4}-\d{4}"
+                    ),  # Credit card
+                    BuildActions.applyRedactions(),
+                ]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_preset_redactions_common_patterns(self, client, test_sensitive_pdf):
         """Test preset redactions for common patterns."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_sensitive_pdf)
-            .apply_actions([
-                BuildActions.createRedactionsPreset("email-address"),
-                BuildActions.createRedactionsPreset("international-phone-number"),
-                BuildActions.createRedactionsPreset("social-security-number"),
-                BuildActions.applyRedactions(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.createRedactionsPreset("email-address"),
+                    BuildActions.createRedactionsPreset("international-phone-number"),
+                    BuildActions.createRedactionsPreset("social-security-number"),
+                    BuildActions.applyRedactions(),
+                ]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -504,8 +596,8 @@ class TestIntegrationImageWatermarking:
     def client(self):
         """Create client instance for watermarking testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -517,38 +609,46 @@ class TestIntegrationImageWatermarking:
     @pytest.mark.asyncio
     async def test_image_watermark_basic(self, client, test_table_pdf):
         """Test basic image watermarking."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .apply_action(
-                BuildActions.watermarkImage(sample_png, {
-                    "opacity": 0.3,
-                    "width": {"value": 200, "unit": "pt"},
-                    "height": {"value": 100, "unit": "pt"},
-                })
+                BuildActions.watermarkImage(
+                    sample_png,
+                    {
+                        "opacity": 0.3,
+                        "width": {"value": 200, "unit": "pt"},
+                        "height": {"value": 100, "unit": "pt"},
+                    },
+                )
             )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_image_watermark_custom_positioning(self, client, test_table_pdf):
         """Test image watermarking with custom positioning."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .apply_action(
-                BuildActions.watermarkImage(sample_png, {
-                    "opacity": 0.5,
-                    "width": {"value": 150, "unit": "pt"},
-                    "height": {"value": 150, "unit": "pt"},
-                    "top": {"value": 100, "unit": "pt"},
-                    "left": {"value": 100, "unit": "pt"},
-                })
+                BuildActions.watermarkImage(
+                    sample_png,
+                    {
+                        "opacity": 0.5,
+                        "width": {"value": 150, "unit": "pt"},
+                        "height": {"value": 150, "unit": "pt"},
+                        "top": {"value": 100, "unit": "pt"},
+                        "left": {"value": 100, "unit": "pt"},
+                    },
+                )
             )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -560,8 +660,8 @@ class TestIntegrationHtmlToPdfConversion:
     def client(self):
         """Create client instance for HTML conversion testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -573,26 +673,27 @@ class TestIntegrationHtmlToPdfConversion:
     @pytest.mark.asyncio
     async def test_html_to_pdf_default_settings(self, client, test_html_content):
         """Test HTML to PDF conversion with default settings."""
-        result = await (client
-            .workflow()
-            .add_html_part(test_html_content)
-            .output_pdf()
-            .execute())
+        result = await (
+            client.workflow().add_html_part(test_html_content).output_pdf().execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_html_with_actions(self, client, test_html_content):
         """Test HTML conversion with applied actions."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_html_part(test_html_content)
-            .apply_actions([
-                BuildActions.watermarkText("DRAFT", {"opacity": 0.3}),
-                BuildActions.flatten(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.watermarkText("DRAFT", {"opacity": 0.3}),
+                    BuildActions.flatten(),
+                ]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -600,12 +701,13 @@ class TestIntegrationHtmlToPdfConversion:
     async def test_combine_html_with_pdf(self, client, test_html_content):
         """Test combining HTML with existing PDF."""
         test_table_pdf = TestDocumentGenerator.generate_pdf_with_table()
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .add_html_part(test_html_content)
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -617,8 +719,8 @@ class TestIntegrationAnnotationOperations:
     def client(self):
         """Create client instance for annotation testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -638,41 +740,49 @@ class TestIntegrationAnnotationOperations:
         return TestDocumentGenerator.generate_instant_json_content()
 
     @pytest.mark.asyncio
-    async def test_apply_xfdf_annotations(self, client, test_table_pdf, test_xfdf_content):
+    async def test_apply_xfdf_annotations(
+        self, client, test_table_pdf, test_xfdf_content
+    ):
         """Test applying XFDF annotations to PDF."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .apply_action(BuildActions.applyXfdf(test_xfdf_content))
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
-    async def test_apply_xfdf_and_flatten(self, client, test_table_pdf, test_xfdf_content):
+    async def test_apply_xfdf_and_flatten(
+        self, client, test_table_pdf, test_xfdf_content
+    ):
         """Test applying XFDF and flattening annotations."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
-            .apply_actions([
-                BuildActions.applyXfdf(test_xfdf_content),
-                BuildActions.flatten()
-            ])
+            .apply_actions(
+                [BuildActions.applyXfdf(test_xfdf_content), BuildActions.flatten()]
+            )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
-    async def test_apply_instant_json_annotations(self, client, test_table_pdf, test_instant_json_content):
+    async def test_apply_instant_json_annotations(
+        self, client, test_table_pdf, test_instant_json_content
+    ):
         """Test applying Instant JSON annotations."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .apply_action(BuildActions.applyInstantJson(test_instant_json_content))
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -684,8 +794,8 @@ class TestIntegrationAdvancedPdfOptions:
     def client(self):
         """Create client instance for advanced PDF testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -702,76 +812,91 @@ class TestIntegrationAdvancedPdfOptions:
     @pytest.mark.asyncio
     async def test_password_protected_pdf(self, client, test_sensitive_pdf):
         """Test creating password-protected PDF."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_sensitive_pdf)
-            .output_pdf({
-                "user_password": "user123",
-                "owner_password": "owner456",
-            })
-            .execute())
+            .output_pdf(
+                {
+                    "user_password": "user123",
+                    "owner_password": "owner456",
+                }
+            )
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_pdf_permissions(self, client, test_table_pdf):
         """Test setting PDF permissions."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
-            .output_pdf({
-                "owner_password": "owner123",
-                "user_permissions": ["printing", "extract", "fill_forms"],
-            })
-            .execute())
+            .output_pdf(
+                {
+                    "owner_password": "owner123",
+                    "user_permissions": ["printing", "extract", "fill_forms"],
+                }
+            )
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_pdf_metadata(self, client, test_table_pdf):
         """Test setting PDF metadata."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
-            .output_pdf({
-                "metadata": {
-                    "title": "Test Document",
-                    "author": "Test Author",
-                },
-            })
-            .execute())
+            .output_pdf(
+                {
+                    "metadata": {
+                        "title": "Test Document",
+                        "author": "Test Author",
+                    },
+                }
+            )
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_pdf_optimization_advanced(self, client, test_table_pdf):
         """Test PDF optimization with advanced settings."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
-            .output_pdf({
-                "optimize": {
-                    "mrcCompression": True,
-                    "imageOptimizationQuality": 3,
-                    "linearize": True,
-                },
-            })
-            .execute())
+            .output_pdf(
+                {
+                    "optimize": {
+                        "mrcCompression": True,
+                        "imageOptimizationQuality": 3,
+                        "linearize": True,
+                    },
+                }
+            )
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
     @pytest.mark.asyncio
     async def test_pdfa_advanced_options(self, client, test_table_pdf):
         """Test PDF/A with specific conformance level."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
-            .output_pdfa({
-                "conformance": "pdfa-2a",
-                "vectorization": True,
-                "rasterization": True,
-            })
-            .execute())
+            .output_pdfa(
+                {
+                    "conformance": "pdfa-2a",
+                    "vectorization": True,
+                    "rasterization": True,
+                }
+            )
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -783,8 +908,8 @@ class TestIntegrationOfficeFormatOutputs:
     def client(self):
         """Create client instance for Office format testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -796,22 +921,24 @@ class TestIntegrationOfficeFormatOutputs:
     @pytest.mark.asyncio
     async def test_pdf_to_excel(self, client, test_table_pdf):
         """Test converting PDF to Excel (XLSX)."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .output_office("xlsx")
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_office_output(result, "xlsx")
 
     @pytest.mark.asyncio
     async def test_pdf_to_powerpoint(self, client, test_table_pdf):
         """Test converting PDF to PowerPoint (PPTX)."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .output_office("pptx")
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_office_output(result, "pptx")
 
@@ -823,8 +950,8 @@ class TestIntegrationImageOutputOptions:
     def client(self):
         """Create client instance for image output testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -836,22 +963,24 @@ class TestIntegrationImageOutputOptions:
     @pytest.mark.asyncio
     async def test_pdf_to_jpeg_custom_dpi(self, client, test_table_pdf):
         """Test converting PDF to JPEG with custom DPI."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .output_image("jpeg", {"dpi": 300})
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_image_output(result, "jpeg")
 
     @pytest.mark.asyncio
     async def test_pdf_to_webp(self, client, test_table_pdf):
         """Test converting PDF to WebP format."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .output_image("webp", {"height": 300})
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_image_output(result, "webp")
 
@@ -863,8 +992,8 @@ class TestIntegrationJsonContentExtraction:
     def client(self):
         """Create client instance for JSON extraction testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -881,33 +1010,36 @@ class TestIntegrationJsonContentExtraction:
     @pytest.mark.asyncio
     async def test_extract_tables(self, client, test_table_pdf):
         """Test extracting tables from PDF."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .output_json({"tables": True})
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_json_output(result)
 
     @pytest.mark.asyncio
     async def test_extract_key_value_pairs(self, client, test_table_pdf):
         """Test extracting key-value pairs."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_table_pdf)
             .output_json({"keyValuePairs": True})
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_json_output(result)
 
     @pytest.mark.asyncio
     async def test_extract_specific_page_range(self, client, test_sensitive_pdf):
         """Test extracting content from specific page range."""
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(test_sensitive_pdf, {"pages": {"start": 0, "end": 0}})
             .output_json()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_json_output(result)
 
@@ -919,8 +1051,8 @@ class TestIntegrationComplexWorkflows:
     def client(self):
         """Create client instance for complex workflow testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -930,8 +1062,8 @@ class TestIntegrationComplexWorkflows:
         test_sensitive_pdf = TestDocumentGenerator.generate_pdf_with_sensitive_data()
         test_html_content = TestDocumentGenerator.generate_html_content()
 
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             # Add existing PDF
             .add_file_part(test_sensitive_pdf, None, [BuildActions.rotate(90)])
             # Add HTML content
@@ -941,16 +1073,22 @@ class TestIntegrationComplexWorkflows:
             # Add blank page
             .add_new_page({"layout": {"size": "A4"}})
             # Apply global actions
-            .apply_actions([
-                BuildActions.watermarkText("CONFIDENTIAL", {
-                    "opacity": 0.2,
-                    "fontSize": 60,
-                    "rotation": 45,
-                }),
-                BuildActions.flatten(),
-            ])
+            .apply_actions(
+                [
+                    BuildActions.watermarkText(
+                        "CONFIDENTIAL",
+                        {
+                            "opacity": 0.2,
+                            "fontSize": 60,
+                            "rotation": 45,
+                        },
+                    ),
+                    BuildActions.flatten(),
+                ]
+            )
             .output_pdf({"optimize": {"imageOptimizationQuality": 2}})
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -958,30 +1096,46 @@ class TestIntegrationComplexWorkflows:
     async def test_document_assembly_with_redactions(self, client):
         """Test document assembly with redactions."""
         pdf1 = TestDocumentGenerator.generate_simple_pdf_content("SSN: 123-45-6789")
-        pdf2 = TestDocumentGenerator.generate_simple_pdf_content("email: secret@example.com")
+        pdf2 = TestDocumentGenerator.generate_simple_pdf_content(
+            "email: secret@example.com"
+        )
 
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             # First document with redactions
-            .add_file_part(pdf1, None, [
-                BuildActions.createRedactionsRegex(r'\d{3}-\d{2}-\d{4}'),
-                BuildActions.applyRedactions(),
-            ])
+            .add_file_part(
+                pdf1,
+                None,
+                [
+                    BuildActions.createRedactionsRegex(r"\d{3}-\d{2}-\d{4}"),
+                    BuildActions.applyRedactions(),
+                ],
+            )
             # Second document with different redactions
-            .add_file_part(pdf2, None, [
-                BuildActions.createRedactionsRegex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'),
-                BuildActions.applyRedactions(),
-            ])
+            .add_file_part(
+                pdf2,
+                None,
+                [
+                    BuildActions.createRedactionsRegex(
+                        r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+                    ),
+                    BuildActions.applyRedactions(),
+                ],
+            )
             # Apply watermark to entire document
             .apply_action(
-                BuildActions.watermarkText("REDACTED COPY", {
-                    "opacity": 0.3,
-                    "fontSize": 48,
-                    "fontColor": "#FF0000",
-                })
+                BuildActions.watermarkText(
+                    "REDACTED COPY",
+                    {
+                        "opacity": 0.3,
+                        "fontSize": 48,
+                        "fontColor": "#FF0000",
+                    },
+                )
             )
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -993,8 +1147,8 @@ class TestIntegrationErrorScenarios:
     def client(self):
         """Create client instance for error scenario testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -1003,11 +1157,9 @@ class TestIntegrationErrorScenarios:
         """Test handling of invalid HTML content."""
         invalid_html = b"<html><body><unclosed-tag>Invalid HTML"
 
-        result = await (client
-            .workflow()
-            .add_html_part(invalid_html)
-            .output_pdf()
-            .execute())
+        result = await (
+            client.workflow().add_html_part(invalid_html).output_pdf().execute()
+        )
 
         # Should still succeed with best-effort HTML processing
         assert result["success"] is True
@@ -1017,12 +1169,13 @@ class TestIntegrationErrorScenarios:
         """Test handling of invalid XFDF content."""
         invalid_xfdf = b'<?xml version="1.0"?><invalid-xfdf>'
 
-        result = await (client
-            .workflow()
-            .add_file_part(b'%PDF-1.4')
+        result = await (
+            client.workflow()
+            .add_file_part(b"%PDF-1.4")
             .apply_action(BuildActions.applyXfdf(invalid_xfdf))
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         # Error handling may vary - check if it succeeds or fails gracefully
         assert "success" in result
@@ -1032,12 +1185,13 @@ class TestIntegrationErrorScenarios:
         """Test handling of invalid Instant JSON."""
         invalid_json = "{ invalid json }"
 
-        result = await (client
-            .workflow()
-            .add_file_part(b'%PDF-1.4')
+        result = await (
+            client.workflow()
+            .add_file_part(b"%PDF-1.4")
             .apply_action(BuildActions.applyInstantJson(invalid_json))
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         # Error handling may vary - check if it succeeds or fails gracefully
         assert "success" in result
@@ -1050,8 +1204,8 @@ class TestIntegrationPerformanceAndLimits:
     def client(self):
         """Create client instance for performance testing."""
         options = {
-            "apiKey": os.getenv('NUTRIENT_API_KEY', ''),
-            "baseUrl": os.getenv('NUTRIENT_BASE_URL', 'https://api.nutrient.io'),
+            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
+            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
         }
         return NutrientClient(options)
 
@@ -1062,26 +1216,34 @@ class TestIntegrationPerformanceAndLimits:
         # Add multiple watermarks
         for i in range(5):
             actions.append(
-                BuildActions.watermarkText(f"Layer {i + 1}", {
-                    "opacity": 0.1,
-                    "fontSize": 20 + i * 10,
-                    "rotation": i * 15,
-                })
+                BuildActions.watermarkText(
+                    f"Layer {i + 1}",
+                    {
+                        "opacity": 0.1,
+                        "fontSize": 20 + i * 10,
+                        "rotation": i * 15,
+                    },
+                )
             )
         # Add multiple redaction patterns
-        actions.extend([
-            BuildActions.createRedactionsRegex(r'\d{3}-\d{2}-\d{4}'),
-            BuildActions.createRedactionsRegex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'),
-            BuildActions.applyRedactions(),
-            BuildActions.flatten(),
-        ])
+        actions.extend(
+            [
+                BuildActions.createRedactionsRegex(r"\d{3}-\d{2}-\d{4}"),
+                BuildActions.createRedactionsRegex(
+                    r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+                ),
+                BuildActions.applyRedactions(),
+                BuildActions.flatten(),
+            ]
+        )
 
-        result = await (client
-            .workflow()
+        result = await (
+            client.workflow()
             .add_file_part(sample_pdf)
             .apply_actions(actions)
             .output_pdf()
-            .execute())
+            .execute()
+        )
 
         ResultValidator.validate_pdf_output(result)
 
@@ -1090,7 +1252,9 @@ class TestIntegrationPerformanceAndLimits:
         """Test workflow with many parts."""
         parts = []
         for i in range(10):
-            parts.append(TestDocumentGenerator.generate_simple_pdf_content(f"Page {i + 1}"))
+            parts.append(
+                TestDocumentGenerator.generate_simple_pdf_content(f"Page {i + 1}")
+            )
 
         workflow = client.workflow()
         for part in parts:

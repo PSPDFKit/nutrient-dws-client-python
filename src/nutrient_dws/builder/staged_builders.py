@@ -58,7 +58,7 @@ class BufferOutput(TypedDict):
 
 
 class ContentOutput(TypedDict):
-    content: str
+    content: bytes
     mimeType: str
     filename: str | None
 

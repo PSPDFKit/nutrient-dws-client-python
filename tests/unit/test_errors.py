@@ -201,7 +201,7 @@ class TestWrapMethod:
         assert wrapped_error.details == {
             "originalError": "Exception",
             "originalMessage": "Standard error",
-            "stack": None
+            "stack": None,
         }
 
     def test_wrap_standard_exception_instances_with_custom_message(self):

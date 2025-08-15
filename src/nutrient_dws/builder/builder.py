@@ -151,11 +151,7 @@ class StagedWorkflowBuilder(
         Returns:
             True if action needs file registration
         """
-        return (
-            hasattr(action, "__needsFileRegistration")
-            and hasattr(action, "fileInput")
-            and hasattr(action, "createAction")
-        )
+        return hasattr(action, "createAction")
 
     async def _prepare_files(self) -> dict[str, NormalizedFileData]:
         """Prepare files for the request concurrently.

@@ -1,15 +1,18 @@
 """Test utilities and helpers for Nutrient DWS Python Client tests."""
+
 from datetime import datetime, timezone
 import json
 from typing import Any, Optional, TypedDict, Literal, List
 from pathlib import Path
 
+
 class XfdfAnnotation(TypedDict):
-    type: Literal['highlight', 'text', 'square', 'circle']
+    type: Literal["highlight", "text", "square", "circle"]
     page: int
     rect: List[int]
     content: Optional[str]
     color: Optional[str]
+
 
 class TestDocumentGenerator:
     """Generate test documents and content for testing purposes."""
@@ -65,10 +68,17 @@ Widget C | 60 | 70 | 80 | 90"""
         return TestDocumentGenerator.generate_simple_pdf_content(content)
 
     @staticmethod
-    def generate_html_content(title: str = "Test Document", include_styles: bool = True, include_table: bool = False, include_images: bool = False, include_form: bool = False) -> bytes:
+    def generate_html_content(
+        title: str = "Test Document",
+        include_styles: bool = True,
+        include_table: bool = False,
+        include_images: bool = False,
+        include_form: bool = False,
+    ) -> bytes:
         """Generate HTML content for testing."""
 
-        styles = """<style>
+        styles = (
+            """<style>
 body {
     font-family: Arial, sans-serif;
     margin: 40px;
@@ -110,8 +120,12 @@ input, select, textarea {
     border: 1px solid #ddd;
     border-radius: 4px;
 }
-</style>""" if include_styles else ""
-        tables = """<h2>Data Table</h2>
+</style>"""
+            if include_styles
+            else ""
+        )
+        tables = (
+            """<h2>Data Table</h2>
 <table>
     <thead>
         <tr>
@@ -141,13 +155,21 @@ input, select, textarea {
             <td>$40.00</td>
         </tr>
     </tbody>
-</table>""" if include_table else ""
-        images = """<h2>Images</h2>
+</table>"""
+            if include_table
+            else ""
+        )
+        images = (
+            """<h2>Images</h2>
 <p>Below is a placeholder for image content:</p>
 <div style="width: 200px; height: 200px; background-color: #e0e0e0; display: flex; align-items: center; justify-content: center; margin: 20px 0;">
     <span style="color: #666;">Image Placeholder</span>
-</div>""" if include_images else ""
-        form = """<h2>Form Example</h2>
+</div>"""
+            if include_images
+            else ""
+        )
+        form = (
+            """<h2>Form Example</h2>
 <form>
     <div class="form-group">
         <label for="name">Name:</label>
@@ -161,7 +183,10 @@ input, select, textarea {
         <label for="message">Message:</label>
         <textarea id="message" name="message" rows="4" placeholder="Enter your message"></textarea>
     </div>
-</form>""" if include_form else ""
+</form>"""
+            if include_form
+            else ""
+        )
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -180,17 +205,19 @@ input, select, textarea {
         return html.encode("utf-8")
 
     @staticmethod
-    def generate_xfdf_content(annotations: Optional[list[XfdfAnnotation]] = None) -> bytes:
+    def generate_xfdf_content(
+        annotations: Optional[list[XfdfAnnotation]] = None,
+    ) -> bytes:
         """Generate XFDF annotation content."""
 
         if annotations is None:
             annotations = [
                 {
-                    "type": 'highlight',
+                    "type": "highlight",
                     "page": 0,
                     "rect": [100, 100, 200, 150],
-                    "color": '#FFFF00',
-                    "content": 'Important text',
+                    "color": "#FFFF00",
+                    "content": "Important text",
                 },
             ]
 
@@ -201,11 +228,11 @@ input, select, textarea {
             color = annot["color"] or "#FFFF00"
             if annot["type"] == "highlight":
                 inner_xfdf = f"""<highlight page="${annot["page"]}" rect="${rectStr}" color="${color}">
-                            <contents>${annot.get("content", 'Highlighted text')}</contents>
+                            <contents>${annot.get("content", "Highlighted text")}</contents>
                         </highlight>"""
             elif annot["type"] == "text":
                 inner_xfdf = f"""<text page="${annot["page"]}" rect="${rectStr}" color="${color}">
-                            <contents>${annot.get("content", 'Note')}</contents>
+                            <contents>${annot.get("content", "Note")}</contents>
                         </text>"""
             elif annot["type"] == "square":
                 inner_xfdf = f"""<square page="{annot["page"]}" rect="{rectStr}" color="{color}" />"""
@@ -224,17 +251,19 @@ input, select, textarea {
     @staticmethod
     def generate_instant_json_content(annotations: Optional[list] = None) -> bytes:
         """Generate Instant JSON annotation content."""
-        annotations = annotations or [{
-        "v": 2,
-        "type": 'pspdfkit/text',
-        "pageIndex": 0,
-        "bbox": [100, 100, 200, 150],
-        "content": 'Test annotation',
-        "fontSize": 14,
-        "opacity": 1,
-        "horizontalAlign": 'left',
-        "verticalAlign": 'top',
-      }]
+        annotations = annotations or [
+            {
+                "v": 2,
+                "type": "pspdfkit/text",
+                "pageIndex": 0,
+                "bbox": [100, 100, 200, 150],
+                "content": "Test annotation",
+                "fontSize": 14,
+                "opacity": 1,
+                "horizontalAlign": "left",
+                "verticalAlign": "top",
+            }
+        ]
         instant_data = {
             "format": "https://pspdfkit.com/instant-json/v1",
             "annotations": [],
@@ -282,7 +311,7 @@ class ResultValidator:
 
     @staticmethod
     def validate_office_output(
-            result: Any, format: Literal["docx", "xlsx", "pptx"]
+        result: Any, format: Literal["docx", "xlsx", "pptx"]
     ) -> None:
         """Validates Office document output"""
         mime_types = {
@@ -291,7 +320,11 @@ class ResultValidator:
             "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         }
 
-        if not isinstance(result, dict) or not result.get("success") or "output" not in result:
+        if (
+            not isinstance(result, dict)
+            or not result.get("success")
+            or "output" not in result
+        ):
             raise ValueError("Result must be successful with output")
 
         output = result["output"]
@@ -307,7 +340,11 @@ class ResultValidator:
         result: Any, format: Literal["png", "jpeg", "jpg", "webp"] | None = None
     ) -> None:
         """Validates image output"""
-        if not isinstance(result, dict) or not result.get("success") or "output" not in result:
+        if (
+            not isinstance(result, dict)
+            or not result.get("success")
+            or "output" not in result
+        ):
             raise ValueError("Result must be successful with output")
 
         output = result["output"]
@@ -325,15 +362,23 @@ class ResultValidator:
             }
             valid_mimes = format_mime_types.get(format, [f"image/{format}"])
             if output.get("mimeType") not in valid_mimes:
-                raise ValueError(f"Expected format {format}, got {output.get('mimeType')}")
+                raise ValueError(
+                    f"Expected format {format}, got {output.get('mimeType')}"
+                )
         else:
-            if not isinstance(output.get("mimeType"), str) or not output["mimeType"].startswith("image/"):
+            if not isinstance(output.get("mimeType"), str) or not output[
+                "mimeType"
+            ].startswith("image/"):
                 raise ValueError("Expected image MIME type")
 
     @staticmethod
     def validate_json_output(result: Any) -> None:
         """Validates JSON extraction output"""
-        if not isinstance(result, dict) or not result.get("success") or "output" not in result:
+        if (
+            not isinstance(result, dict)
+            or not result.get("success")
+            or "output" not in result
+        ):
             raise ValueError("Result must be successful with output")
 
         output = result["output"]
@@ -343,7 +388,9 @@ class ResultValidator:
             raise ValueError("Output data must be an object")
 
     @staticmethod
-    def validate_error_response(result: Any, expected_error_type: str | None = None) -> None:
+    def validate_error_response(
+        result: Any, expected_error_type: str | None = None
+    ) -> None:
         """Validates error response"""
         if not isinstance(result, dict):
             raise ValueError("Result must be a dictionary")

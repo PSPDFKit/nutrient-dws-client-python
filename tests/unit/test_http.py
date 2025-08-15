@@ -6,7 +6,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 import httpx
 
-from nutrient_dws.errors import APIError, ValidationError, AuthenticationError, NetworkError
+from nutrient_dws.errors import (
+    APIError,
+    ValidationError,
+    AuthenticationError,
+    NetworkError,
+)
 from nutrient_dws.http import (
     send_request,
     RequestConfig,
@@ -35,21 +40,27 @@ class TestResolveApiKey:
         def empty_key_func():
             return ""
 
-        with pytest.raises(AuthenticationError, match="API key function must return a non-empty string"):
+        with pytest.raises(
+            AuthenticationError, match="API key function must return a non-empty string"
+        ):
             resolve_api_key(empty_key_func)
 
     def test_function_returns_none(self):
         def none_key_func():
             return None
 
-        with pytest.raises(AuthenticationError, match="API key function must return a non-empty string"):
+        with pytest.raises(
+            AuthenticationError, match="API key function must return a non-empty string"
+        ):
             resolve_api_key(none_key_func)
 
     def test_function_throws_error(self):
         def error_key_func():
             raise Exception("Token fetch failed")
 
-        with pytest.raises(AuthenticationError, match="Failed to resolve API key from function"):
+        with pytest.raises(
+            AuthenticationError, match="Failed to resolve API key from function"
+        ):
             resolve_api_key(error_key_func)
 
 
@@ -110,7 +121,9 @@ class TestCreateHttpError:
         assert error.status_code == 400
 
     def test_create_api_error_500(self):
-        error = create_http_error(500, "Internal Server Error", {"message": "Server error"})
+        error = create_http_error(
+            500, "Internal Server Error", {"message": "Server error"}
+        )
         assert isinstance(error, APIError)
         assert error.message == "Server error"
         assert error.status_code == 500
@@ -125,7 +138,7 @@ class TestSendRequest:
         self.mock_client_options: NutrientClientOptions = {
             "apiKey": "test-api-key",
             "baseUrl": "https://api.test.com/v1",
-            "timeout": None
+            "timeout": None,
         }
 
     @pytest.mark.asyncio
@@ -139,13 +152,15 @@ class TestSendRequest:
             mock_response.headers = {"content-type": "application/json"}
             mock_response.json.return_value = mock_response_data
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
-                "headers": None
+                "headers": None,
             }
 
             result = await send_request(config, self.mock_client_options)
@@ -170,7 +185,7 @@ class TestSendRequest:
         async_options: NutrientClientOptions = {
             "apiKey": api_key_func,
             "baseUrl": None,
-            "timeout": None
+            "timeout": None,
         }
 
         with patch("httpx.AsyncClient") as mock_client:
@@ -180,13 +195,15 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {"result": "success"}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
-                "headers": None
+                "headers": None,
             }
 
             await send_request(config, async_options)
@@ -204,17 +221,19 @@ class TestSendRequest:
         async_options: NutrientClientOptions = {
             "apiKey": empty_key_func,
             "baseUrl": None,
-            "timeout": None
+            "timeout": None,
         }
 
         config: RequestConfig[None] = {
             "endpoint": "/account/info",
             "method": "GET",
             "data": None,
-            "headers": None
+            "headers": None,
         }
 
-        with pytest.raises(AuthenticationError, match="API key function must return a non-empty string"):
+        with pytest.raises(
+            AuthenticationError, match="API key function must return a non-empty string"
+        ):
             await send_request(config, async_options)
 
     @pytest.mark.asyncio
@@ -225,17 +244,19 @@ class TestSendRequest:
         async_options: NutrientClientOptions = {
             "apiKey": error_key_func,
             "baseUrl": None,
-            "timeout": None
+            "timeout": None,
         }
 
         config: RequestConfig[None] = {
             "endpoint": "/account/info",
             "method": "GET",
             "data": None,
-            "headers": None
+            "headers": None,
         }
 
-        with pytest.raises(AuthenticationError, match="Failed to resolve API key from function"):
+        with pytest.raises(
+            AuthenticationError, match="Failed to resolve API key from function"
+        ):
             await send_request(config, async_options)
 
     @pytest.mark.asyncio
@@ -247,16 +268,16 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {"id": 123}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             # Use analyze_build endpoint for JSON-only requests
             config: RequestConfig = {
                 "endpoint": "/analyze_build",
                 "method": "POST",
-                "data": {
-                    "instructions": {"parts": [{"file": "test.pdf"}]}
-                },
-                "headers": None
+                "data": {"instructions": {"parts": [{"file": "test.pdf"}]}},
+                "headers": None,
             }
 
             await send_request(config, self.mock_client_options)
@@ -273,7 +294,9 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {"uploaded": True}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             file_data: NormalizedFileData = (b"\x01\x02\x03\x04", "file.bin")
             files_map: dict[str, NormalizedFileData] = {"document": file_data}
@@ -282,15 +305,15 @@ class TestSendRequest:
                 "files": files_map,
                 "instructions": {
                     "parts": [{"file": "document"}],
-                    "output": {"type": "pdf"}
-                }
+                    "output": {"type": "pdf"},
+                },
             }
 
             config: RequestConfig[BuildRequestData] = {
                 "endpoint": "/build",
                 "method": "POST",
                 "data": build_data,
-                "headers": None
+                "headers": None,
             }
 
             await send_request(config, self.mock_client_options)
@@ -320,13 +343,15 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {"error": "Invalid API key"}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
-                "headers": None
+                "headers": None,
             }
 
             with pytest.raises(AuthenticationError) as exc_info:
@@ -346,16 +371,16 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {"message": "Invalid parameters"}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             # Use analyze_build endpoint for JSON-only requests
             config: RequestConfig = {
                 "endpoint": "/analyze_build",
                 "method": "POST",
-                "data": {
-                    "instructions": {}
-                },
-                "headers": None
+                "data": {"instructions": {}},
+                "headers": None,
             }
 
             with pytest.raises(ValidationError) as exc_info:
@@ -370,15 +395,19 @@ class TestSendRequest:
     async def test_handle_network_errors(self):
         with patch("httpx.AsyncClient") as mock_client:
             network_error = httpx.RequestError("Network Error")
-            network_error.request = httpx.Request("GET", "https://api.test.com/v1/account/info")
+            network_error.request = httpx.Request(
+                "GET", "https://api.test.com/v1/account/info"
+            )
 
-            mock_client.return_value.__aenter__.return_value.request.side_effect = network_error
+            mock_client.return_value.__aenter__.return_value.request.side_effect = (
+                network_error
+            )
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
-                "headers": None
+                "headers": None,
             }
 
             with pytest.raises(NetworkError) as exc_info:
@@ -392,9 +421,13 @@ class TestSendRequest:
     async def test_not_leak_api_key_in_network_error_details(self):
         with patch("httpx.AsyncClient") as mock_client:
             network_error = httpx.RequestError("Network Error")
-            network_error.request = httpx.Request("GET", "https://api.test.com/v1/account/info")
+            network_error.request = httpx.Request(
+                "GET", "https://api.test.com/v1/account/info"
+            )
 
-            mock_client.return_value.__aenter__.return_value.request.side_effect = network_error
+            mock_client.return_value.__aenter__.return_value.request.side_effect = (
+                network_error
+            )
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
@@ -403,8 +436,8 @@ class TestSendRequest:
                 "headers": {
                     "Authorization": "Bearer secret-api-key-that-should-not-leak",
                     "Content-Type": "application/json",
-                    "X-Custom-Header": "custom-value"
-                }
+                    "X-Custom-Header": "custom-value",
+                },
             }
 
             with pytest.raises(NetworkError) as exc_info:
@@ -433,13 +466,15 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
-                "headers": None
+                "headers": None,
             }
 
             custom_options = {**self.mock_client_options, "timeout": 60}
@@ -457,13 +492,15 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
-                "headers": None
+                "headers": None,
             }
 
             await send_request(config, self.mock_client_options)
@@ -480,27 +517,29 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {"success": True}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             files_map: dict[str, NormalizedFileData] = {
                 "file1": (b"\x01\x02\x03", "file1.bin"),
                 "file2": (b"\x04\x05\x06", "file2.bin"),
-                "file3": (b"\x07\x08\x09", "file3.bin")
+                "file3": (b"\x07\x08\x09", "file3.bin"),
             }
 
             build_data: BuildRequestData = {
                 "files": files_map,
                 "instructions": {
                     "parts": [{"file": "file1"}, {"file": "file2"}, {"file": "file3"}],
-                    "output": {"type": "pdf"}
-                }
+                    "output": {"type": "pdf"},
+                },
             }
 
             config: RequestConfig[BuildRequestData] = {
                 "endpoint": "/build",
                 "method": "POST",
                 "data": build_data,
-                "headers": None
+                "headers": None,
             }
 
             await send_request(config, self.mock_client_options)
@@ -529,16 +568,16 @@ class TestSendRequest:
             mock_response.json.side_effect = json.JSONDecodeError("Not JSON", "", 0)
             mock_response.content = binary_data
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             # Use analyze_build endpoint for JSON-only requests
             config: RequestConfig = {
                 "endpoint": "/analyze_build",
                 "method": "POST",
-                "data": {
-                    "instructions": {"parts": [{"file": "test.pdf"}]}
-                },
-                "headers": None
+                "data": {"instructions": {"parts": [{"file": "test.pdf"}]}},
+                "headers": None,
             }
 
             result = await send_request(config, self.mock_client_options)
@@ -555,19 +594,21 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             options_with_trailing_slash: NutrientClientOptions = {
                 "apiKey": "test-key",
                 "baseUrl": "https://api.nutrient.io/",
-                "timeout": None
+                "timeout": None,
             }
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
-                "headers": None
+                "headers": None,
             }
 
             await send_request(config, options_with_trailing_slash)
@@ -584,19 +625,21 @@ class TestSendRequest:
             mock_response.headers = {}
             mock_response.json.return_value = {}
 
-            mock_client.return_value.__aenter__.return_value.request.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.request.return_value = (
+                mock_response
+            )
 
             options_without_base_url: NutrientClientOptions = {
                 "apiKey": "test-key",
                 "baseUrl": None,
-                "timeout": None
+                "timeout": None,
             }
 
             config: RequestConfig[None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
-                "headers": None
+                "headers": None,
             }
 
             await send_request(config, options_without_base_url)

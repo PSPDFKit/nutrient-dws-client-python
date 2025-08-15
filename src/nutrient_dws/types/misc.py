@@ -28,7 +28,8 @@ class Margin(TypedDict):
 class PageLayout(TypedDict):
     orientation: NotRequired[Literal["portrait", "landscape"]]
     size: NotRequired[
-        Literal["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "Letter", "Legal"] | Size
+        Literal["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "Letter", "Legal"]
+        | Size
     ]
     margin: NotRequired[Margin]
 
@@ -247,7 +248,9 @@ MeasurementScale = TypedDict(
     "MeasurementScale",
     {
         "unitFrom": NotRequired[Literal["in", "mm", "cm", "pt"]],
-        "unitTo": NotRequired[Literal["in", "mm", "cm", "pt", "ft", "m", "yd", "km", "mi"]],
+        "unitTo": NotRequired[
+            Literal["in", "mm", "cm", "pt", "ft", "m", "yd", "km", "mi"]
+        ],
         "from": NotRequired[float],
         "to": NotRequired[float],
     },

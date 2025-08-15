@@ -11,14 +11,14 @@ from nutrient_dws.inputs import (
     process_file_input,
     process_remote_file_input,
     validate_file_input,
-    FileInput
+    FileInput,
 )
 from tests.helpers import sample_pdf, TestDocumentGenerator
 
 
 def create_test_bytes(content: str = "test content") -> bytes:
     """Create test bytes data."""
-    return content.encode('utf-8')
+    return content.encode("utf-8")
 
 
 class TestValidateFileInput:
@@ -31,8 +31,10 @@ class TestValidateFileInput:
         assert validate_file_input(test_bytes) is True
 
     def test_validate_path_objects(self):
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.is_file", return_value=True):
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.is_file", return_value=True),
+        ):
             assert validate_file_input(Path("test.pdf")) is True
 
     def test_validate_file_like_objects(self):
@@ -60,9 +62,10 @@ class TestProcessFileInputFilePath:
     async def test_process_file_path_string(self):
         mock_file_data = b"test file content"
 
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("aiofiles.open") as mock_aiofiles_open:
-
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("aiofiles.open") as mock_aiofiles_open,
+        ):
             mock_file = AsyncMock()
             mock_file.read = AsyncMock(return_value=mock_file_data)
             mock_context_manager = AsyncMock()
@@ -80,9 +83,10 @@ class TestProcessFileInputFilePath:
         mock_file_data = b"test file content"
         test_path = Path("/path/to/test.pdf")
 
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("aiofiles.open") as mock_aiofiles_open:
-
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("aiofiles.open") as mock_aiofiles_open,
+        ):
             mock_file = AsyncMock()
             mock_file.read = AsyncMock(return_value=mock_file_data)
             mock_context_manager = AsyncMock()
@@ -103,9 +107,10 @@ class TestProcessFileInputFilePath:
 
     @pytest.mark.asyncio
     async def test_throw_error_for_other_errors(self):
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("aiofiles.open", side_effect=OSError("Some other error")):
-
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("aiofiles.open", side_effect=OSError("Some other error")),
+        ):
             with pytest.raises(OSError):
                 await process_file_input("/path/to/test.pdf")
 
@@ -134,15 +139,18 @@ class TestProcessFileInputFileObjects:
 
 
 class TestIsRemoteFileInput:
-    @pytest.mark.parametrize("input_data,expected", [
-        ("https://example.com/test.pdf", True),
-        ("http://example.com/test.pdf", True),
-        ("ftp://example.com/test.pdf", True),
-        ("test.pdf", False),
-        ("/path/to/test.pdf", False),
-        (b"test", False),
-        (Path("test.pdf"), False),
-    ])
+    @pytest.mark.parametrize(
+        "input_data,expected",
+        [
+            ("https://example.com/test.pdf", True),
+            ("http://example.com/test.pdf", True),
+            ("ftp://example.com/test.pdf", True),
+            ("test.pdf", False),
+            ("/path/to/test.pdf", False),
+            (b"test", False),
+            (Path("test.pdf"), False),
+        ],
+    )
     def test_remote_file_detection(self, input_data, expected):
         assert is_remote_file_input(input_data) is expected
 
@@ -172,7 +180,9 @@ class TestProcessRemoteFileInput:
             mock_response.content = mock_response_data
             mock_response.headers = {}
             mock_response.raise_for_status = Mock(return_value=None)
-            mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = await process_remote_file_input("https://example.com/test.pdf")
 
@@ -186,9 +196,13 @@ class TestProcessRemoteFileInput:
         with patch("httpx.AsyncClient") as mock_client:
             mock_response = AsyncMock()
             mock_response.content = mock_response_data
-            mock_response.headers = {"content-disposition": 'attachment; filename="document.pdf"'}
+            mock_response.headers = {
+                "content-disposition": 'attachment; filename="document.pdf"'
+            }
             mock_response.raise_for_status = Mock(return_value=None)
-            mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = await process_remote_file_input("https://example.com/test.pdf")
 
@@ -200,7 +214,9 @@ class TestProcessRemoteFileInput:
         with patch("httpx.AsyncClient") as mock_client:
             mock_response = AsyncMock()
             mock_response.raise_for_status = Mock(side_effect=Exception("HTTP 404"))
-            mock_client.return_value.__aenter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__aenter__.return_value.get.return_value = (
+                mock_response
+            )
 
             with pytest.raises(Exception):
                 await process_remote_file_input("https://example.com/test.pdf")
@@ -235,7 +251,9 @@ class TestGetPdfPageCount:
             get_pdf_page_count(invalid_pdf)
 
     def test_throw_for_missing_pages_object(self):
-        invalid_pdf = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n%%EOF"
+        invalid_pdf = (
+            b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n%%EOF"
+        )
 
         with pytest.raises(ValueError, match="Could not find root /Pages object"):
             get_pdf_page_count(invalid_pdf)
@@ -250,7 +268,9 @@ class TestGetPdfPageCount:
 class TestIsValidPdf:
     def test_return_true_for_valid_pdf_files(self):
         # Test with generated PDF
-        valid_pdf_bytes = TestDocumentGenerator.generate_simple_pdf_content("Test content")
+        valid_pdf_bytes = TestDocumentGenerator.generate_simple_pdf_content(
+            "Test content"
+        )
         result = is_valid_pdf(valid_pdf_bytes)
         assert result is True
 

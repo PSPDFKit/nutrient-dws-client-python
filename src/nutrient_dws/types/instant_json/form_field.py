@@ -49,7 +49,9 @@ class FormFieldAdditionalActionsInput(TypedDict):
     onFormat: NotRequired[Action]
 
 
-class AdditionalActions(FormFieldAdditionalActionsEvent, FormFieldAdditionalActionsInput):
+class AdditionalActions(
+    FormFieldAdditionalActionsEvent, FormFieldAdditionalActionsInput
+):
     pass
 
 
