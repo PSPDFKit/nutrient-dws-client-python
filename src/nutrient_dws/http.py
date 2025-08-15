@@ -2,10 +2,10 @@
 
 import json
 from collections.abc import Callable
-from typing import Any, Generic, Literal, TypedDict, TypeGuard, TypeVar
+from typing import Any, Generic, Literal, TypeGuard, TypeVar
 
 import httpx
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, TypedDict
 
 from nutrient_dws.builder.staged_builders import (
     BufferOutput,
