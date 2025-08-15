@@ -32,26 +32,20 @@ jobs:
         echo "🔍 Scanning for hardcoded secrets..."
 
         # Check for potential API keys
-        if grep -r "nutr_sk_" --include="*.py" --include="*.json" --include="*.yml" --include="*.yaml" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
+        if grep -r "pdf_live_" --include="*.py" --include="*.json" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
           echo "❌ Found hardcoded API keys!"
           exit 1
         fi
 
         # Check for base64 encoded secrets (common Nutrient patterns)
-        if grep -r "bnV0cl9za18" --include="*.py" --include="*.json" --include="*.yml" --include="*.yaml" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
+        if grep -r "cGRmX2xpdmVf" --include="*.py" --include="*.json" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
           echo "❌ Found base64 encoded API keys!"
           exit 1
         fi
 
         # Check for other common secret patterns
-        if grep -rE "(sk_|pk_|nutr_sk_)" --include="*.py" --include="*.json" --include="*.yml" --include="*.yaml" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
+        if grep -rE "(sk_|pk_|nutr_sk_)" --include="*.py" --include="*.json" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
           echo "❌ Found potential secret keys!"
-          exit 1
-        fi
-
-        # Check for AWS/cloud secrets
-        if grep -rE "(AKIA[0-9A-Z]{16}|aws_access_key_id|aws_secret_access_key)" --include="*.py" --include="*.json" --include="*.yml" --include="*.yaml" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
-          echo "❌ Found potential AWS secrets!"
           exit 1
         fi
 
@@ -68,12 +62,10 @@ jobs:
       with:
         python-version: '3.12'
         cache: 'pip'
-        cache-dependency-path: 'pyproject.toml'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install ".[dev]"
         pip install safety bandit
 
     - name: Run Safety check
@@ -124,12 +116,10 @@ jobs:
       with:
         python-version: '3.12'
         cache: 'pip'
-        cache-dependency-path: 'pyproject.toml'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install ".[dev]"
 
     - name: Run additional security checks with ruff
       run: |

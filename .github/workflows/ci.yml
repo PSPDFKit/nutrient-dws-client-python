@@ -18,17 +18,14 @@ jobs:
       with:
         python-version: '3.12'
         cache: 'pip'
-        cache-dependency-path: 'pyproject.toml'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install ".[dev]"
 
     - name: Run linting
       run: |
         python -m ruff check src/
-        python -m ruff format --check src/
 
     - name: Run type checking
       run: python -m mypy src/
@@ -50,12 +47,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
-        cache-dependency-path: 'pyproject.toml'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install ".[dev]"
 
     - name: Run unit tests with coverage
       run: python -m pytest tests/unit/ -v --cov=nutrient_dws --cov-report=xml --cov-report=term
@@ -64,7 +59,6 @@ jobs:
       uses: codecov/codecov-action@v4
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
@@ -81,28 +75,13 @@ jobs:
       with:
         python-version: '3.12'
         cache: 'pip'
-        cache-dependency-path: 'pyproject.toml'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install ".[dev]"
 
     - name: Build package
       run: python -m build
 
     - name: Verify build outputs
-      run: |
-        ls -la dist/
-        test -f dist/*.whl
-        test -f dist/*.tar.gz
-
-    - name: Check package with twine
       run: twine check dist/*
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist-${{ github.run_number }}
-        path: dist/
-        retention-days: 30

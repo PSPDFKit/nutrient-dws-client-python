@@ -202,7 +202,7 @@ python -m pytest --cov=nutrient_dws --cov-report=html
 python -m pytest tests/unit/
 
 # Run integration tests (requires API key)
-NUTRIENT_API_KEY=your_key python -m pytest tests/integration/
+NUTRIENT_API_KEY=your_key python -m pytest tests/integration.py
 ```
 
 The library maintains high test coverage across all API methods, including:

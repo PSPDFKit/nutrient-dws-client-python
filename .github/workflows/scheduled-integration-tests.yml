@@ -18,12 +18,10 @@ jobs:
       with:
         python-version: '3.12'
         cache: 'pip'
-        cache-dependency-path: 'pyproject.toml'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        pip install ".[dev]"
 
     - name: Run all integration tests
       if: secrets.NUTRIENT_API_KEY != ''
@@ -31,7 +29,7 @@ jobs:
         NUTRIENT_API_KEY: ${{ secrets.NUTRIENT_API_KEY }}
       run: |
         echo "Running scheduled integration tests to detect API changes..."
-        python -m pytest tests/integration/ -v --tb=short
+        python -m pytest tests/integration.py -v --tb=short
       timeout-minutes: 20
       continue-on-error: true
       id: test-run
@@ -45,7 +43,7 @@ jobs:
     - name: Generate detailed test report
       if: always()
       run: |
-        python -m pytest tests/integration/ -v --tb=short --junit-xml=scheduled-test-results.xml || true
+        python -m pytest tests/integration.py -v --tb=short --junit-xml=scheduled-test-results.xml || true
 
         # Create summary
         echo "## Integration Test Summary" > test-summary.md
