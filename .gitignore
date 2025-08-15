@@ -154,5 +154,5 @@ openapi_spec.yml
 .pixi
 .claude/settings.local.json
 
-# Environment file
-.env
+# Example output
+examples/output
