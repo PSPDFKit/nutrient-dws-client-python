@@ -12,7 +12,7 @@ Provide your API key directly:
 from nutrient_dws import NutrientClient
 
 client = NutrientClient({
-    'apiKey': 'nutr_sk_your_secret_key'
+    'apiKey': 'your_secret_key'
 })
 ```
 
