@@ -51,10 +51,10 @@ dev = [
     "pytest-cov>=4.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
-    "types-requests>=2.25.0",
+    "types-aiofiles>=24.1.0",
     "build>=1.2.2.post1,<2",
     "twine>=6.1.0,<7",
-    "datamodel-code-generator>=0.32.0"
+    "python-dotenv>=1.1.1"
 ]
 
 [project.urls]

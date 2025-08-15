@@ -1,72 +1,240 @@
 """Test utilities and helpers for Nutrient DWS Python Client tests."""
-
+from datetime import datetime, timezone
 import json
-import os
+from typing import Any, Optional, TypedDict, Literal, List
 from pathlib import Path
-from typing import Any, Optional
-from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
+class XfdfAnnotation(TypedDict):
+    type: Literal['highlight', 'text', 'square', 'circle']
+    page: int
+    rect: List[int]
+    content: Optional[str]
+    color: Optional[str]
 
 class TestDocumentGenerator:
     """Generate test documents and content for testing purposes."""
 
     @staticmethod
-    def generate_simple_pdf_content() -> bytes:
+    def generate_simple_pdf_content(content: str = "Test PDF Document") -> bytes:
         """Generate a simple PDF-like content for testing.
 
         Note: This is not a real PDF, just bytes that can be used for testing file handling.
         """
-        return b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n%%EOF"
+        pdf = f"""%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>>>>>>/Contents 4 0 R>>endobj
+4 0 obj<</Length {len(content) + 30}>>stream
+BT /F1 12 Tf 100 700 Td ({content}) Tj ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000262 00000 n
+trailer<</Size 5/Root 1 0 R>>
+startxref
+356
+%%EOF"""
+        return pdf.encode("utf-8")
 
     @staticmethod
     def generate_pdf_with_sensitive_data() -> bytes:
         """Generate PDF-like content with sensitive data patterns for redaction testing."""
-        content = b"%PDF-1.4\n"
-        content += b"Email: test@example.com\n"
-        content += b"SSN: 123-45-6789\n"
-        content += b"Credit Card: 4111-1111-1111-1111\n"
-        content += b"%%EOF"
-        return content
+        content = f"""Personal Information:
+Name: John Doe
+SSN: 123-45-6789
+Email: john.doe@example.com
+Phone: (555) 123-4567
+Credit Card: 4111-1111-1111-1111
+Medical Record: MR-2024-12345
+License: DL-ABC-123456"""
+        return TestDocumentGenerator.generate_simple_pdf_content(content)
 
     @staticmethod
-    def generate_html_content(options: Optional[dict[str, Any]] = None) -> bytes:
+    def generate_pdf_with_table() -> bytes:
+        """Generate PDF-like content with table data patterns"""
+        content = f"""Sales Report 2024
+Product | Q1 | Q2 | Q3 | Q4
+Widget A | 100 | 120 | 140 | 160
+Widget B | 80 | 90 | 100 | 110
+Widget C | 60 | 70 | 80 | 90"""
+        return TestDocumentGenerator.generate_simple_pdf_content(content)
+
+    @staticmethod
+    def generate_html_content(title: str = "Test Document", include_styles: bool = True, include_table: bool = False, include_images: bool = False, include_form: bool = False) -> bytes:
         """Generate HTML content for testing."""
-        options = options or {}
-        title = options.get("title", "Test Document")
-        body = options.get("body", "<p>This is test content.</p>")
+
+        styles = """<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    line-height: 1.6;
+}
+h1 {
+    color: #333;
+    border-bottom: 2px solid #333;
+    padding-bottom: 10px;
+}
+.highlight {
+    background-color: #ffeb3b;
+    padding: 2px 4px;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 20px 0;
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+th {
+    background-color: #f4f4f4;
+}
+.form-group {
+    margin-bottom: 15px;
+}
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+input, select, textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+</style>""" if include_styles else ""
+        tables = """<h2>Data Table</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Widget A</td>
+            <td>$10.00</td>
+            <td>5</td>
+            <td>$50.00</td>
+        </tr>
+        <tr>
+            <td>Widget B</td>
+            <td>$15.00</td>
+            <td>3</td>
+            <td>$45.00</td>
+        </tr>
+        <tr>
+            <td>Widget C</td>
+            <td>$20.00</td>
+            <td>2</td>
+            <td>$40.00</td>
+        </tr>
+    </tbody>
+</table>""" if include_table else ""
+        images = """<h2>Images</h2>
+<p>Below is a placeholder for image content:</p>
+<div style="width: 200px; height: 200px; background-color: #e0e0e0; display: flex; align-items: center; justify-content: center; margin: 20px 0;">
+    <span style="color: #666;">Image Placeholder</span>
+</div>""" if include_images else ""
+        form = """<h2>Form Example</h2>
+<form>
+    <div class="form-group">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" placeholder="Enter your name">
+    </div>
+    <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" placeholder="Enter your email">
+    </div>
+    <div class="form-group">
+        <label for="message">Message:</label>
+        <textarea id="message" name="message" rows="4" placeholder="Enter your message"></textarea>
+    </div>
+</form>""" if include_form else ""
 
         html = f"""<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>{title}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>{styles}
 </head>
 <body>
-    {body}
+    <h1>{title}</h1>
+    <p>This is a test document with <span class="highlight">highlighted text</span> for PDF conversion testing.</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+    {tables}{images}{form}
 </body>
 </html>"""
         return html.encode("utf-8")
 
     @staticmethod
-    def generate_xfdf_content(annotations: Optional[list] = None) -> bytes:
+    def generate_xfdf_content(annotations: Optional[list[XfdfAnnotation]] = None) -> bytes:
         """Generate XFDF annotation content."""
-        annotations = annotations or []
-        xfdf = '<?xml version="1.0" encoding="UTF-8"?>\n'
-        xfdf += '<xfdf xmlns="http://ns.adobe.com/xfdf/" xml:space="preserve">\n'
-        xfdf += "<annots>\n"
 
-        for i, annotation in enumerate(annotations):
-            xfdf += f'<text rect="100,100,200,150" contents="{annotation}" name="annotation_{i}"/>\n'
+        if annotations is None:
+            annotations = [
+                {
+                    "type": 'highlight',
+                    "page": 0,
+                    "rect": [100, 100, 200, 150],
+                    "color": '#FFFF00',
+                    "content": 'Important text',
+                },
+            ]
 
-        xfdf += "</annots>\n"
-        xfdf += "</xfdf>"
+        inner_xfdf = ""
+
+        for annot in annotations:
+            rectStr = ",".join([str(x) for x in annot["rect"]])
+            color = annot["color"] or "#FFFF00"
+            if annot["type"] == "highlight":
+                inner_xfdf = f"""<highlight page="${annot["page"]}" rect="${rectStr}" color="${color}">
+                            <contents>${annot.get("content", 'Highlighted text')}</contents>
+                        </highlight>"""
+            elif annot["type"] == "text":
+                inner_xfdf = f"""<text page="${annot["page"]}" rect="${rectStr}" color="${color}">
+                            <contents>${annot.get("content", 'Note')}</contents>
+                        </text>"""
+            elif annot["type"] == "square":
+                inner_xfdf = f"""<square page="{annot["page"]}" rect="{rectStr}" color="{color}" />"""
+            elif annot["type"] == "circle":
+                inner_xfdf = f"""<circle page="{annot["page"]}" rect="{rectStr}" color="{color}" />"""
+
+        xfdf = f"""<?xml version="1.0" encoding="UTF-8"?>
+<xfdf xmlns="http://ns.adobe.com/xfdf/" xml:space="preserve">
+    <annots>
+    {inner_xfdf}
+    </annots>
+</xfdf>"""
+
         return xfdf.encode("utf-8")
 
     @staticmethod
     def generate_instant_json_content(annotations: Optional[list] = None) -> bytes:
         """Generate Instant JSON annotation content."""
-        annotations = annotations or []
+        annotations = annotations or [{
+        "v": 2,
+        "type": 'pspdfkit/text',
+        "pageIndex": 0,
+        "bbox": [100, 100, 200, 150],
+        "content": 'Test annotation',
+        "fontSize": 14,
+        "opacity": 1,
+        "horizontalAlign": 'left',
+        "verticalAlign": 'top',
+      }]
         instant_data = {
             "format": "https://pspdfkit.com/instant-json/v1",
             "annotations": [],
@@ -75,11 +243,10 @@ class TestDocumentGenerator:
         for i, annotation in enumerate(annotations):
             instant_data["annotations"].append(
                 {
-                    "type": "pspdfkit/text",
+                    **annotation,
                     "id": f"annotation_{i}",
-                    "pageIndex": 0,
-                    "boundingBox": {"minX": 100, "minY": 100, "maxX": 200, "maxY": 150},
-                    "text": {"format": "plain", "value": annotation},
+                    "createdAt": datetime.now(timezone.utc).isoformat(),
+                    "updatedAt": datetime.now(timezone.utc).isoformat(),
                 }
             )
 
@@ -90,286 +257,120 @@ class ResultValidator:
     """Validate test results and outputs."""
 
     @staticmethod
-    def validate_buffer_output(
-        result: Any, expected_mime_type: str = "application/pdf"
+    def validate_pdf_output(result: Any) -> None:
+        """Validates that the result contains a valid PDF"""
+        if not isinstance(result, dict):
+            raise ValueError("Result must be a dictionary")
+
+        if "success" not in result:
+            raise ValueError("Result must have success property")
+        if not result.get("success") or "output" not in result:
+            raise ValueError("Result must be successful with output")
+
+        output = result["output"]
+        if not isinstance(output.get("buffer"), (bytes, bytearray)):
+            raise ValueError("Output buffer must be bytes or bytearray")
+        if output.get("mimeType") != "application/pdf":
+            raise ValueError("Output must be PDF")
+        if len(output["buffer"]) == 0:
+            raise ValueError("Output buffer cannot be empty")
+
+        # Check PDF header
+        header = output["buffer"][:5].decode(errors="ignore")
+        if not header.startswith("%PDF-"):
+            raise ValueError("Invalid PDF header")
+
+    @staticmethod
+    def validate_office_output(
+            result: Any, format: Literal["docx", "xlsx", "pptx"]
     ) -> None:
-        """Validate BufferOutput structure and content."""
-        assert isinstance(result, dict), f"Expected dict, got {type(result)}"
-        assert "buffer" in result, "Result missing 'buffer' key"
-        assert "mimeType" in result, "Result missing 'mimeType' key"
-        assert "filename" in result, "Result missing 'filename' key"
-
-        assert isinstance(result["buffer"], bytes), (
-            f"Expected bytes, got {type(result['buffer'])}"
-        )
-        assert result["mimeType"] == expected_mime_type, (
-            f"Expected {expected_mime_type}, got {result['mimeType']}"
-        )
-        assert isinstance(result["filename"], str), (
-            f"Expected str, got {type(result['filename'])}"
-        )
-        assert len(result["buffer"]) > 0, "Buffer is empty"
-
-    @staticmethod
-    def validate_content_output(
-        result: Any, expected_mime_type: str = "text/html"
-    ) -> None:
-        """Validate ContentOutput structure and content."""
-        assert isinstance(result, dict), f"Expected dict, got {type(result)}"
-        assert "content" in result, "Result missing 'content' key"
-        assert "mimeType" in result, "Result missing 'mimeType' key"
-        assert "filename" in result, "Result missing 'filename' key"
-
-        assert isinstance(result["content"], str), (
-            f"Expected str, got {type(result['content'])}"
-        )
-        assert result["mimeType"] == expected_mime_type, (
-            f"Expected {expected_mime_type}, got {result['mimeType']}"
-        )
-        assert isinstance(result["filename"], str), (
-            f"Expected str, got {type(result['filename'])}"
-        )
-        assert len(result["content"]) > 0, "Content is empty"
-
-    @staticmethod
-    def validate_json_content_output(result: Any) -> None:
-        """Validate JsonContentOutput structure and content."""
-        assert isinstance(result, dict), f"Expected dict, got {type(result)}"
-        assert "data" in result, "Result missing 'data' key"
-        assert "mimeType" in result, "Result missing 'mimeType' key"
-        assert "filename" in result, "Result missing 'filename' key"
-
-        assert result["mimeType"] == "application/json", (
-            f"Expected application/json, got {result['mimeType']}"
-        )
-        assert isinstance(result["filename"], str), (
-            f"Expected str, got {type(result['filename'])}"
-        )
-        assert result["data"] is not None, "Data is None"
-
-    @staticmethod
-    def validate_office_output(result: Any, format_type: str) -> None:
-        """Validate Office document outputs."""
-        expected_mime_types = {
+        """Validates Office document output"""
+        mime_types = {
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         }
-        expected_mime_type = expected_mime_types.get(format_type)
-        assert expected_mime_type, f"Unknown format type: {format_type}"
 
-        ResultValidator.validate_buffer_output(result, expected_mime_type)
+        if not isinstance(result, dict) or not result.get("success") or "output" not in result:
+            raise ValueError("Result must be successful with output")
 
-    @staticmethod
-    def validate_image_output(result: Any, format_type: Optional[str] = None) -> None:
-        """Validate image outputs."""
-        expected_mime_types = {
-            "png": "image/png",
-            "jpeg": "image/jpeg",
-            "jpg": "image/jpeg",
-            "webp": "image/webp",
-        }
-
-        if format_type:
-            expected_mime_type = expected_mime_types.get(format_type, "image/png")
-        else:
-            expected_mime_type = "image/png"  # Default
-
-        ResultValidator.validate_buffer_output(result, expected_mime_type)
+        output = result["output"]
+        if not isinstance(output.get("buffer"), (bytes, bytearray)):
+            raise ValueError("Output buffer must be bytes or bytearray")
+        if len(output["buffer"]) == 0:
+            raise ValueError("Output buffer cannot be empty")
+        if output.get("mimeType") != mime_types[format]:
+            raise ValueError(f"Expected {format} MIME type")
 
     @staticmethod
-    def validate_error_response(
-        error: Exception, expected_error_type: str, expected_code: Optional[str] = None
+    def validate_image_output(
+        result: Any, format: Literal["png", "jpeg", "jpg", "webp"] | None = None
     ) -> None:
-        """Validate error responses."""
-        from nutrient_dws.errors import (
-            APIError,
-            AuthenticationError,
-            NetworkError,
-            NutrientError,
-            ValidationError,
-        )
+        """Validates image output"""
+        if not isinstance(result, dict) or not result.get("success") or "output" not in result:
+            raise ValueError("Result must be successful with output")
 
-        error_types = {
-            "NutrientError": NutrientError,
-            "ValidationError": ValidationError,
-            "APIError": APIError,
-            "AuthenticationError": AuthenticationError,
-            "NetworkError": NetworkError,
-        }
+        output = result["output"]
+        if not isinstance(output.get("buffer"), (bytes, bytearray)):
+            raise ValueError("Output buffer must be bytes or bytearray")
+        if len(output["buffer"]) == 0:
+            raise ValueError("Output buffer cannot be empty")
 
-        expected_class = error_types.get(expected_error_type)
-        assert expected_class, f"Unknown error type: {expected_error_type}"
-        assert isinstance(error, expected_class), (
-            f"Expected {expected_class}, got {type(error)}"
-        )
-
-        if expected_code:
-            assert hasattr(error, "code"), "Error missing 'code' attribute"
-            assert error.code == expected_code, (
-                f"Expected code {expected_code}, got {error.code}"
-            )
-
-
-class MockFactory:
-    """Factory for creating various mock objects used in tests."""
-
-    @staticmethod
-    def create_mock_workflow_result(
-        success: bool = True,
-        output: Optional[dict[str, Any]] = None,
-        errors: Optional[list] = None,
-    ):
-        """Create a mock workflow result."""
-        if output is None:
-            output = {
-                "buffer": b"mock_pdf_content",
-                "mimeType": "application/pdf",
-                "filename": "output.pdf",
+        if format:
+            format_mime_types = {
+                "png": ["image/png"],
+                "jpg": ["image/jpeg"],
+                "jpeg": ["image/jpeg"],
+                "webp": ["image/webp"],
             }
-
-        return {
-            "success": success,
-            "output": output if success else None,
-            "errors": errors if not success else None,
-        }
-
-    @staticmethod
-    def create_mock_workflow_instance():
-        """Create a complete mock workflow instance."""
-        mock_workflow = MagicMock()
-
-        # Chain all the methods to return self for fluent interface
-        mock_workflow.add_file_part.return_value = mock_workflow
-        mock_workflow.add_html_part.return_value = mock_workflow
-        mock_workflow.add_new_page.return_value = mock_workflow
-        mock_workflow.add_document_part.return_value = mock_workflow
-        mock_workflow.apply_action.return_value = mock_workflow
-        mock_workflow.apply_actions.return_value = mock_workflow
-        mock_workflow.output_pdf.return_value = mock_workflow
-        mock_workflow.output_pdfa.return_value = mock_workflow
-        mock_workflow.output_pdfua.return_value = mock_workflow
-        mock_workflow.output_image.return_value = mock_workflow
-        mock_workflow.output_office.return_value = mock_workflow
-        mock_workflow.output_html.return_value = mock_workflow
-        mock_workflow.output_markdown.return_value = mock_workflow
-        mock_workflow.output_json.return_value = mock_workflow
-
-        # Set up the execute method to return a successful result
-        mock_workflow.execute = AsyncMock(
-            return_value=MockFactory.create_mock_workflow_result()
-        )
-        mock_workflow.dry_run = AsyncMock(
-            return_value={"valid": True, "estimatedTime": 1000}
-        )
-
-        return mock_workflow
-
-    @staticmethod
-    def create_mock_http_response(data: Any, status_code: int = 200):
-        """Create a mock HTTP response."""
-        return {"data": data, "status": status_code}
-
-
-class TestDataManager:
-    """Manage test data files and sample documents."""
-
-    @staticmethod
-    def get_test_data_dir() -> Path:
-        """Get the path to the test data directory."""
-        return Path(__file__).parent / "data"
-
-    @staticmethod
-    def get_sample_pdf() -> bytes:
-        """Get sample PDF content."""
-        data_dir = TestDataManager.get_test_data_dir()
-        pdf_path = data_dir / "sample.pdf"
-
-        if pdf_path.exists():
-            return pdf_path.read_bytes()
+            valid_mimes = format_mime_types.get(format, [f"image/{format}"])
+            if output.get("mimeType") not in valid_mimes:
+                raise ValueError(f"Expected format {format}, got {output.get('mimeType')}")
         else:
-            # Return generated content if file doesn't exist
-            return TestDocumentGenerator.generate_simple_pdf_content()
+            if not isinstance(output.get("mimeType"), str) or not output["mimeType"].startswith("image/"):
+                raise ValueError("Expected image MIME type")
 
     @staticmethod
-    def get_sample_docx() -> bytes:
-        """Get sample DOCX content."""
-        data_dir = TestDataManager.get_test_data_dir()
-        docx_path = data_dir / "sample.docx"
+    def validate_json_output(result: Any) -> None:
+        """Validates JSON extraction output"""
+        if not isinstance(result, dict) or not result.get("success") or "output" not in result:
+            raise ValueError("Result must be successful with output")
 
-        if docx_path.exists():
-            return docx_path.read_bytes()
-        else:
-            # Return minimal DOCX-like content
-            return b"PK\x03\x04mock_docx_content"
-
-    @staticmethod
-    def get_sample_png() -> bytes:
-        """Get sample PNG content."""
-        data_dir = TestDataManager.get_test_data_dir()
-        png_path = data_dir / "sample.png"
-
-        if png_path.exists():
-            return png_path.read_bytes()
-        else:
-            # Return minimal PNG-like content (PNG signature + minimal data)
-            return b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
-
-
-class ConfigHelper:
-    """Helper for test configuration and environment setup."""
+        output = result["output"]
+        if "data" not in output:
+            raise ValueError("Output must have data property")
+        if not isinstance(output["data"], dict):
+            raise ValueError("Output data must be an object")
 
     @staticmethod
-    def should_run_integration_tests() -> bool:
-        """Check if integration tests should run based on environment."""
-        api_key = os.getenv("NUTRIENT_API_KEY")
-        return bool(api_key and api_key != "fake_key" and len(api_key) > 10)
+    def validate_error_response(result: Any, expected_error_type: str | None = None) -> None:
+        """Validates error response"""
+        if not isinstance(result, dict):
+            raise ValueError("Result must be a dictionary")
 
-    @staticmethod
-    def get_test_api_key() -> Optional[str]:
-        """Get the API key for testing."""
-        return os.getenv("NUTRIENT_API_KEY")
+        if result.get("success"):
+            raise ValueError("Result should not be successful")
+        if not isinstance(result.get("errors"), list):
+            raise ValueError("Result must have errors array")
+        if len(result["errors"]) == 0:
+            raise ValueError("Errors array cannot be empty")
 
-    @staticmethod
-    def skip_integration_if_no_api_key():
-        """Pytest skip decorator for integration tests without API key."""
-        return pytest.mark.skipif(
-            not ConfigHelper.should_run_integration_tests(),
-            reason="NUTRIENT_API_KEY not available for integration tests",
-        )
+        if expected_error_type:
+            has_expected_error = any(
+                isinstance(e, dict)
+                and "error" in e
+                and (
+                    e["error"].get("name") == expected_error_type
+                    or e["error"].get("code") == expected_error_type
+                )
+                for e in result["errors"]
+            )
+            if not has_expected_error:
+                raise ValueError(f"Expected error type {expected_error_type} not found")
 
 
-# Convenient aliases and constants
-skip_integration_if_no_api_key = ConfigHelper.skip_integration_if_no_api_key()
+sample_pdf = Path(__file__).parent.joinpath("data", "sample.pdf").read_bytes()
 
-# Sample data constants
-SAMPLE_PDF = TestDataManager.get_sample_pdf()
-SAMPLE_DOCX = TestDataManager.get_sample_docx()
-SAMPLE_PNG = TestDataManager.get_sample_png()
+sample_docx = Path(__file__).parent.joinpath("data", "sample.docx").read_bytes()
 
-# Common test parameters for parametrized tests
-CONVERSION_TEST_CASES = [
-    pytest.param("pdf", "pdfa", "application/pdf", id="pdf_to_pdfa"),
-    pytest.param("pdf", "pdfua", "application/pdf", id="pdf_to_pdfua"),
-    pytest.param(
-        "pdf",
-        "docx",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        id="pdf_to_docx",
-    ),
-    pytest.param("pdf", "png", "image/png", id="pdf_to_png"),
-    pytest.param("pdf", "html", "text/html", id="pdf_to_html"),
-    pytest.param("pdf", "markdown", "text/markdown", id="pdf_to_markdown"),
-]
-
-FILE_INPUT_TEST_CASES = [
-    pytest.param("https://example.com/test.pdf", True, id="url_string"),
-    pytest.param("test.pdf", False, id="file_path_string"),
-    pytest.param(b"test content", False, id="bytes"),
-    pytest.param(SAMPLE_PDF, False, id="sample_pdf_bytes"),
-]
-
-# TypeScript compatibility aliases
-samplePDF = SAMPLE_PDF
-samplePNG = SAMPLE_PNG
-sampleDOCX = SAMPLE_DOCX
+sample_png = Path(__file__).parent.joinpath("data", "sample.png").read_bytes()

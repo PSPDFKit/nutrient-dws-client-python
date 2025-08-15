@@ -9,7 +9,9 @@ from nutrient_dws.types.build_actions import (
     ApplyXfdfActionOptions,
     BaseCreateRedactionsOptions,
     BuildAction,
-    CreateRedactionsAction,
+    CreateRedactionsActionPreset,
+    CreateRedactionsActionRegex,
+    CreateRedactionsActionText,
     CreateRedactionsStrategyOptionsPreset,
     CreateRedactionsStrategyOptionsRegex,
     CreateRedactionsStrategyOptionsText,
@@ -257,7 +259,7 @@ class BuildActions:
         text: str,
         options: BaseCreateRedactionsOptions | None = None,
         strategyOptions: CreateRedactionsStrategyOptionsText | None = None,
-    ) -> CreateRedactionsAction:
+    ) -> CreateRedactionsActionText:
         """Create redactions with text search.
 
         Args:
@@ -282,14 +284,14 @@ class BuildActions:
             },
             **(options or {}),
         }
-        return cast("CreateRedactionsAction", result)
+        return cast("CreateRedactionsActionText", result)
 
     @staticmethod
     def createRedactionsRegex(
         regex: str,
         options: BaseCreateRedactionsOptions | None = None,
         strategyOptions: CreateRedactionsStrategyOptionsRegex | None = None,
-    ) -> CreateRedactionsAction:
+    ) -> CreateRedactionsActionRegex:
         """Create redactions with regex pattern.
 
         Args:
@@ -314,14 +316,14 @@ class BuildActions:
             },
             **(options or {}),
         }
-        return cast("CreateRedactionsAction", result)
+        return cast("CreateRedactionsActionRegex", result)
 
     @staticmethod
     def createRedactionsPreset(
         preset: SearchPreset,
         options: BaseCreateRedactionsOptions | None = None,
         strategyOptions: CreateRedactionsStrategyOptionsPreset | None = None,
-    ) -> CreateRedactionsAction:
+    ) -> CreateRedactionsActionPreset:
         """Create redactions with preset pattern.
 
         Args:
@@ -345,7 +347,7 @@ class BuildActions:
             },
             **(options or {}),
         }
-        return cast("CreateRedactionsAction", result)
+        return cast("CreateRedactionsActionPreset", result)
 
     @staticmethod
     def applyRedactions() -> ApplyRedactionsAction:

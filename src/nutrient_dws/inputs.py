@@ -171,14 +171,10 @@ def validate_file_input(file_input: FileInput) -> bool:
     Returns:
         True if the file input is valid
     """
-    if isinstance(file_input, bytes):
+    if isinstance(file_input, (bytes, str)):
         return True
-    elif isinstance(file_input, (str, Path)):
-        # Check if it's a URL or a file path
-        if is_remote_file_input(file_input):
-            return True
-        path = Path(file_input)
-        return path.exists() and path.is_file()
+    elif isinstance(file_input, Path):
+        return file_input.exists() and file_input.is_file()
     elif hasattr(file_input, "read"):
         return True
     return False

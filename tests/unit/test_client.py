@@ -1,161 +1,853 @@
-"""Simple working tests that cover core functionality."""
+"""Tests for NutrientClient functionality."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
 
 import pytest
 
 from nutrient_dws import NutrientClient
 from nutrient_dws.builder.constant import BuildActions, BuildOutputs
-from nutrient_dws.errors import ValidationError
+from nutrient_dws.errors import ValidationError, NutrientError
 
 
-class TestBasicFunctionality:
-    """Test basic functionality that should work."""
+@pytest.fixture
+def mock_workflow_instance():
+    """Create a mock workflow instance for testing."""
+    mock_output_stage = AsyncMock()
+    mock_output_stage.execute.return_value = {
+        "success": True,
+        "output": {"buffer": b"test-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+    }
+    mock_output_stage.dry_run.return_value = {"success": True}
 
-    def test_client_creation(self):
-        """Test client can be created."""
+    mock_workflow = AsyncMock()
+    mock_workflow.add_file_part.return_value = mock_workflow
+    mock_workflow.add_html_part.return_value = mock_workflow
+    mock_workflow.add_new_page.return_value = mock_workflow
+    mock_workflow.add_document_part.return_value = mock_workflow
+    mock_workflow.apply_actions.return_value = mock_workflow
+    mock_workflow.apply_action.return_value = mock_workflow
+    mock_workflow.output_pdf.return_value = mock_output_stage
+    mock_workflow.output_pdfa.return_value = mock_output_stage
+    mock_workflow.output_pdfua.return_value = mock_output_stage
+    mock_workflow.output_image.return_value = mock_output_stage
+    mock_workflow.output_office.return_value = mock_output_stage
+    mock_workflow.output_html.return_value = mock_output_stage
+    mock_workflow.output_markdown.return_value = mock_output_stage
+    mock_workflow.output_json.return_value = mock_output_stage
+
+    return mock_workflow
+
+
+@pytest.fixture
+def valid_options():
+    """Valid client options for testing."""
+    return {
+        "apiKey": "test-api-key",
+        "baseUrl": "https://api.test.com/v1"
+    }
+
+
+class TestNutrientClientConstructor:
+    """Tests for NutrientClient constructor."""
+
+    def test_create_client_with_valid_options(self, valid_options):
+        client = NutrientClient(valid_options)
+        assert client is not None
+        assert client.options == valid_options
+
+    def test_create_client_with_minimal_options(self):
         client = NutrientClient({"apiKey": "test-key"})
         assert client is not None
+        assert client.options["apiKey"] == "test-key"
 
-    def test_client_validation(self):
-        """Test client validates options."""
-        with pytest.raises(ValidationError):
+    def test_create_client_with_async_api_key_function(self):
+        async def get_api_key():
+            return "async-key"
+
+        client = NutrientClient({"apiKey": get_api_key})
+        assert client is not None
+        assert callable(client.options["apiKey"])
+
+    def test_throw_validation_error_for_missing_options(self):
+        with pytest.raises(ValidationError, match="Client options are required"):
             NutrientClient(None)
 
-        with pytest.raises(ValidationError):
+    def test_throw_validation_error_for_missing_api_key(self):
+        with pytest.raises(ValidationError, match="Client options are required"):
             NutrientClient({})
 
-    def test_workflow_builder_creation(self):
-        """Test workflow builder can be created."""
-        client = NutrientClient({"apiKey": "test-key"})
+    def test_throw_validation_error_for_invalid_api_key_type(self):
+        with pytest.raises(ValidationError, match="API key must be a string or a function that returns a string"):
+            NutrientClient({"apiKey": 123})
+
+    def test_throw_validation_error_for_invalid_base_url_type(self):
+        with pytest.raises(ValidationError, match="Base URL must be a string"):
+            NutrientClient({
+                "apiKey": "test-key",
+                "baseUrl": 123
+            })
+
+
+class TestNutrientClientWorkflow:
+    """Tests for NutrientClient workflow method."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    def test_create_workflow_instance(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+        mock_workflow_instance = MagicMock()
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
         workflow = client.workflow()
-        assert workflow is not None
 
-    def test_build_actions_ocr(self):
-        """Test OCR action creation."""
-        action = BuildActions.ocr("english")
-        assert action["type"] == "ocr"
-        assert action["language"] == "english"
+        mock_staged_workflow_builder.assert_called_once_with(valid_options)
+        assert workflow == mock_workflow_instance
 
-    def test_build_actions_watermark(self):
-        """Test watermark action creation."""
-        action = BuildActions.watermarkText("CONFIDENTIAL", {"opacity": 0.5})
-        assert action["type"] == "watermark"
-        assert action["text"] == "CONFIDENTIAL"
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    def test_pass_client_options_to_workflow(self, mock_staged_workflow_builder):
+        custom_options = {"apiKey": "custom-key", "baseUrl": "https://custom.api.com"}
+        client = NutrientClient(custom_options)
 
-    def test_build_actions_flatten(self):
-        """Test flatten action creation."""
-        action = BuildActions.flatten()
-        assert action["type"] == "flatten"
+        client.workflow()
 
-    def test_build_actions_rotate(self):
-        """Test rotate action creation."""
-        action = BuildActions.rotate(90)
-        assert action["type"] == "rotate"
-        assert action["rotateBy"] == 90
+        mock_staged_workflow_builder.assert_called_once_with(custom_options)
 
-    def test_build_outputs_pdf(self):
-        """Test PDF output creation."""
-        output = BuildOutputs.pdf()
-        assert output["type"] == "pdf"
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    def test_workflow_with_timeout_override(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+        override_timeout = 5000
 
-    def test_build_outputs_image(self):
-        """Test image output creation."""
-        output = BuildOutputs.image("png")
-        assert output["type"] == "image"
-        assert output["format"] == "png"
+        client.workflow(override_timeout)
 
-    def test_build_outputs_office(self):
-        """Test office output creation."""
-        output = BuildOutputs.office("docx")
-        assert output["type"] == "docx"
+        expected_options = valid_options.copy()
+        expected_options["timeout"] = override_timeout
+        mock_staged_workflow_builder.assert_called_once_with(expected_options)
 
-    def test_build_outputs_json(self):
-        """Test JSON output creation."""
-        output = BuildOutputs.jsonContent()
-        assert output["type"] == "json-content"
 
-    def test_mime_type_utility(self):
-        """Test MIME type utility function."""
-        output = BuildOutputs.pdf()
-        result = BuildOutputs.getMimeTypeForOutput(output)
+class TestNutrientClientOcr:
+    """Tests for NutrientClient OCR functionality."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_perform_ocr_with_single_language_and_default_pdf_output(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"test-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+        language = "english"
+
+        result = await client.ocr(file, language)
+
+        # Verify the workflow was called correctly
+        mock_workflow_instance.add_file_part.assert_called_once_with(
+            file, None, [{"type": "ocr", "language": "english"}]
+        )
+        mock_workflow_instance.output_pdf.assert_called_once()
+        mock_output_stage.execute.assert_called_once()
+
+        # Verify the result
+        assert result["buffer"] == b"test-buffer"
         assert result["mimeType"] == "application/pdf"
-        assert "filename" in result
 
-    def test_client_methods_exist(self):
-        """Test that expected client methods exist."""
-        client = NutrientClient({"apiKey": "test-key"})
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_perform_ocr_with_multiple_languages(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
 
-        # Check account methods
-        assert hasattr(client, "get_account_info")
-        assert hasattr(client, "create_token")
-        assert hasattr(client, "delete_token")
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"test-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
 
-        # Check workflow method
-        assert hasattr(client, "workflow")
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
 
-        # Check convenience methods
-        assert hasattr(client, "sign")
-        assert hasattr(client, "watermark_text")
-        assert hasattr(client, "watermark_image")
-        assert hasattr(client, "convert")
-        assert hasattr(client, "ocr")
-        assert hasattr(client, "extract_text")
-        assert hasattr(client, "extract_table")
-        assert hasattr(client, "extract_key_value_pairs")
-        assert hasattr(client, "password_protect")
-        assert hasattr(client, "set_metadata")
-        assert hasattr(client, "merge")
-        assert hasattr(client, "flatten")
-        assert hasattr(client, "create_redactions_ai")
+        file = "test-file.pdf"
+        languages = ["english", "spanish"]
 
-    def test_workflow_builder_methods_exist(self):
-        """Test that workflow builder has expected methods."""
-        client = NutrientClient({"apiKey": "test-key"})
-        builder = client.workflow()
+        await client.ocr(file, languages)
 
-        assert hasattr(builder, "add_file_part")
-        assert hasattr(builder, "add_html_part")
-        assert hasattr(builder, "add_new_page")
-        assert hasattr(builder, "add_document_part")
-
-    def test_merge_validation(self):
-        """Test merge validation."""
-        client = NutrientClient({"apiKey": "test-key"})
-
-        with pytest.raises(ValidationError) as exc_info:
-            import asyncio
-
-            asyncio.run(client.merge(["single_file.pdf"]))
-
-        assert "At least 2 files are required" in str(exc_info.value)
+        # Verify the workflow was called correctly
+        mock_workflow_instance.add_file_part.assert_called_once_with(
+            file, None, [{"type": "ocr", "language": ["english", "spanish"]}]
+        )
+        mock_workflow_instance.output_pdf.assert_called_once()
+        mock_output_stage.execute.assert_called_once()
 
 
-class TestErrorHierarchy:
-    """Test error class hierarchy."""
+class TestNutrientClientWatermarkText:
+    """Tests for NutrientClient text watermark functionality."""
 
-    def test_validation_error_creation(self):
-        """Test ValidationError can be created."""
-        error = ValidationError("Test message")
-        assert isinstance(error, Exception)
-        assert "Test message" in str(error)
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_add_text_watermark_with_default_options(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
 
-    def test_error_imports_work(self):
-        """Test that error imports work correctly."""
-        from nutrient_dws.errors import (
-            APIError,
-            AuthenticationError,
-            NetworkError,
-            NutrientError,
-            ValidationError,
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"test-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+        text = "CONFIDENTIAL"
+
+        await client.watermark_text(file, text)
+
+        # Check that add_file_part was called with the watermark action
+        call_args = mock_workflow_instance.add_file_part.call_args
+        assert call_args[0][0] == file  # First positional arg (file)
+        assert call_args[0][1] is None  # Second positional arg (options)
+
+        # Check the watermark action structure
+        actions = call_args[0][2]  # Third positional arg (actions)
+        assert len(actions) == 1
+        watermark_action = actions[0]
+        assert watermark_action["type"] == "watermark"
+        assert watermark_action["text"] == "CONFIDENTIAL"
+        assert watermark_action["width"] == {"value": 100, "unit": "%"}
+        assert watermark_action["height"] == {"value": 100, "unit": "%"}
+
+        mock_workflow_instance.output_pdf.assert_called_once()
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_add_text_watermark_with_custom_options(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"test-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+        text = "DRAFT"
+        options = {
+            "opacity": 0.5,
+            "fontSize": 24,
+            "fontColor": "#ff0000",
+            "rotation": 45
+        }
+
+        await client.watermark_text(file, text, options)
+
+        # Check that add_file_part was called with the correct watermark action
+        call_args = mock_workflow_instance.add_file_part.call_args
+        actions = call_args[0][2]
+        watermark_action = actions[0]
+
+        assert watermark_action["type"] == "watermark"
+        assert watermark_action["text"] == "DRAFT"
+        assert watermark_action["opacity"] == 0.5
+        assert watermark_action["fontSize"] == 24
+        assert watermark_action["fontColor"] == "#ff0000"
+        assert watermark_action["rotation"] == 45
+
+
+class TestNutrientClientWatermarkImage:
+    """Tests for NutrientClient image watermark functionality."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_add_image_watermark_with_default_options(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"test-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+        image = "watermark.png"
+
+        await client.watermark_image(file, image)
+
+        # Check that add_file_part was called with the watermark action
+        call_args = mock_workflow_instance.add_file_part.call_args
+        assert call_args[0][0] == file
+        assert call_args[0][1] is None
+
+        # Check the watermark action has the right properties (file input needs registration)
+        actions = call_args[0][2]
+        assert len(actions) == 1
+        watermark_action = actions[0]
+
+        # Check that it's an action that needs file registration
+        assert hasattr(watermark_action, 'fileInput')
+        assert hasattr(watermark_action, 'createAction')
+        assert watermark_action.fileInput == "watermark.png"
+
+        mock_workflow_instance.output_pdf.assert_called_once()
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_add_image_watermark_with_custom_options(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"test-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+        image = "watermark.png"
+        options = {
+            "opacity": 0.5,
+            "rotation": 45
+        }
+
+        await client.watermark_image(file, image, options)
+
+        # Check that add_file_part was called with the watermark action
+        call_args = mock_workflow_instance.add_file_part.call_args
+        actions = call_args[0][2]
+        watermark_action = actions[0]
+
+        # Check that it's an action that needs file registration with the right file input
+        assert hasattr(watermark_action, 'fileInput')
+        assert hasattr(watermark_action, 'createAction')
+        assert watermark_action.fileInput == "watermark.png"
+
+
+class TestNutrientClientMerge:
+    """Tests for NutrientClient merge functionality."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_merge_multiple_files(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"test-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        files = ["file1.pdf", "file2.pdf", "file3.pdf"]
+
+        result = await client.merge(files)
+
+        # Check that add_file_part was called for each file
+        assert mock_workflow_instance.add_file_part.call_count == 3
+        mock_workflow_instance.add_file_part.assert_any_call("file1.pdf")
+        mock_workflow_instance.add_file_part.assert_any_call("file2.pdf")
+        mock_workflow_instance.add_file_part.assert_any_call("file3.pdf")
+
+        mock_workflow_instance.output_pdf.assert_called_once()
+        mock_output_stage.execute.assert_called_once()
+
+        # Verify the result
+        assert result["buffer"] == b"test-buffer"
+
+    @pytest.mark.asyncio
+    async def test_throw_validation_error_when_less_than_2_files_provided(self, valid_options):
+        client = NutrientClient(valid_options)
+        files = ["file1.pdf"]
+
+        with pytest.raises(ValidationError, match="At least 2 files are required for merge operation"):
+            await client.merge(files)
+
+    @pytest.mark.asyncio
+    async def test_throw_validation_error_when_empty_array_provided(self, valid_options):
+        client = NutrientClient(valid_options)
+        files = []
+
+        with pytest.raises(ValidationError, match="At least 2 files are required for merge operation"):
+            await client.merge(files)
+
+
+class TestNutrientClientExtractText:
+    """Tests for NutrientClient extract text functionality."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_extract_text_from_document(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {
+                "data": {"pages": [{"plainText": "Extracted text content"}]},
+                "mimeType": "application/json"
+            }
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_json.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+
+        result = await client.extract_text(file)
+
+        # Verify the workflow was called correctly
+        mock_workflow_instance.add_file_part.assert_called_once_with(file, None)
+        mock_workflow_instance.output_json.assert_called_once_with({
+            "plainText": True,
+            "tables": False
+        })
+        mock_output_stage.execute.assert_called_once()
+
+        # Verify the result
+        assert result["data"] == {"pages": [{"plainText": "Extracted text content"}]}
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_extract_text_with_page_range(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {
+                "data": {"pages": [{"plainText": "Extracted text content"}]},
+                "mimeType": "application/json"
+            }
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_json.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+        pages = {"start": 0, "end": 2}
+
+        await client.extract_text(file, pages)
+
+        # Verify the workflow was called with page options
+        call_args = mock_workflow_instance.add_file_part.call_args
+        assert call_args[0][0] == file  # First positional arg (file)
+        assert call_args[0][1] == {"pages": {"start": 0, "end": 2}}  # Second positional arg (part options)
+
+
+class TestNutrientClientExtractTable:
+    """Tests for NutrientClient extract table functionality."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_extract_table_from_document(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {
+                "data": {"pages": [{"tables": [{"rows": [["cell1", "cell2"]]}]}]},
+                "mimeType": "application/json"
+            }
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_json.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+
+        result = await client.extract_table(file)
+
+        # Verify the workflow was called correctly
+        mock_workflow_instance.add_file_part.assert_called_once_with(file, None)
+        mock_workflow_instance.output_json.assert_called_once_with({
+            "plainText": False,
+            "tables": True
+        })
+        mock_output_stage.execute.assert_called_once()
+
+        # Verify the result
+        assert "tables" in result["data"]["pages"][0]
+
+
+class TestNutrientClientExtractKeyValuePairs:
+    """Tests for NutrientClient extract key-value pairs functionality."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_extract_key_value_pairs_from_document(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {
+                "data": {"pages": [{"keyValuePairs": [{"key": "Name", "value": "John Doe"}]}]},
+                "mimeType": "application/json"
+            }
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_json.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+
+        result = await client.extract_key_value_pairs(file)
+
+        # Verify the workflow was called correctly
+        mock_workflow_instance.add_file_part.assert_called_once_with(file, None)
+        mock_workflow_instance.output_json.assert_called_once_with({
+            "plainText": False,
+            "tables": False,
+            "keyValuePairs": True
+        })
+        mock_output_stage.execute.assert_called_once()
+
+        # Verify the result
+        assert "keyValuePairs" in result["data"]["pages"][0]
+
+
+class TestNutrientClientConvert:
+    """Tests for NutrientClient convert functionality."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_convert_docx_to_pdf(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"pdf-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "document.docx"
+        target_format = "pdf"
+
+        result = await client.convert(file, target_format)
+
+        # Verify the workflow was called correctly
+        mock_workflow_instance.add_file_part.assert_called_once_with(file)
+        mock_workflow_instance.output_pdf.assert_called_once()
+        mock_output_stage.execute.assert_called_once()
+
+        # Verify the result
+        assert result["buffer"] == b"pdf-buffer"
+        assert result["mimeType"] == "application/pdf"
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_convert_pdf_to_image(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"png-buffer", "mimeType": "image/png", "filename": "output.png"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_image.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "document.pdf"
+        target_format = "png"
+
+        result = await client.convert(file, target_format)
+
+        # Verify the workflow was called correctly
+        mock_workflow_instance.add_file_part.assert_called_once_with(file)
+        mock_workflow_instance.output_image.assert_called_once_with("png", {"dpi": 300})
+        mock_output_stage.execute.assert_called_once()
+
+        # Verify the result
+        assert result["buffer"] == b"png-buffer"
+        assert result["mimeType"] == "image/png"
+
+    @pytest.mark.asyncio
+    async def test_convert_unsupported_format_throws_error(self, valid_options):
+        client = NutrientClient(valid_options)
+
+        file = "document.pdf"
+        target_format = "unsupported"
+
+        with pytest.raises(ValidationError, match="Unsupported target format: unsupported"):
+            await client.convert(file, target_format)
+
+
+class TestNutrientClientPasswordProtect:
+    """Tests for NutrientClient password protection functionality."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_password_protect_pdf(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"protected-pdf-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "document.pdf"
+        user_password = "user123"
+        owner_password = "owner456"
+
+        result = await client.password_protect(file, user_password, owner_password)
+
+        # Verify the workflow was called correctly
+        mock_workflow_instance.add_file_part.assert_called_once_with(file)
+
+        # Check the PDF output options
+        call_args = mock_workflow_instance.output_pdf.call_args
+        pdf_options = call_args[0][0]  # First positional argument
+        assert pdf_options["user_password"] == user_password
+        assert pdf_options["owner_password"] == owner_password
+
+        mock_output_stage.execute.assert_called_once()
+
+        # Verify the result
+        assert result["buffer"] == b"protected-pdf-buffer"
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_password_protect_pdf_with_permissions(self, mock_staged_workflow_builder, valid_options):
+        client = NutrientClient(valid_options)
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(return_value={
+            "success": True,
+            "output": {"buffer": b"protected-pdf-buffer", "mimeType": "application/pdf", "filename": "output.pdf"}
+        })
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "document.pdf"
+        user_password = "user123"
+        owner_password = "owner456"
+        permissions = ["printing", "extract_accessibility"]
+
+        result = await client.password_protect(file, user_password, owner_password, permissions)
+
+        # Check the PDF output options include permissions
+        call_args = mock_workflow_instance.output_pdf.call_args
+        pdf_options = call_args[0][0]
+        assert pdf_options["user_permissions"] == permissions
+
+
+class TestNutrientClientProcessTypedWorkflowResult:
+    """Tests for NutrientClient _process_typed_workflow_result method."""
+
+    def test_process_successful_workflow_result(self, valid_options):
+        client = NutrientClient(valid_options)
+
+        result = {
+            "success": True,
+            "output": {"buffer": b"test-buffer", "mimeType": "application/pdf"}
+        }
+
+        processed_result = client._process_typed_workflow_result(result)
+        assert processed_result == result["output"]
+
+    def test_process_failed_workflow_result_with_errors(self, valid_options):
+        client = NutrientClient(valid_options)
+
+        test_error = NutrientError("Test error", "TEST_ERROR")
+        result = {
+            "success": False,
+            "errors": [{"error": test_error}],
+            "output": None
+        }
+
+        with pytest.raises(NutrientError, match="Test error"):
+            client._process_typed_workflow_result(result)
+
+    def test_process_failed_workflow_result_without_errors(self, valid_options):
+        client = NutrientClient(valid_options)
+
+        result = {
+            "success": False,
+            "errors": [],
+            "output": None
+        }
+
+        with pytest.raises(NutrientError, match="Workflow operation failed without specific error details"):
+            client._process_typed_workflow_result(result)
+
+    def test_process_successful_workflow_result_without_output(self, valid_options):
+        client = NutrientClient(valid_options)
+
+        result = {
+            "success": True,
+            "output": None
+        }
+
+        with pytest.raises(NutrientError, match="Workflow completed successfully but no output was returned"):
+            client._process_typed_workflow_result(result)
+
+
+class TestNutrientClientAccountInfo:
+    """Tests for NutrientClient account info functionality."""
+
+    @patch("nutrient_dws.client.send_request")
+    @pytest.mark.asyncio
+    async def test_get_account_info(self, mock_send_request, valid_options):
+        client = NutrientClient(valid_options)
+
+        expected_account_info = {
+            "subscriptionType": "premium",
+            "remainingCredits": 1000
+        }
+
+        mock_send_request.return_value = {
+            "data": expected_account_info,
+            "status": 200
+        }
+
+        result = await client.get_account_info()
+
+        # Verify the request was made correctly
+        mock_send_request.assert_called_once_with(
+            {
+                "method": "GET",
+                "endpoint": "/account/info",
+                "data": None,
+                "headers": None
+            },
+            valid_options
         )
 
-        # Test that they can be instantiated
-        validation_error = ValidationError("Test")
-        api_error = APIError("Test", 400)
-        auth_error = AuthenticationError("Test")
-        network_error = NetworkError("Test")
+        # Verify the result
+        assert result == expected_account_info
 
-        # Test inheritance
-        assert isinstance(validation_error, NutrientError)
-        assert isinstance(api_error, NutrientError)
-        assert isinstance(auth_error, NutrientError)
-        assert isinstance(network_error, NutrientError)
+
+class TestNutrientClientCreateToken:
+    """Tests for NutrientClient create token functionality."""
+
+    @patch("nutrient_dws.client.send_request")
+    @pytest.mark.asyncio
+    async def test_create_token(self, mock_send_request, valid_options):
+        client = NutrientClient(valid_options)
+
+        params = {
+            "allowedOperations": ["annotations_api"],
+            "expirationTime": 3600
+        }
+
+        expected_token_response = {
+            "id": "token-123",
+            "token": "jwt-token-string"
+        }
+
+        mock_send_request.return_value = {
+            "data": expected_token_response,
+            "status": 200
+        }
+
+        result = await client.create_token(params)
+
+        # Verify the request was made correctly
+        mock_send_request.assert_called_once_with(
+            {
+                "method": "POST",
+                "endpoint": "/tokens",
+                "data": params,
+                "headers": None
+            },
+            valid_options
+        )
+
+        # Verify the result
+        assert result == expected_token_response
+
+
+class TestNutrientClientDeleteToken:
+    """Tests for NutrientClient delete token functionality."""
+
+    @patch("nutrient_dws.client.send_request")
+    @pytest.mark.asyncio
+    async def test_delete_token(self, mock_send_request, valid_options):
+        client = NutrientClient(valid_options)
+
+        token_id = "token-123"
+
+        mock_send_request.return_value = {
+            "data": None,
+            "status": 204
+        }
+
+        await client.delete_token(token_id)
+
+        # Verify the request was made correctly
+        mock_send_request.assert_called_once_with(
+            {
+                "method": "DELETE",
+                "endpoint": "/tokens",
+                "data": {"id": token_id},
+                "headers": None
+            },
+            valid_options
+        )

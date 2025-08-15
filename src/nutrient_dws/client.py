@@ -5,12 +5,14 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from nutrient_dws.builder.builder import StagedWorkflowBuilder
 from nutrient_dws.builder.constant import BuildActions
 from nutrient_dws.builder.staged_builders import (
+    ApplicableAction,
     BufferOutput,
     ContentOutput,
     JsonContentOutput,
     OutputFormat,
     TypedWorkflowResult,
     WorkflowInitialStage,
+    WorkflowWithPartsStage,
 )
 from nutrient_dws.errors import NutrientError, ValidationError
 from nutrient_dws.http import NutrientClientOptions, SignRequestOptions, send_request
@@ -24,12 +26,20 @@ from nutrient_dws.inputs import (
 )
 from nutrient_dws.types.account_info import AccountInfo
 from nutrient_dws.types.build_actions import (
+    ApplyXfdfActionOptions,
+    BaseCreateRedactionsOptions,
+    CreateRedactionsStrategyOptionsPreset,
+    CreateRedactionsStrategyOptionsRegex,
+    CreateRedactionsStrategyOptionsText,
     ImageWatermarkActionOptions,
+    SearchPreset,
     TextWatermarkActionOptions,
 )
 from nutrient_dws.types.build_output import (
     JSONContentOutputOptions,
+    Label,
     Metadata,
+    OptimizePdf,
     PDFOutputOptions,
     PDFUserPermission,
 )
@@ -670,6 +680,47 @@ class NutrientClient:
 
         return cast("JsonContentOutput", self._process_typed_workflow_result(result))
 
+    async def set_page_labels(
+        self,
+        pdf: FileInput,
+        labels: list[Label],
+    ) -> BufferOutput:
+        """Set page labels for a PDF document.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to modify
+            labels: Array of label objects with pages and label properties
+
+        Returns:
+            The document with updated page labels
+
+        Example:
+            ```python
+            result = await client.set_page_labels('document.pdf', [
+                {'pages': [0, 1, 2], 'label': 'Cover'},
+                {'pages': [3, 4, 5], 'label': 'Chapter 1'}
+            ])
+            ```
+        """
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        result = (
+            await self.workflow()
+            .add_file_part(pdf)
+            .output_pdf(cast("PDFOutputOptions", {"labels": labels}))
+            .execute()
+        )
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
     async def password_protect(
         self,
         file: FileInput,
@@ -752,6 +803,93 @@ class NutrientClient:
             await self.workflow()
             .add_file_part(pdf)
             .output_pdf(cast("PDFOutputOptions", {"metadata": metadata}))
+            .execute()
+        )
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def apply_instant_json(
+        self,
+        pdf: FileInput,
+        instant_json_file: FileInput,
+    ) -> BufferOutput:
+        """Apply Instant JSON to a document.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to modify
+            instant_json_file: The Instant JSON file to apply
+
+        Returns:
+            The modified document
+
+        Example:
+            ```python
+            result = await client.apply_instant_json('document.pdf', 'annotations.json')
+            ```
+        """
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        apply_json_action = BuildActions.applyInstantJson(instant_json_file)
+
+        result = (
+            await self.workflow()
+            .add_file_part(pdf, None, [apply_json_action])
+            .output_pdf()
+            .execute()
+        )
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def apply_xfdf(
+        self,
+        pdf: FileInput,
+        xfdf_file: FileInput,
+        options: ApplyXfdfActionOptions | None = None,
+    ) -> BufferOutput:
+        """Apply XFDF to a document.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to modify
+            xfdf_file: The XFDF file to apply
+            options: Optional settings for applying XFDF
+
+        Returns:
+            The modified document
+
+        Example:
+            ```python
+            result = await client.apply_xfdf('document.pdf', 'annotations.xfdf')
+            # Or with options:
+            result = await client.apply_xfdf(
+                'document.pdf', 'annotations.xfdf',
+                {'ignorePageRotation': True, 'richTextEnabled': False}
+            )
+            ```
+        """
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        apply_xfdf_action = BuildActions.applyXfdf(xfdf_file, options)
+
+        result = (
+            await self.workflow()
+            .add_file_part(pdf, None, [apply_xfdf_action])
+            .output_pdf()
             .execute()
         )
 
@@ -921,3 +1059,677 @@ class NutrientClient:
             "filename": "output.pdf",
             "buffer": buffer,
         }
+
+    async def create_redactions_preset(
+        self,
+        pdf: FileInput,
+        preset: SearchPreset,
+        redaction_state: Literal["stage", "apply"] = "stage",
+        pages: PageRange | None = None,
+        preset_options: CreateRedactionsStrategyOptionsPreset | None = None,
+        options: BaseCreateRedactionsOptions | None = None,
+    ) -> BufferOutput:
+        """Create redaction annotations based on a preset pattern.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to create redactions in
+            preset: The preset pattern to search for (e.g., 'email-address', 'social-security-number')
+            redaction_state: Whether to stage or apply redactions (default: 'stage')
+            pages: Optional page range to create redactions in
+            preset_options: Optional settings for the preset strategy
+            options: Optional settings for creating redactions
+
+        Returns:
+            The document with redaction annotations
+
+        Example:
+            ```python
+            result = await client.create_redactions_preset('document.pdf', 'email-address')
+            ```
+        """
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        # Get page count for handling negative indices
+        page_count = get_pdf_page_count(normalized_file[0])
+        normalized_pages = normalize_page_params(pages, page_count) if pages else None
+
+        # Prepare strategy options with pages
+        strategy_options = preset_options.copy() if preset_options else {}
+        if normalized_pages:
+            strategy_options["start"] = normalized_pages["start"]
+            if normalized_pages["end"] >= 0:
+                strategy_options["limit"] = (
+                    normalized_pages["end"] - normalized_pages["start"] + 1
+                )
+
+        create_redactions_action = BuildActions.createRedactionsPreset(
+            preset, options, strategy_options
+        )
+        actions: list[ApplicableAction] = [create_redactions_action]
+
+        if redaction_state == "apply":
+            actions.append(BuildActions.applyRedactions())
+
+        result = (
+            await self.workflow()
+            .add_file_part(pdf, None, actions)
+            .output_pdf()
+            .execute()
+        )
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def create_redactions_regex(
+        self,
+        pdf: FileInput,
+        regex: str,
+        redaction_state: Literal["stage", "apply"] = "stage",
+        pages: PageRange | None = None,
+        regex_options: CreateRedactionsStrategyOptionsRegex | None = None,
+        options: BaseCreateRedactionsOptions | None = None,
+    ) -> BufferOutput:
+        r"""Create redaction annotations based on a regular expression.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to create redactions in
+            regex: The regular expression to search for
+            redaction_state: Whether to stage or apply redactions (default: 'stage')
+            pages: Optional page range to create redactions in
+            regex_options: Optional settings for the regex strategy
+            options: Optional settings for creating redactions
+
+        Returns:
+            The document with redaction annotations
+
+        Example:
+            ```python
+            result = await client.create_redactions_regex('document.pdf', r'Account:\s*\d{8,12}')
+            ```
+        """
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        # Get page count for handling negative indices
+        page_count = get_pdf_page_count(normalized_file[0])
+        normalized_pages = normalize_page_params(pages, page_count) if pages else None
+
+        # Prepare strategy options with pages
+        strategy_options = regex_options.copy() if regex_options else {}
+        if normalized_pages:
+            strategy_options["start"] = normalized_pages["start"]
+            if normalized_pages["end"] >= 0:
+                strategy_options["limit"] = (
+                    normalized_pages["end"] - normalized_pages["start"] + 1
+                )
+
+        create_redactions_action = BuildActions.createRedactionsRegex(
+            regex, options, strategy_options
+        )
+        actions: list[ApplicableAction] = [create_redactions_action]
+
+        if redaction_state == "apply":
+            actions.append(BuildActions.applyRedactions())
+
+        result = (
+            await self.workflow()
+            .add_file_part(pdf, None, actions)
+            .output_pdf()
+            .execute()
+        )
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def create_redactions_text(
+        self,
+        pdf: FileInput,
+        text: str,
+        redaction_state: Literal["stage", "apply"] = "stage",
+        pages: PageRange | None = None,
+        text_options: CreateRedactionsStrategyOptionsText | None = None,
+        options: BaseCreateRedactionsOptions | None = None,
+    ) -> BufferOutput:
+        """Create redaction annotations based on text.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to create redactions in
+            text: The text to search for
+            redaction_state: Whether to stage or apply redactions (default: 'stage')
+            pages: Optional page range to create redactions in
+            text_options: Optional settings for the text strategy
+            options: Optional settings for creating redactions
+
+        Returns:
+            The document with redaction annotations
+
+        Example:
+            ```python
+            result = await client.create_redactions_text('document.pdf', 'email@example.com')
+            ```
+        """
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        # Get page count for handling negative indices
+        page_count = get_pdf_page_count(normalized_file[0])
+        normalized_pages = normalize_page_params(pages, page_count) if pages else None
+
+        # Prepare strategy options with pages
+        strategy_options = text_options.copy() if text_options else {}
+        if normalized_pages:
+            strategy_options["start"] = normalized_pages["start"]
+            if normalized_pages["end"] >= 0:
+                strategy_options["limit"] = (
+                    normalized_pages["end"] - normalized_pages["start"] + 1
+                )
+
+        create_redactions_action = BuildActions.createRedactionsText(
+            text, options, strategy_options
+        )
+        actions: list[ApplicableAction] = [create_redactions_action]
+
+        if redaction_state == "apply":
+            actions.append(BuildActions.applyRedactions())
+
+        result = (
+            await self.workflow()
+            .add_file_part(pdf, None, actions)
+            .output_pdf()
+            .execute()
+        )
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def apply_redactions(self, pdf: FileInput) -> BufferOutput:
+        """Apply staged redaction into the PDF.
+
+        Args:
+            pdf: The PDF file with redaction annotations to apply
+
+        Returns:
+            The document with applied redactions
+
+        Example:
+            ```python
+            # Stage redactions from a createRedaction Method:
+            staged_result = await client.create_redactions_text(
+                'document.pdf',
+                'email@example.com',
+                'stage'
+            )
+
+            result = await client.apply_redactions(staged_result['buffer'])
+            ```
+        """
+        apply_redactions_action = BuildActions.applyRedactions()
+
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        result = (
+            await self.workflow()
+            .add_file_part(pdf, None, [apply_redactions_action])
+            .output_pdf()
+            .execute()
+        )
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def rotate(
+        self,
+        pdf: FileInput,
+        angle: Literal[90, 180, 270],
+        pages: PageRange | None = None,
+    ) -> BufferOutput:
+        """Rotate pages in a document.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to rotate
+            angle: Rotation angle (90, 180, or 270 degrees)
+            pages: Optional page range to rotate
+
+        Returns:
+            The entire document with specified pages rotated
+
+        Example:
+            ```python
+            result = await client.rotate('document.pdf', 90)
+
+            # Rotate specific pages:
+            result = await client.rotate('document.pdf', 90, {'start': 1, 'end': 3})
+            ```
+        """
+        rotate_action = BuildActions.rotate(angle)
+
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        workflow = self.workflow()
+
+        if pages:
+            page_count = get_pdf_page_count(normalized_file[0])
+            normalized_pages = normalize_page_params(pages, page_count)
+
+            # Add pages before the range to rotate
+            if normalized_pages["start"] > 0:
+                part_options = cast(
+                    "FilePartOptions",
+                    {"pages": {"start": 0, "end": normalized_pages["start"] - 1}},
+                )
+                workflow = workflow.add_file_part(pdf, part_options)
+
+            # Add the specific pages with rotation action
+            part_options = cast("FilePartOptions", {"pages": normalized_pages})
+            workflow = workflow.add_file_part(pdf, part_options, [rotate_action])
+
+            # Add pages after the range to rotate
+            if normalized_pages["end"] < page_count - 1:
+                part_options = cast(
+                    "FilePartOptions",
+                    {
+                        "pages": {
+                            "start": normalized_pages["end"] + 1,
+                            "end": page_count - 1,
+                        }
+                    },
+                )
+                workflow = workflow.add_file_part(pdf, part_options)
+        else:
+            # If no pages specified, rotate the entire document
+            workflow = workflow.add_file_part(pdf, None, [rotate_action])
+
+        result = await workflow.output_pdf().execute()
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def add_page(
+        self, pdf: FileInput, count: int = 1, index: int | None = None
+    ) -> BufferOutput:
+        """Add blank pages to a document.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to add pages to
+            count: The number of blank pages to add
+            index: Optional index where to add the blank pages (0-based). If not provided, pages are added at the end.
+
+        Returns:
+            The document with added pages
+
+        Example:
+            ```python
+            # Add 2 blank pages at the end
+            result = await client.add_page('document.pdf', 2)
+
+            # Add 1 blank page after the first page (at index 1)
+            result = await client.add_page('document.pdf', 1, 1)
+            ```
+        """
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        # If no index is provided or it's the end of the document, simply add pages at the end
+        if index is None:
+            builder = self.workflow()
+
+            builder.add_file_part(pdf)
+
+            # Add the specified number of blank pages
+            builder = builder.add_new_page({"pageCount": count})
+
+            result = await builder.output_pdf().execute()
+        else:
+            # Get the actual page count of the PDF
+            page_count = get_pdf_page_count(normalized_file[0])
+
+            # Validate that the index is within range
+            if index < 0 or index > page_count:
+                raise ValidationError(
+                    f"Index {index} is out of range (document has {page_count} pages)"
+                )
+
+            builder = self.workflow()
+
+            # Add pages before the specified index
+            if index > 0:
+                before_pages = normalize_page_params(
+                    {"start": 0, "end": index - 1}, page_count
+                )
+                part_options = cast("FilePartOptions", {"pages": before_pages})
+                builder = builder.add_file_part(pdf, part_options)
+
+            # Add the blank pages
+            builder = builder.add_new_page({"pageCount": count})
+
+            # Add pages after the specified index
+            if index < page_count:
+                after_pages = normalize_page_params(
+                    {"start": index, "end": page_count - 1}, page_count
+                )
+                part_options = cast("FilePartOptions", {"pages": after_pages})
+                builder = builder.add_file_part(pdf, part_options)
+
+            result = await builder.output_pdf().execute()
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def split(
+        self, pdf: FileInput, page_ranges: list[PageRange]
+    ) -> list[BufferOutput]:
+        """Split a PDF document into multiple parts based on page ranges.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to split
+            page_ranges: Array of page ranges to extract
+
+        Returns:
+            An array of PDF documents, one for each page range
+
+        Example:
+            ```python
+            results = await client.split('document.pdf', [
+                {'start': 0, 'end': 2},  # Pages 0, 1, 2
+                {'start': 3, 'end': 5}   # Pages 3, 4, 5
+            ])
+            ```
+        """
+        if not page_ranges or len(page_ranges) == 0:
+            raise ValidationError("At least one page range is required for splitting")
+
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        # Get the actual page count of the PDF
+        page_count = get_pdf_page_count(normalized_file[0])
+
+        # Normalize and validate all page ranges
+        normalized_ranges = [
+            normalize_page_params(page_range, page_count) for page_range in page_ranges
+        ]
+
+        # Validate that all page ranges are within bounds
+        for page_range in normalized_ranges:
+            if page_range["start"] > page_range["end"]:
+                raise ValidationError(
+                    f"Page range {page_range} is invalid (start > end)"
+                )
+
+        # Create a separate workflow for each page range
+        import asyncio
+        from typing import cast as typing_cast
+
+        async def create_split_pdf(page_range: Pages) -> BufferOutput:
+            builder = self.workflow()
+            part_options = cast("FilePartOptions", {"pages": page_range})
+            builder = builder.add_file_part(pdf, part_options)
+            result = await builder.output_pdf().execute()
+            return typing_cast(
+                "BufferOutput", self._process_typed_workflow_result(result)
+            )
+
+        # Execute all workflows in parallel and process the results
+        tasks = [create_split_pdf(page_range) for page_range in normalized_ranges]
+        results = await asyncio.gather(*tasks)
+
+        return results
+
+    async def duplicate_pages(
+        self, pdf: FileInput, page_indices: list[int]
+    ) -> BufferOutput:
+        """Create a new PDF containing only the specified pages in the order provided.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to extract pages from
+            page_indices: Array of page indices to include in the new PDF (0-based)
+                         Negative indices count from the end of the document (e.g., -1 is the last page)
+
+        Returns:
+            A new document with only the specified pages
+
+        Example:
+            ```python
+            # Create a new PDF with only the first and third pages
+            result = await client.duplicate_pages('document.pdf', [0, 2])
+
+            # Create a new PDF with pages in a different order
+            result = await client.duplicate_pages('document.pdf', [2, 0, 1])
+
+            # Create a new PDF with duplicated pages
+            result = await client.duplicate_pages('document.pdf', [0, 0, 1, 1, 0])
+
+            # Create a new PDF with the first and last pages
+            result = await client.duplicate_pages('document.pdf', [0, -1])
+            ```
+        """
+        if not page_indices or len(page_indices) == 0:
+            raise ValidationError("At least one page index is required for duplication")
+
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        # Get the actual page count of the PDF
+        page_count = get_pdf_page_count(normalized_file[0])
+
+        # Normalize negative indices
+        normalized_indices = []
+        for index in page_indices:
+            if index < 0:
+                # Handle negative indices (e.g., -1 is the last page)
+                normalized_indices.append(page_count + index)
+            else:
+                normalized_indices.append(index)
+
+        # Validate that all page indices are within range
+        for i, original_index in enumerate(page_indices):
+            normalized_index = normalized_indices[i]
+            if normalized_index < 0 or normalized_index >= page_count:
+                raise ValidationError(
+                    f"Page index {original_index} is out of range (document has {page_count} pages)"
+                )
+
+        builder = self.workflow()
+
+        # Add each page in the order specified
+        for page_index in normalized_indices:
+            # Use normalize_page_params to ensure consistent handling
+            page_range = normalize_page_params({"start": page_index, "end": page_index})
+            part_options = cast("FilePartOptions", {"pages": page_range})
+            builder = builder.add_file_part(pdf, part_options)
+
+        result = await cast("WorkflowWithPartsStage", builder).output_pdf().execute()
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def delete_pages(
+        self, pdf: FileInput, page_indices: list[int]
+    ) -> BufferOutput:
+        """Delete pages from a PDF document.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to modify
+            page_indices: Array of page indices to delete (0-based)
+                         Negative indices count from the end of the document (e.g., -1 is the last page)
+
+        Returns:
+            The document with deleted pages
+
+        Example:
+            ```python
+            # Delete second and fourth pages
+            result = await client.delete_pages('document.pdf', [1, 3])
+
+            # Delete the last page
+            result = await client.delete_pages('document.pdf', [-1])
+
+            # Delete the first and last two pages
+            result = await client.delete_pages('document.pdf', [0, -1, -2])
+            ```
+        """
+        if not page_indices or len(page_indices) == 0:
+            raise ValidationError("At least one page index is required for deletion")
+
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        # Get the actual page count of the PDF
+        page_count = get_pdf_page_count(normalized_file[0])
+
+        # Normalize negative indices
+        normalized_indices = []
+        for index in page_indices:
+            if index < 0:
+                # Handle negative indices (e.g., -1 is the last page)
+                normalized_indices.append(page_count + index)
+            else:
+                normalized_indices.append(index)
+
+        # Remove duplicates and sort the deleteIndices
+        delete_indices = sorted(set(normalized_indices))
+
+        # Validate that all page indices are within range
+        for original_index in page_indices:
+            if original_index >= 0:
+                normalized_index = original_index
+            else:
+                normalized_index = page_count + original_index
+
+            if normalized_index < 0 or normalized_index >= page_count:
+                raise ValidationError(
+                    f"Page index {original_index} is out of range (document has {page_count} pages)"
+                )
+
+        builder = self.workflow()
+
+        # Group consecutive pages that should be kept into ranges
+        current_page = 0
+        page_ranges = []
+
+        for delete_index in delete_indices:
+            if current_page < delete_index:
+                page_ranges.append(
+                    normalize_page_params(
+                        {"start": current_page, "end": delete_index - 1}
+                    )
+                )
+            current_page = delete_index + 1
+
+        if (
+            current_page > 0 or (current_page == 0 and len(delete_indices) == 0)
+        ) and current_page < page_count:
+            page_ranges.append(
+                normalize_page_params({"start": current_page, "end": page_count - 1})
+            )
+
+        if len(page_ranges) == 0:
+            raise ValidationError("You cannot delete all pages from a document")
+
+        for page_range in page_ranges:
+            part_options = cast("FilePartOptions", {"pages": page_range})
+            builder = builder.add_file_part(pdf, part_options)
+
+        result = await cast("WorkflowWithPartsStage", builder).output_pdf().execute()
+        return cast("BufferOutput", self._process_typed_workflow_result(result))
+
+    async def optimize(
+        self,
+        pdf: FileInput,
+        options: OptimizePdf | None = None,
+    ) -> BufferOutput:
+        """Optimize a PDF document for size reduction.
+        This is a convenience method that uses the workflow builder.
+
+        Args:
+            pdf: The PDF file to optimize
+            options: Optimization options
+
+        Returns:
+            The optimized document
+
+        Example:
+            ```python
+            result = await client.optimize('large-document.pdf', {
+                'grayscaleImages': True,
+                'mrcCompression': True,
+                'imageOptimizationQuality': 2
+            })
+            ```
+        """
+        # Validate PDF
+        if is_remote_file_input(pdf):
+            normalized_file = await process_remote_file_input(str(pdf))
+        else:
+            normalized_file = await process_file_input(pdf)
+
+        if not is_valid_pdf(normalized_file[0]):
+            raise ValidationError("Invalid pdf file", {"input": pdf})
+
+        if options is None:
+            options = {"imageOptimizationQuality": 2}
+
+        result = (
+            await self.workflow()
+            .add_file_part(pdf)
+            .output_pdf(cast("PDFOutputOptions", {"optimize": options}))
+            .execute()
+        )
+
+        return cast("BufferOutput", self._process_typed_workflow_result(result))

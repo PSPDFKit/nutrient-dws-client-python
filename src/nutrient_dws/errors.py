@@ -27,6 +27,7 @@ class NutrientError(Exception):
         """
         super().__init__(message)
         self.name = "NutrientError"
+        self.message = message
         self.code = code
         self.details = details
         self.status_code = status_code
@@ -89,7 +90,9 @@ class NutrientError(Exception):
             )
 
         error_message = message or "An unknown error occurred"
-        return NutrientError(error_message, "UNKNOWN_ERROR", {"originalError": str(error)})
+        return NutrientError(
+            error_message, "UNKNOWN_ERROR", {"originalError": str(error)}
+        )
 
 
 class ValidationError(NutrientError):

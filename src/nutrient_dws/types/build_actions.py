@@ -96,14 +96,12 @@ SearchPreset = Literal[
 
 
 class CreateRedactionsStrategyOptionsPreset(TypedDict):
-    preset: SearchPreset
     includeAnnotations: NotRequired[bool]
     start: NotRequired[int]
     limit: NotRequired[int]
 
 
 class CreateRedactionsStrategyOptionsRegex(TypedDict):
-    regex: str
     includeAnnotations: NotRequired[bool]
     caseSensitive: NotRequired[bool]
     start: NotRequired[int]
@@ -111,7 +109,6 @@ class CreateRedactionsStrategyOptionsRegex(TypedDict):
 
 
 class CreateRedactionsStrategyOptionsText(TypedDict):
-    text: str
     includeAnnotations: NotRequired[bool]
     caseSensitive: NotRequired[bool]
     start: NotRequired[int]
@@ -142,7 +139,9 @@ class CreateRedactionsActionText(TypedDict, BaseCreateRedactionsAction):
 
 
 CreateRedactionsAction = Union[
-    CreateRedactionsActionPreset, CreateRedactionsActionRegex, CreateRedactionsActionText
+    CreateRedactionsActionPreset,
+    CreateRedactionsActionRegex,
+    CreateRedactionsActionText,
 ]
 
 

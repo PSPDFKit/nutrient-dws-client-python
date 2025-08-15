@@ -1,5 +1,6 @@
 """Simple error tests for actual functionality."""
 
+import json
 import pytest
 
 from nutrient_dws.errors import (
@@ -11,103 +12,222 @@ from nutrient_dws.errors import (
 )
 
 
-class TestNutrientErrorSimple:
-    """Test basic error functionality."""
+class TestNutrientError:
+    def test_create_base_error_with_message_and_code(self):
+        error = NutrientError("Test error", "TEST_ERROR")
 
-    def test_nutrient_error_creation(self):
-        """Test creating basic NutrientError."""
-        error = NutrientError("Test message")
-        assert isinstance(error, Exception)
-        assert isinstance(error, NutrientError)
-        assert "Test message" in str(error)
+        assert error.message == "Test error"
+        assert error.code == "TEST_ERROR"
+        assert error.__class__.__name__ == "NutrientError"
+        assert hasattr(error, "__traceback__")
+        assert error.details is None
+        assert error.status_code is None
 
-    def test_validation_error_creation(self):
-        """Test creating ValidationError."""
-        error = ValidationError("Validation failed")
-        assert isinstance(error, NutrientError)
-        assert "Validation failed" in str(error)
+    def test_include_details_when_provided(self):
+        details = {"foo": "bar", "baz": 123}
+        error = NutrientError("Test error", "TEST_ERROR", details)
 
-    def test_api_error_creation(self):
-        """Test creating APIError."""
-        error = APIError("API failed", 400)
-        assert isinstance(error, NutrientError)
-        assert "API failed" in str(error)
+        assert error.details == details
+
+    def test_include_status_code_when_provided(self):
+        error = NutrientError("Test error", "TEST_ERROR", {"foo": "bar"}, 400)
+
         assert error.status_code == 400
 
-    def test_authentication_error_creation(self):
-        """Test creating AuthenticationError."""
-        error = AuthenticationError("Auth failed")
+    def test_is_instance_of_exception(self):
+        error = NutrientError("Test error", "TEST_ERROR")
+
+        assert isinstance(error, Exception)
         assert isinstance(error, NutrientError)
-        assert "Auth failed" in str(error)
 
-    def test_network_error_creation(self):
-        """Test creating NetworkError."""
-        error = NetworkError("Network failed")
+
+class TestValidationError:
+    def test_create_validation_error_with_default_code(self):
+        error = ValidationError("Invalid input")
+
+        assert error.message == "Invalid input"
+        assert error.code == "VALIDATION_ERROR"
+        assert error.__class__.__name__ == "ValidationError"
+
+    def test_inherit_from_nutrient_error(self):
+        error = ValidationError("Invalid input")
+
+        assert isinstance(error, Exception)
         assert isinstance(error, NutrientError)
-        assert "Network failed" in str(error)
+        assert isinstance(error, ValidationError)
+
+    def test_accept_details_and_status_code(self):
+        details = {"field": "email", "reason": "invalid format"}
+        error = ValidationError("Invalid input", details, 422)
+
+        assert error.details == details
+        assert error.status_code == 422
 
 
-class TestErrorHierarchy:
-    """Test error inheritance hierarchy."""
+class TestAPIError:
+    def test_create_api_error_with_status_code(self):
+        error = APIError("Server error", 500)
 
-    def test_all_errors_inherit_from_nutrient_error(self):
-        """Test that all custom errors inherit from NutrientError."""
-        errors = [
-            ValidationError("Test"),
-            APIError("Test", 400),
-            AuthenticationError("Test"),
-            NetworkError("Test"),
-        ]
+        assert error.message == "Server error"
+        assert error.code == "API_ERROR"
+        assert error.__class__.__name__ == "APIError"
+        assert error.status_code == 500
 
-        for error in errors:
-            assert isinstance(error, NutrientError)
-            assert isinstance(error, Exception)
+    def test_inherit_from_nutrient_error(self):
+        error = APIError("Server error", 500)
 
-    def test_error_codes(self):
-        """Test that errors have appropriate codes."""
-        validation_error = ValidationError("Test")
-        assert validation_error.code == "VALIDATION_ERROR"
+        assert isinstance(error, Exception)
+        assert isinstance(error, NutrientError)
+        assert isinstance(error, APIError)
 
-        api_error = APIError("Test", 400)
-        assert api_error.code == "API_ERROR"
+    def test_accept_details(self):
+        details = {"endpoint": "/convert", "method": "POST"}
+        error = APIError("Server error", 500, details)
 
-        auth_error = AuthenticationError("Test")
-        assert auth_error.code == "AUTHENTICATION_ERROR"
-
-        network_error = NetworkError("Test")
-        assert network_error.code == "NETWORK_ERROR"
+        assert error.details == details
 
 
-class TestErrorRaising:
-    """Test raising and catching errors."""
+class TestAuthenticationError:
+    def test_create_authentication_error_with_default_code(self):
+        error = AuthenticationError("Invalid API key")
 
-    def test_raise_and_catch_validation_error(self):
-        """Test raising and catching ValidationError."""
-        with pytest.raises(ValidationError) as exc_info:
-            raise ValidationError("Invalid input")
+        assert error.message == "Invalid API key"
+        assert error.code == "AUTHENTICATION_ERROR"
+        assert error.__class__.__name__ == "AuthenticationError"
 
-        assert "Invalid input" in str(exc_info.value)
+    def test_inherit_from_nutrient_error(self):
+        error = AuthenticationError("Invalid API key")
 
-    def test_raise_and_catch_api_error(self):
-        """Test raising and catching APIError."""
-        with pytest.raises(APIError) as exc_info:
-            raise APIError("API request failed", 500)
+        assert isinstance(error, Exception)
+        assert isinstance(error, NutrientError)
+        assert isinstance(error, AuthenticationError)
 
-        assert "API request failed" in str(exc_info.value)
-        assert exc_info.value.status_code == 500
+    def test_accept_details_and_status_code(self):
+        details = {"reason": "expired token"}
+        error = AuthenticationError("Invalid API key", details, 401)
 
-    def test_catch_base_error(self):
-        """Test catching specific errors as NutrientError."""
-        with pytest.raises(NutrientError):
-            raise ValidationError("Test validation error")
+        assert error.details == details
+        assert error.status_code == 401
 
-        with pytest.raises(NutrientError):
-            raise APIError("Test API error", 400)
 
-    def test_error_context_managers(self):
-        """Test errors work in context managers."""
-        try:
-            raise ValidationError("Context test")
-        except NutrientError as e:
-            assert isinstance(e, ValidationError)
-            assert "Context test" in str(e)
+class TestNetworkError:
+    def test_create_network_error_with_default_code(self):
+        error = NetworkError("Connection failed")
+
+        assert error.message == "Connection failed"
+        assert error.code == "NETWORK_ERROR"
+        assert error.__class__.__name__ == "NetworkError"
+
+    def test_inherit_from_nutrient_error(self):
+        error = NetworkError("Connection failed")
+
+        assert isinstance(error, Exception)
+        assert isinstance(error, NutrientError)
+        assert isinstance(error, NetworkError)
+
+    def test_accept_details(self):
+        details = {"timeout": 30000, "endpoint": "https://api.nutrient.io"}
+        error = NetworkError("Connection failed", details)
+
+        assert error.details == details
+
+
+class TestErrorSerialization:
+    def test_serialize_to_json_correctly(self):
+        error = ValidationError("Invalid input", {"field": "email"}, 422)
+        error_dict = {
+            "message": error.message,
+            "code": error.code,
+            "name": error.__class__.__name__,
+            "details": error.details,
+            "status_code": error.status_code,
+        }
+        json_str = json.dumps(error_dict)
+        parsed = json.loads(json_str)
+
+        assert parsed["message"] == "Invalid input"
+        assert parsed["code"] == "VALIDATION_ERROR"
+        assert parsed["name"] == "ValidationError"
+        assert parsed["details"] == {"field": "email"}
+        assert parsed["status_code"] == 422
+
+    def test_maintain_error_properties_when_caught(self):
+        def throw_and_catch():
+            try:
+                raise APIError("Test error", 500, {"foo": "bar"})
+            except Exception as e:
+                return e
+
+        error = throw_and_catch()
+        assert error is not None
+        assert error.message == "Test error"
+        assert error.code == "API_ERROR"
+        assert error.status_code == 500
+        assert error.details == {"foo": "bar"}
+
+
+class TestToStringMethod:
+    def test_format_error_with_default_code(self):
+        error = NutrientError("Test error")
+        assert str(error) == "NutrientError: Test error"
+
+    def test_include_custom_code_when_provided(self):
+        error = NutrientError("Test error", "CUSTOM_CODE")
+        assert str(error) == "NutrientError: Test error (CUSTOM_CODE)"
+
+    def test_include_status_code_when_provided(self):
+        error = NutrientError("Test error", "CUSTOM_CODE", {}, 404)
+        assert str(error) == "NutrientError: Test error (CUSTOM_CODE) [HTTP 404]"
+
+    def test_include_status_code_without_custom_code(self):
+        error = NutrientError("Test error", "NUTRIENT_ERROR", {}, 500)
+        assert str(error) == "NutrientError: Test error [HTTP 500]"
+
+
+class TestWrapMethod:
+    def test_return_original_error_if_nutrient_error(self):
+        original_error = ValidationError("Original error")
+        wrapped_error = NutrientError.wrap(original_error)
+
+        assert wrapped_error is original_error
+
+    def test_wrap_standard_exception_instances(self):
+        original_error = Exception("Standard error")
+        wrapped_error = NutrientError.wrap(original_error)
+
+        assert isinstance(wrapped_error, NutrientError)
+        assert wrapped_error.message == "Standard error"
+        assert wrapped_error.code == "WRAPPED_ERROR"
+        assert wrapped_error.details == {
+            "originalError": "Exception",
+            "originalMessage": "Standard error",
+            "stack": None
+        }
+
+    def test_wrap_standard_exception_instances_with_custom_message(self):
+        original_error = Exception("Standard error")
+        wrapped_error = NutrientError.wrap(original_error, "Custom prefix")
+
+        assert isinstance(wrapped_error, NutrientError)
+        assert wrapped_error.message == "Custom prefix: Standard error"
+        assert wrapped_error.code == "WRAPPED_ERROR"
+
+    def test_handle_non_exception_objects(self):
+        wrapped_error = NutrientError.wrap("String error")
+
+        assert isinstance(wrapped_error, NutrientError)
+        assert wrapped_error.message == "An unknown error occurred"
+        assert wrapped_error.code == "UNKNOWN_ERROR"
+        assert wrapped_error.details == {
+            "originalError": "String error",
+        }
+
+    def test_handle_non_exception_objects_with_custom_message(self):
+        wrapped_error = NutrientError.wrap(None, "Custom message")
+
+        assert isinstance(wrapped_error, NutrientError)
+        assert wrapped_error.message == "Custom message"
+        assert wrapped_error.code == "UNKNOWN_ERROR"
+        assert wrapped_error.details == {
+            "originalError": "None",
+        }

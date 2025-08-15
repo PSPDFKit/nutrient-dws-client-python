@@ -485,6 +485,334 @@ result = await client.set_metadata('document.pdf', {
 })
 ```
 
+##### set_page_labels(file, labels)
+Sets page labels for a PDF document.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to modify
+- `labels: list[Label]` - Array of label objects with pages and label properties
+
+**Returns**: `BufferOutput` - The document with updated page labels
+
+```python
+result = await client.set_page_labels('document.pdf', [
+    {'pages': [0, 1, 2], 'label': 'Cover'},
+    {'pages': [3, 4, 5], 'label': 'Chapter 1'}
+])
+```
+
+##### apply_instant_json(file, instant_json_file)
+Applies Instant JSON to a document.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to modify
+- `instant_json_file: FileInput` - The Instant JSON file to apply
+
+**Returns**: `BufferOutput` - The modified document
+
+```python
+result = await client.apply_instant_json('document.pdf', 'annotations.json')
+```
+
+##### apply_xfdf(file, xfdf_file, options?)
+Applies XFDF to a document.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to modify
+- `xfdf_file: FileInput` - The XFDF file to apply
+- `options: ApplyXfdfActionOptions | None` - Optional settings for applying XFDF
+
+**Returns**: `BufferOutput` - The modified document
+
+```python
+result = await client.apply_xfdf('document.pdf', 'annotations.xfdf')
+# Or with options:
+result = await client.apply_xfdf(
+    'document.pdf', 'annotations.xfdf',
+    {'ignorePageRotation': True, 'richTextEnabled': False}
+)
+```
+
+##### create_redactions_preset(file, preset, redaction_state?, pages?, preset_options?, options?)
+Creates redaction annotations based on a preset pattern.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to create redactions in
+- `preset: SearchPreset` - The preset pattern to search for (e.g., 'email-address', 'social-security-number')
+- `redaction_state: Literal['stage', 'apply']` - Whether to stage or apply redactions (default: 'stage')
+- `pages: PageRange | None` - Optional page range to create redactions in
+- `preset_options: CreateRedactionsStrategyOptionsPreset | None` - Optional settings for the preset strategy
+- `options: BaseCreateRedactionsOptions | None` - Optional settings for creating redactions
+
+**Returns**: `BufferOutput` - The document with redaction annotations
+
+```python
+result = await client.create_redactions_preset('document.pdf', 'email-address')
+
+# With specific pages
+result = await client.create_redactions_preset(
+    'document.pdf',
+    'email-address',
+    'stage',
+    {'start': 0, 'end': 4}  # Pages 0, 1, 2, 3, 4
+)
+
+# With the last 3 pages
+result = await client.create_redactions_preset(
+    'document.pdf',
+    'email-address',
+    'stage',
+    {'start': -3, 'end': -1}  # Last three pages
+)
+```
+
+##### create_redactions_regex(file, regex, redaction_state?, pages?, regex_options?, options?)
+Creates redaction annotations based on a regular expression.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to create redactions in
+- `regex: str` - The regular expression to search for
+- `redaction_state: Literal['stage', 'apply']` - Whether to stage or apply redactions (default: 'stage')
+- `pages: PageRange | None` - Optional page range to create redactions in
+- `regex_options: CreateRedactionsStrategyOptionsRegex | None` - Optional settings for the regex strategy
+- `options: BaseCreateRedactionsOptions | None` - Optional settings for creating redactions
+
+**Returns**: `BufferOutput` - The document with redaction annotations
+
+```python
+result = await client.create_redactions_regex('document.pdf', r'Account:\\s*\\d{8,12}')
+
+# With specific pages
+result = await client.create_redactions_regex(
+    'document.pdf',
+    r'Account:\\s*\\d{8,12}',
+    'stage',
+    {'start': 0, 'end': 4}  # Pages 0, 1, 2, 3, 4
+)
+
+# With the last 3 pages
+result = await client.create_redactions_regex(
+    'document.pdf',
+    r'Account:\\s*\\d{8,12}',
+    'stage',
+    {'start': -3, 'end': -1}  # Last three pages
+)
+```
+
+##### create_redactions_text(file, text, redaction_state?, pages?, text_options?, options?)
+Creates redaction annotations based on text.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to create redactions in
+- `text: str` - The text to search for
+- `redaction_state: Literal['stage', 'apply']` - Whether to stage or apply redactions (default: 'stage')
+- `pages: PageRange | None` - Optional page range to create redactions in
+- `text_options: CreateRedactionsStrategyOptionsText | None` - Optional settings for the text strategy
+- `options: BaseCreateRedactionsOptions | None` - Optional settings for creating redactions
+
+**Returns**: `BufferOutput` - The document with redaction annotations
+
+```python
+result = await client.create_redactions_text('document.pdf', 'email@example.com')
+
+# With specific pages and options
+result = await client.create_redactions_text(
+    'document.pdf',
+    'email@example.com',
+    'stage',
+    {'start': 0, 'end': 4},  # Pages 0, 1, 2, 3, 4
+    {'caseSensitive': False, 'includeAnnotations': True}
+)
+
+# Create redactions on the last 3 pages
+result = await client.create_redactions_text(
+    'document.pdf',
+    'email@example.com',
+    'stage',
+    {'start': -3, 'end': -1}  # Last three pages
+)
+```
+
+##### apply_redactions(file)
+Applies redaction annotations in a document.
+
+**Parameters**:
+- `file: FileInput` - The PDF file with redaction annotations to apply
+
+**Returns**: `BufferOutput` - The document with applied redactions
+
+```python
+# Stage redactions from a createRedaction Method:
+staged_result = await client.create_redactions_text(
+    'document.pdf',
+    'email@example.com',
+    'stage'
+)
+
+result = await client.apply_redactions(staged_result['buffer'])
+```
+
+##### rotate(file, angle, pages?)
+Rotates pages in a document.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to rotate
+- `angle: Literal[90, 180, 270]` - Rotation angle (90, 180, or 270 degrees)
+- `pages: PageRange | None` - Optional page range to rotate
+
+**Returns**: `BufferOutput` - The entire document with specified pages rotated
+
+```python
+result = await client.rotate('document.pdf', 90)
+
+# Rotate specific pages:
+result = await client.rotate('document.pdf', 90, {'start': 1, 'end': 3})  # Pages 1, 2, 3
+
+# Rotate the last page:
+result = await client.rotate('document.pdf', 90, {'end': -1})  # Last page
+
+# Rotate from page 2 to the second-to-last page:
+result = await client.rotate('document.pdf', 90, {'start': 2, 'end': -2})
+```
+
+##### add_page(file, count?, index?)
+Adds blank pages to a document.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to add pages to
+- `count: int` - The number of blank pages to add (default: 1)
+- `index: int | None` - Optional index where to add the blank pages (0-based). If not provided, pages are added at the end.
+
+**Returns**: `BufferOutput` - The document with added pages
+
+```python
+# Add 2 blank pages at the end
+result = await client.add_page('document.pdf', 2)
+
+# Add 1 blank page after the first page (at index 1)
+result = await client.add_page('document.pdf', 1, 1)
+```
+
+##### optimize(file, options?)
+Optimizes a PDF document for size reduction.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to optimize
+- `options: OptimizePdf | None` - Optimization options
+
+**Returns**: `BufferOutput` - The optimized document
+
+```python
+result = await client.optimize('large-document.pdf', {
+    'grayscaleImages': True,
+    'mrcCompression': True,
+    'imageOptimizationQuality': 2
+})
+```
+
+##### split(file, page_ranges)
+Splits a PDF document into multiple parts based on page ranges.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to split
+- `page_ranges: list[PageRange]` - Array of page ranges to extract
+
+**Returns**: `list[BufferOutput]` - An array of PDF documents, one for each page range
+
+```python
+results = await client.split('document.pdf', [
+    {'start': 0, 'end': 2},  # Pages 0, 1, 2
+    {'start': 3, 'end': 5}   # Pages 3, 4, 5
+])
+
+# Split using negative indices
+results = await client.split('document.pdf', [
+    {'start': 0, 'end': 2},     # First three pages
+    {'start': 3, 'end': -3},    # Middle pages
+    {'start': -2, 'end': -1}    # Last two pages
+])
+
+# Process each resulting PDF
+for i, result in enumerate(results):
+    # Access the PDF buffer
+    pdf_buffer = result['buffer']
+
+    # Get the MIME type of the output
+    print(result['mimeType'])  # 'application/pdf'
+
+    # Save the buffer to a file
+    with open(f'split-part-{i}.pdf', 'wb') as f:
+        f.write(pdf_buffer)
+```
+
+##### duplicate_pages(file, page_indices)
+Creates a new PDF containing only the specified pages in the order provided.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to extract pages from
+- `page_indices: list[int]` - Array of page indices to include in the new PDF (0-based)
+                             Negative indices count from the end of the document (e.g., -1 is the last page)
+
+**Returns**: `BufferOutput` - A new document with only the specified pages
+
+```python
+# Create a new PDF with only the first and third pages
+result = await client.duplicate_pages('document.pdf', [0, 2])
+
+# Create a new PDF with pages in a different order
+result = await client.duplicate_pages('document.pdf', [2, 0, 1])
+
+# Create a new PDF with duplicated pages
+result = await client.duplicate_pages('document.pdf', [0, 0, 1, 1, 0])
+
+# Create a new PDF with the first and last pages
+result = await client.duplicate_pages('document.pdf', [0, -1])
+
+# Create a new PDF with the last three pages in reverse order
+result = await client.duplicate_pages('document.pdf', [-1, -2, -3])
+
+# Access the PDF buffer
+pdf_buffer = result['buffer']
+
+# Get the MIME type of the output
+print(result['mimeType'])  # 'application/pdf'
+
+# Save the buffer to a file
+with open('duplicated-pages.pdf', 'wb') as f:
+    f.write(pdf_buffer)
+```
+
+##### delete_pages(file, page_indices)
+Deletes pages from a PDF document.
+
+**Parameters**:
+- `file: FileInput` - The PDF file to modify
+- `page_indices: list[int]` - Array of page indices to delete (0-based)
+                             Negative indices count from the end of the document (e.g., -1 is the last page)
+
+**Returns**: `BufferOutput` - The document with deleted pages
+
+```python
+# Delete second and fourth pages
+result = await client.delete_pages('document.pdf', [1, 3])
+
+# Delete the last page
+result = await client.delete_pages('document.pdf', [-1])
+
+# Delete the first and last two pages
+result = await client.delete_pages('document.pdf', [0, -1, -2])
+
+# Access the modified PDF buffer
+pdf_buffer = result['buffer']
+
+# Get the MIME type of the output
+print(result['mimeType'])  # 'application/pdf'
+
+# Save the buffer to a file
+with open('modified-document.pdf', 'wb') as f:
+    f.write(pdf_buffer)
+```
+
 ## Workflow Builder Methods
 
 The workflow builder provides a fluent interface for chaining multiple operations. See [WORKFLOW.md](./WORKFLOW.md) for detailed information about workflow methods including:
