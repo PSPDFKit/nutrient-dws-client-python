@@ -27,6 +27,7 @@ from nutrient_dws.types.create_auth_token import (
 )
 from nutrient_dws.types.redact_data import RedactData
 from nutrient_dws.types.sign_request import CreateDigitalSignature
+from nutrient_dws.utils import get_user_agent
 
 
 class BuildRequestData(TypedDict):
@@ -515,6 +516,7 @@ async def send_request(
 
         headers = config.get("headers") or {}
         headers["Authorization"] = f"Bearer {api_key}"
+        headers["User-Agent"] = get_user_agent()
 
         # Prepare request configuration
         request_config: dict[str, Any] = {

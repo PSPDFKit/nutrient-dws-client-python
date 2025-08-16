@@ -1,6 +1,7 @@
 """HTTP layer tests for Nutrient DWS Python Client."""
 
 import json
+import re
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -169,7 +170,8 @@ class TestSendRequest:
             call_kwargs = mock_client.return_value.__aenter__.return_value.request.call_args.kwargs
             assert call_kwargs["method"] == "GET"
             assert call_kwargs["url"] == "https://api.test.com/v1/account/info"
-            assert call_kwargs["headers"] == {"Authorization": "Bearer test-api-key"}
+            assert call_kwargs["headers"]["Authorization"] == "Bearer test-api-key"
+            assert re.match(r'^nutrient-dws/\d+\.\d+\.\d+', call_kwargs["headers"]["User-Agent"])
             assert call_kwargs["timeout"] is None
 
             assert result["data"] == {"result": "success"}

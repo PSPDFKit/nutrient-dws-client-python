@@ -38,15 +38,6 @@ pytestmark = pytest.mark.skipif(
 class TestIntegrationDirectMethods:
     """Integration tests with live API - direct client methods."""
 
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for integration tests."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
     def test_account_and_authentication_methods(self, client):
         """Test account information and authentication methods."""
 
@@ -293,15 +284,6 @@ class TestIntegrationDirectMethods:
 class TestIntegrationErrorHandling:
     """Test error handling scenarios with live API."""
 
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for error testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
     @pytest.mark.asyncio
     async def test_invalid_file_input(self, client):
         """Test handling of invalid file input."""
@@ -336,15 +318,6 @@ class TestIntegrationErrorHandling:
 
 class TestIntegrationWorkflowBuilder:
     """Integration tests for workflow builder with live API."""
-
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for workflow testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
 
     @pytest.mark.asyncio
     async def test_complex_workflow_multiple_parts_actions(self, client):
@@ -489,20 +462,6 @@ class TestIntegrationWorkflowBuilder:
 class TestIntegrationRedactionOperations:
     """Test redaction operations with live API."""
 
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for redaction testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
-    @pytest.fixture
-    def test_sensitive_pdf(self):
-        """Generate PDF with sensitive data for redaction testing."""
-        return TestDocumentGenerator.generate_pdf_with_sensitive_data()
-
     @pytest.mark.asyncio
     async def test_text_based_redactions(self, client, test_sensitive_pdf):
         """Test text-based redactions."""
@@ -592,20 +551,6 @@ class TestIntegrationRedactionOperations:
 class TestIntegrationImageWatermarking:
     """Test image watermarking with live API."""
 
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for watermarking testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
-    @pytest.fixture
-    def test_table_pdf(self):
-        """Generate PDF with table for watermarking tests."""
-        return TestDocumentGenerator.generate_pdf_with_table()
-
     @pytest.mark.asyncio
     async def test_image_watermark_basic(self, client, test_table_pdf):
         """Test basic image watermarking."""
@@ -656,19 +601,7 @@ class TestIntegrationImageWatermarking:
 class TestIntegrationHtmlToPdfConversion:
     """Test HTML to PDF conversion with live API."""
 
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for HTML conversion testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
 
-    @pytest.fixture
-    def test_html_content(self):
-        """Generate HTML content for testing."""
-        return TestDocumentGenerator.generate_html_content()
 
     @pytest.mark.asyncio
     async def test_html_to_pdf_default_settings(self, client, test_html_content):
@@ -714,30 +647,6 @@ class TestIntegrationHtmlToPdfConversion:
 
 class TestIntegrationAnnotationOperations:
     """Test annotation operations with live API."""
-
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for annotation testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
-    @pytest.fixture
-    def test_table_pdf(self):
-        """Generate PDF with table for annotation tests."""
-        return TestDocumentGenerator.generate_pdf_with_table()
-
-    @pytest.fixture
-    def test_xfdf_content(self):
-        """Generate XFDF content for testing."""
-        return TestDocumentGenerator.generate_xfdf_content()
-
-    @pytest.fixture
-    def test_instant_json_content(self):
-        """Generate Instant JSON content for testing."""
-        return TestDocumentGenerator.generate_instant_json_content()
 
     @pytest.mark.asyncio
     async def test_apply_xfdf_annotations(
@@ -789,25 +698,6 @@ class TestIntegrationAnnotationOperations:
 
 class TestIntegrationAdvancedPdfOptions:
     """Test advanced PDF options with live API."""
-
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for advanced PDF testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
-    @pytest.fixture
-    def test_sensitive_pdf(self):
-        """Generate PDF with sensitive data."""
-        return TestDocumentGenerator.generate_pdf_with_sensitive_data()
-
-    @pytest.fixture
-    def test_table_pdf(self):
-        """Generate PDF with table data."""
-        return TestDocumentGenerator.generate_pdf_with_table()
 
     @pytest.mark.asyncio
     async def test_password_protected_pdf(self, client, test_sensitive_pdf):
@@ -904,20 +794,6 @@ class TestIntegrationAdvancedPdfOptions:
 class TestIntegrationOfficeFormatOutputs:
     """Test Office format outputs with live API."""
 
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for Office format testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
-    @pytest.fixture
-    def test_table_pdf(self):
-        """Generate PDF with table data for Office conversion."""
-        return TestDocumentGenerator.generate_pdf_with_table()
-
     @pytest.mark.asyncio
     async def test_pdf_to_excel(self, client, test_table_pdf):
         """Test converting PDF to Excel (XLSX)."""
@@ -946,20 +822,6 @@ class TestIntegrationOfficeFormatOutputs:
 class TestIntegrationImageOutputOptions:
     """Test image output options with live API."""
 
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for image output testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
-    @pytest.fixture
-    def test_table_pdf(self):
-        """Generate PDF with table data for image conversion."""
-        return TestDocumentGenerator.generate_pdf_with_table()
-
     @pytest.mark.asyncio
     async def test_pdf_to_jpeg_custom_dpi(self, client, test_table_pdf):
         """Test converting PDF to JPEG with custom DPI."""
@@ -987,25 +849,6 @@ class TestIntegrationImageOutputOptions:
 
 class TestIntegrationJsonContentExtraction:
     """Test JSON content extraction with live API."""
-
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for JSON extraction testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
-    @pytest.fixture
-    def test_table_pdf(self):
-        """Generate PDF with table data for extraction."""
-        return TestDocumentGenerator.generate_pdf_with_table()
-
-    @pytest.fixture
-    def test_sensitive_pdf(self):
-        """Generate PDF with sensitive data for extraction."""
-        return TestDocumentGenerator.generate_pdf_with_sensitive_data()
 
     @pytest.mark.asyncio
     async def test_extract_tables(self, client, test_table_pdf):
@@ -1046,15 +889,6 @@ class TestIntegrationJsonContentExtraction:
 
 class TestIntegrationComplexWorkflows:
     """Test complex multi-format workflows with live API."""
-
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for complex workflow testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
 
     @pytest.mark.asyncio
     async def test_combine_html_pdf_images_with_actions(self, client):
@@ -1143,15 +977,6 @@ class TestIntegrationComplexWorkflows:
 class TestIntegrationErrorScenarios:
     """Test error scenarios with live API."""
 
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for error scenario testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
-
     @pytest.mark.asyncio
     async def test_invalid_html_content(self, client):
         """Test handling of invalid HTML content."""
@@ -1199,15 +1024,6 @@ class TestIntegrationErrorScenarios:
 
 class TestIntegrationPerformanceAndLimits:
     """Test performance and limits with live API."""
-
-    @pytest.fixture(scope="class")
-    def client(self):
-        """Create client instance for performance testing."""
-        options = {
-            "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-            "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-        }
-        return NutrientClient(options)
 
     @pytest.mark.asyncio
     async def test_workflow_with_many_actions(self, client):

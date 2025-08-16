@@ -1,61 +1,20 @@
 """Tests for NutrientClient functionality."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Any
 
 import pytest
 
 from nutrient_dws import NutrientClient
-from nutrient_dws.builder.constant import BuildActions, BuildOutputs
 from nutrient_dws.errors import ValidationError, NutrientError
-
-
-@pytest.fixture
-def mock_workflow_instance():
-    """Create a mock workflow instance for testing."""
-    mock_output_stage = AsyncMock()
-    mock_output_stage.execute.return_value = {
-        "success": True,
-        "output": {
-            "buffer": b"test-buffer",
-            "mimeType": "application/pdf",
-            "filename": "output.pdf",
-        },
-    }
-    mock_output_stage.dry_run.return_value = {"success": True}
-
-    mock_workflow = AsyncMock()
-    mock_workflow.add_file_part.return_value = mock_workflow
-    mock_workflow.add_html_part.return_value = mock_workflow
-    mock_workflow.add_new_page.return_value = mock_workflow
-    mock_workflow.add_document_part.return_value = mock_workflow
-    mock_workflow.apply_actions.return_value = mock_workflow
-    mock_workflow.apply_action.return_value = mock_workflow
-    mock_workflow.output_pdf.return_value = mock_output_stage
-    mock_workflow.output_pdfa.return_value = mock_output_stage
-    mock_workflow.output_pdfua.return_value = mock_output_stage
-    mock_workflow.output_image.return_value = mock_output_stage
-    mock_workflow.output_office.return_value = mock_output_stage
-    mock_workflow.output_html.return_value = mock_output_stage
-    mock_workflow.output_markdown.return_value = mock_output_stage
-    mock_workflow.output_json.return_value = mock_output_stage
-
-    return mock_workflow
-
-
-@pytest.fixture
-def valid_options():
-    """Valid client options for testing."""
-    return {"apiKey": "test-api-key", "baseUrl": "https://api.test.com/v1"}
 
 
 class TestNutrientClientConstructor:
     """Tests for NutrientClient constructor."""
 
-    def test_create_client_with_valid_options(self, valid_options):
-        client = NutrientClient(valid_options)
+    def test_create_client_with_valid_options(self, valid_client_options):
+        client = NutrientClient(valid_client_options)
         assert client is not None
-        assert client.options == valid_options
+        assert client.options == valid_client_options
 
     def test_create_client_with_minimal_options(self):
         client = NutrientClient({"apiKey": "test-key"})
@@ -95,15 +54,15 @@ class TestNutrientClientWorkflow:
 
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     def test_create_workflow_instance(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
         mock_workflow_instance = MagicMock()
         mock_staged_workflow_builder.return_value = mock_workflow_instance
 
         workflow = client.workflow()
 
-        mock_staged_workflow_builder.assert_called_once_with(valid_options)
+        mock_staged_workflow_builder.assert_called_once_with(valid_client_options)
         assert workflow == mock_workflow_instance
 
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
@@ -117,14 +76,14 @@ class TestNutrientClientWorkflow:
 
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     def test_workflow_with_timeout_override(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
         override_timeout = 5000
 
         client.workflow(override_timeout)
 
-        expected_options = valid_options.copy()
+        expected_options = valid_client_options.copy()
         expected_options["timeout"] = override_timeout
         mock_staged_workflow_builder.assert_called_once_with(expected_options)
 
@@ -135,9 +94,9 @@ class TestNutrientClientOcr:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_perform_ocr_with_single_language_and_default_pdf_output(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -176,9 +135,9 @@ class TestNutrientClientOcr:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_perform_ocr_with_multiple_languages(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -217,9 +176,9 @@ class TestNutrientClientWatermarkText:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_add_text_watermark_with_default_options(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -263,9 +222,9 @@ class TestNutrientClientWatermarkText:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_add_text_watermark_with_custom_options(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -315,9 +274,9 @@ class TestNutrientClientWatermarkImage:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_add_image_watermark_with_default_options(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -362,9 +321,9 @@ class TestNutrientClientWatermarkImage:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_add_image_watermark_with_custom_options(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -407,9 +366,9 @@ class TestNutrientClientMerge:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_merge_multiple_files(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -447,9 +406,9 @@ class TestNutrientClientMerge:
 
     @pytest.mark.asyncio
     async def test_throw_validation_error_when_less_than_2_files_provided(
-        self, valid_options
+        self, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
         files = ["file1.pdf"]
 
         with pytest.raises(
@@ -459,9 +418,9 @@ class TestNutrientClientMerge:
 
     @pytest.mark.asyncio
     async def test_throw_validation_error_when_empty_array_provided(
-        self, valid_options
+        self, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
         files = []
 
         with pytest.raises(
@@ -476,9 +435,9 @@ class TestNutrientClientExtractText:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_extract_text_from_document(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -514,9 +473,9 @@ class TestNutrientClientExtractText:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_extract_text_with_page_range(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -554,9 +513,9 @@ class TestNutrientClientExtractTable:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_extract_table_from_document(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -596,9 +555,9 @@ class TestNutrientClientExtractKeyValuePairs:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_extract_key_value_pairs_from_document(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -642,9 +601,9 @@ class TestNutrientClientConvert:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_convert_docx_to_pdf(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -681,9 +640,9 @@ class TestNutrientClientConvert:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_convert_pdf_to_image(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -718,8 +677,8 @@ class TestNutrientClientConvert:
         assert result["mimeType"] == "image/png"
 
     @pytest.mark.asyncio
-    async def test_convert_unsupported_format_throws_error(self, valid_options):
-        client = NutrientClient(valid_options)
+    async def test_convert_unsupported_format_throws_error(self, valid_client_options):
+        client = NutrientClient(valid_client_options)
 
         file = "document.pdf"
         target_format = "unsupported"
@@ -736,9 +695,9 @@ class TestNutrientClientPasswordProtect:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_password_protect_pdf(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -781,9 +740,9 @@ class TestNutrientClientPasswordProtect:
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_password_protect_pdf_with_permissions(
-        self, mock_staged_workflow_builder, valid_options
+        self, mock_staged_workflow_builder, valid_client_options
     ):
-        client = NutrientClient(valid_options)
+        client = NutrientClient(valid_client_options)
 
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
@@ -821,8 +780,8 @@ class TestNutrientClientPasswordProtect:
 class TestNutrientClientProcessTypedWorkflowResult:
     """Tests for NutrientClient _process_typed_workflow_result method."""
 
-    def test_process_successful_workflow_result(self, valid_options):
-        client = NutrientClient(valid_options)
+    def test_process_successful_workflow_result(self, valid_client_options):
+        client = NutrientClient(valid_client_options)
 
         result = {
             "success": True,
@@ -832,8 +791,8 @@ class TestNutrientClientProcessTypedWorkflowResult:
         processed_result = client._process_typed_workflow_result(result)
         assert processed_result == result["output"]
 
-    def test_process_failed_workflow_result_with_errors(self, valid_options):
-        client = NutrientClient(valid_options)
+    def test_process_failed_workflow_result_with_errors(self, valid_client_options):
+        client = NutrientClient(valid_client_options)
 
         test_error = NutrientError("Test error", "TEST_ERROR")
         result = {"success": False, "errors": [{"error": test_error}], "output": None}
@@ -841,8 +800,8 @@ class TestNutrientClientProcessTypedWorkflowResult:
         with pytest.raises(NutrientError, match="Test error"):
             client._process_typed_workflow_result(result)
 
-    def test_process_failed_workflow_result_without_errors(self, valid_options):
-        client = NutrientClient(valid_options)
+    def test_process_failed_workflow_result_without_errors(self, valid_client_options):
+        client = NutrientClient(valid_client_options)
 
         result = {"success": False, "errors": [], "output": None}
 
@@ -852,8 +811,8 @@ class TestNutrientClientProcessTypedWorkflowResult:
         ):
             client._process_typed_workflow_result(result)
 
-    def test_process_successful_workflow_result_without_output(self, valid_options):
-        client = NutrientClient(valid_options)
+    def test_process_successful_workflow_result_without_output(self, valid_client_options):
+        client = NutrientClient(valid_client_options)
 
         result = {"success": True, "output": None}
 
@@ -869,8 +828,8 @@ class TestNutrientClientAccountInfo:
 
     @patch("nutrient_dws.client.send_request")
     @pytest.mark.asyncio
-    async def test_get_account_info(self, mock_send_request, valid_options):
-        client = NutrientClient(valid_options)
+    async def test_get_account_info(self, mock_send_request, valid_client_options):
+        client = NutrientClient(valid_client_options)
 
         expected_account_info = {
             "subscriptionType": "premium",
@@ -889,7 +848,7 @@ class TestNutrientClientAccountInfo:
                 "data": None,
                 "headers": None,
             },
-            valid_options,
+            valid_client_options,
         )
 
         # Verify the result
@@ -901,8 +860,8 @@ class TestNutrientClientCreateToken:
 
     @patch("nutrient_dws.client.send_request")
     @pytest.mark.asyncio
-    async def test_create_token(self, mock_send_request, valid_options):
-        client = NutrientClient(valid_options)
+    async def test_create_token(self, mock_send_request, valid_client_options):
+        client = NutrientClient(valid_client_options)
 
         params = {"allowedOperations": ["annotations_api"], "expirationTime": 3600}
 
@@ -918,7 +877,7 @@ class TestNutrientClientCreateToken:
         # Verify the request was made correctly
         mock_send_request.assert_called_once_with(
             {"method": "POST", "endpoint": "/tokens", "data": params, "headers": None},
-            valid_options,
+            valid_client_options,
         )
 
         # Verify the result
@@ -930,8 +889,8 @@ class TestNutrientClientDeleteToken:
 
     @patch("nutrient_dws.client.send_request")
     @pytest.mark.asyncio
-    async def test_delete_token(self, mock_send_request, valid_options):
-        client = NutrientClient(valid_options)
+    async def test_delete_token(self, mock_send_request, valid_client_options):
+        client = NutrientClient(valid_client_options)
 
         token_id = "token-123"
 
@@ -947,5 +906,5 @@ class TestNutrientClientDeleteToken:
                 "data": {"id": token_id},
                 "headers": None,
             },
-            valid_options,
+            valid_client_options,
         )

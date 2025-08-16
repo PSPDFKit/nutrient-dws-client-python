@@ -10,10 +10,7 @@ from nutrient_dws.builder.constant import BuildActions, BuildOutputs
 from nutrient_dws.errors import ValidationError, NutrientError
 
 
-@pytest.fixture
-def valid_client_options():
-    """Valid client options for testing."""
-    return {"apiKey": "test-api-key", "baseUrl": "https://api.test.com/v1"}
+
 
 
 @pytest.fixture
