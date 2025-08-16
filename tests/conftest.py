@@ -44,16 +44,16 @@ def mock_workflow_instance():
 @pytest.fixture
 def valid_client_options():
     """Valid client options for testing."""
-    return {"apiKey": "test-api-key", "baseUrl": "https://api.test.com/v1"}
+    return {"apiKey": "test-api-key", "baseUrl": "https://api.test.com/v1", "timeout": None}
+
+@pytest.fixture
+def unit_client():
+    return NutrientClient(api_key="test-api-key", base_url="https://api.test.com/v1")
 
 @pytest.fixture(scope="class")
-def client():
+def integration_client():
     """Create client instance for testing."""
-    options = {
-        "apiKey": os.getenv("NUTRIENT_API_KEY", ""),
-        "baseUrl": os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"),
-    }
-    return NutrientClient(options)
+    return NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", ""), base_url=os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"))
 
 
 @pytest.fixture

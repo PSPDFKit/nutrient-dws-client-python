@@ -14,7 +14,7 @@ from nutrient_dws.builder.staged_builders import (
     TypedWorkflowResult,
     WorkflowDryRunResult,
     WorkflowError,
-    WorkflowExecuteOptions,
+    WorkflowExecuteCallback,
     WorkflowWithActionsStage,
     WorkflowWithOutputStage,
     WorkflowWithPartsStage,
@@ -35,8 +35,6 @@ from nutrient_dws.inputs import (
 from nutrient_dws.types.file_handle import FileHandle, RemoteFileHandle
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from nutrient_dws.types.build_actions import BuildAction
     from nutrient_dws.types.build_instruction import BuildInstructions
     from nutrient_dws.types.build_output import (
@@ -489,12 +487,12 @@ class StagedWorkflowBuilder(
 
     async def execute(
         self,
-        options: WorkflowExecuteOptions | None = None,
+        on_progress: WorkflowExecuteCallback | None = None,
     ) -> TypedWorkflowResult:
         """Execute the workflow and return the result.
 
         Args:
-            options: Optional execution options including progress callback.
+            on_progress: Optional progress callback.
 
         Returns:
             The workflow execution result.
@@ -511,18 +509,14 @@ class StagedWorkflowBuilder(
         try:
             # Step 1: Validate
             self.current_step = 1
-            if options and options.get("onProgress"):
-                cast("Callable[[int, int], None]", options["onProgress"])(
-                    self.current_step, 3
-                )
+            if on_progress:
+                on_progress(self.current_step, 3)
             self._validate()
 
             # Step 2: Prepare files
             self.current_step = 2
-            if options and options.get("onProgress"):
-                cast("Callable[[int, int], None]", options["onProgress"])(
-                    self.current_step, 3
-                )
+            if on_progress:
+                on_progress(self.current_step, 3)
 
             output_config = self.build_instructions.get("output")
             if not output_config:
@@ -538,10 +532,8 @@ class StagedWorkflowBuilder(
 
             # Step 3: Process response
             self.current_step = 3
-            if options and options.get("onProgress"):
-                cast("Callable[[int, int], None]", options["onProgress"])(
-                    self.current_step, 3
-                )
+            if on_progress:
+                on_progress(self.current_step, 3)
 
             if output_config["type"] == "json-content":
                 result["success"] = True

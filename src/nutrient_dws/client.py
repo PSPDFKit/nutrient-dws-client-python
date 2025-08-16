@@ -1,5 +1,6 @@
 """Main client for interacting with the Nutrient Document Web Services API."""
 
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from nutrient_dws.builder.builder import StagedWorkflowBuilder
@@ -94,12 +95,10 @@ class NutrientClient:
     """Main client for interacting with the Nutrient Document Web Services API.
 
     Example:
-        Server-side usage with API key:
+        Server-side usage with an API key:
 
         ```python
-        client = NutrientClient({
-            'apiKey': 'your-secret-api-key'
-        })
+        client = NutrientClient(api_key='your_api_key')
         ```
 
         Client-side usage with token provider:
@@ -109,21 +108,29 @@ class NutrientClient:
             # Your token retrieval logic here
             return 'your-token'
 
-        client = NutrientClient({
-            'apiKey': get_token
-        })
+        client = NutrientClient(api_key=get_token)
         ```
     """
 
-    def __init__(self, options: NutrientClientOptions) -> None:
+    def __init__(
+        self,
+        api_key: str | Callable[[], str | Awaitable[str]],
+        base_url: str | None = None,
+        timeout: int | None = None,
+    ) -> None:
         """Create a new NutrientClient instance.
 
         Args:
-            options: Configuration options for the client
+            api_key: API key or API key getter
+            base_url: DWS Base url
+            timeout: DWS request timeout
 
         Raises:
             ValidationError: If options are invalid
         """
+        options = NutrientClientOptions(
+            apiKey=api_key, baseUrl=base_url, timeout=timeout
+        )
         self._validate_options(options)
         self.options = options
 
@@ -413,7 +420,7 @@ class NutrientClient:
                 f.write(pdf_buffer)
             ```
         """
-        watermark_action = BuildActions.watermarkText(text, options)
+        watermark_action = BuildActions.watermark_text(text, options)
 
         builder = self.workflow().add_file_part(file, None, [watermark_action])
 
@@ -447,7 +454,7 @@ class NutrientClient:
             pdf_buffer = result['buffer']
             ```
         """
-        watermark_action = BuildActions.watermarkImage(image, options)
+        watermark_action = BuildActions.watermark_image(image, options)
 
         builder = self.workflow().add_file_part(file, None, [watermark_action])
 
@@ -842,7 +849,7 @@ class NutrientClient:
         if not is_valid_pdf(normalized_file[0]):
             raise ValidationError("Invalid pdf file", {"input": pdf})
 
-        apply_json_action = BuildActions.applyInstantJson(instant_json_file)
+        apply_json_action = BuildActions.apply_instant_json(instant_json_file)
 
         result = (
             await self.workflow()
@@ -889,7 +896,7 @@ class NutrientClient:
         if not is_valid_pdf(normalized_file[0]):
             raise ValidationError("Invalid pdf file", {"input": pdf})
 
-        apply_xfdf_action = BuildActions.applyXfdf(xfdf_file, options)
+        apply_xfdf_action = BuildActions.apply_xfdf(xfdf_file, options)
 
         result = (
             await self.workflow()
@@ -1115,13 +1122,13 @@ class NutrientClient:
                     normalized_pages["end"] - normalized_pages["start"] + 1
                 )
 
-        create_redactions_action = BuildActions.createRedactionsPreset(
+        create_redactions_action = BuildActions.create_redactions_preset(
             preset, options, strategy_options
         )
         actions: list[ApplicableAction] = [create_redactions_action]
 
         if redaction_state == "apply":
-            actions.append(BuildActions.applyRedactions())
+            actions.append(BuildActions.apply_redactions())
 
         result = (
             await self.workflow()
@@ -1182,13 +1189,13 @@ class NutrientClient:
                     normalized_pages["end"] - normalized_pages["start"] + 1
                 )
 
-        create_redactions_action = BuildActions.createRedactionsRegex(
+        create_redactions_action = BuildActions.create_redactions_regex(
             regex, options, strategy_options
         )
         actions: list[ApplicableAction] = [create_redactions_action]
 
         if redaction_state == "apply":
-            actions.append(BuildActions.applyRedactions())
+            actions.append(BuildActions.apply_redactions())
 
         result = (
             await self.workflow()
@@ -1249,13 +1256,13 @@ class NutrientClient:
                     normalized_pages["end"] - normalized_pages["start"] + 1
                 )
 
-        create_redactions_action = BuildActions.createRedactionsText(
+        create_redactions_action = BuildActions.create_redactions_text(
             text, options, strategy_options
         )
         actions: list[ApplicableAction] = [create_redactions_action]
 
         if redaction_state == "apply":
-            actions.append(BuildActions.applyRedactions())
+            actions.append(BuildActions.apply_redactions())
 
         result = (
             await self.workflow()
@@ -1287,7 +1294,7 @@ class NutrientClient:
             result = await client.apply_redactions(staged_result['buffer'])
             ```
         """
-        apply_redactions_action = BuildActions.applyRedactions()
+        apply_redactions_action = BuildActions.apply_redactions()
 
         # Validate PDF
         if is_remote_file_input(pdf):

@@ -23,9 +23,7 @@ if not os.getenv('NUTRIENT_API_KEY'):
     exit(1)
 
 # Initialize the client with API key
-client = NutrientClient({
-    'apiKey': os.getenv('NUTRIENT_API_KEY')
-})
+client = NutrientClient(api_key=os.getenv('NUTRIENT_API_KEY'))
 
 # Define paths
 assets_dir = Path(__file__).parent.parent / 'assets'
@@ -71,7 +69,7 @@ async def merge_with_watermark_workflow():
         result = await client.workflow() \
             .add_file_part(pdf_path) \
             .add_file_part(png_path) \
-            .apply_action(BuildActions.watermarkText('CONFIDENTIAL', {
+            .apply_action(BuildActions.watermark_text('CONFIDENTIAL', {
                 'opacity': 0.5,
                 'fontSize': 48,
                 'fontColor': '#FF0000'
@@ -130,7 +128,7 @@ async def complex_workflow():
             .add_file_part(pdf_path) \
             .add_file_part(png_path) \
             .apply_actions([
-                BuildActions.watermarkText('DRAFT', {
+                BuildActions.watermark_text('DRAFT', {
                     'opacity': 0.3,
                     'fontSize': 36,
                     'fontColor': '#0000FF'
@@ -143,9 +141,7 @@ async def complex_workflow():
                     'author': 'Nutrient DWS Python Client'
                 }
             }) \
-            .execute({
-                'onProgress': lambda current, total: print(f'Processing step {current} of {total}')
-            })
+            .execute(on_progress= lambda current, total: print(f'Processing step {current} of {total}'))
 
         # Save the result to the output directory
         output_path = output_dir / 'workflow-complex-result.pdf'
@@ -168,7 +164,7 @@ async def sample_pdf_workflow():
 
         result = await client.workflow() \
             .add_file_part(pdf_path) \
-            .apply_action(BuildActions.watermarkText('SAMPLE PDF', {
+            .apply_action(BuildActions.watermark_text('SAMPLE PDF', {
                 'opacity': 0.4,
                 'fontSize': 42,
                 'fontColor': '#008000'

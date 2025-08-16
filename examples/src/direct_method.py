@@ -22,9 +22,7 @@ if not os.getenv('NUTRIENT_API_KEY'):
     exit(1)
 
 # Initialize the client with API key
-client = NutrientClient({
-    'apiKey': os.getenv('NUTRIENT_API_KEY')
-})
+client = NutrientClient(api_key=os.getenv('NUTRIENT_API_KEY'))
 
 # Define paths
 assets_dir = Path(__file__).parent.parent / 'assets'

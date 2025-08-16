@@ -907,7 +907,7 @@ class TestStagedWorkflowBuilderExecutionMethods:
                         builder.add_file_part("test.pdf")
                         builder.output_pdf()
 
-                        await builder.execute({"onProgress": on_progress})
+                        await builder.execute(on_progress=on_progress)
 
                         assert progress_calls == [(1, 3), (2, 3), (3, 3)]
 
@@ -1169,7 +1169,7 @@ class TestStagedWorkflowBuilderIntegration:
                         builder = StagedWorkflowBuilder(valid_client_options)
 
                         # Create a watermark action that needs file registration
-                        watermark_action = BuildActions.watermarkImage("logo.png")
+                        watermark_action = BuildActions.watermark_image("logo.png")
 
                         result = await (
                             builder.add_file_part("document.pdf")
@@ -1210,11 +1210,11 @@ class TestStagedWorkflowBuilderIntegration:
                         # Mix of regular actions and actions requiring file registration
                         actions = [
                             BuildActions.ocr("english"),  # Regular action
-                            BuildActions.watermarkImage(
+                            BuildActions.watermark_image(
                                 "watermark.png"
                             ),  # File input action
                             BuildActions.flatten(),  # Regular action
-                            BuildActions.applyInstantJson(
+                            BuildActions.apply_instant_json(
                                 "annotations.json"
                             ),  # File input action
                         ]

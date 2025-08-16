@@ -3,18 +3,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import (
-    TYPE_CHECKING,
-    Literal,
-    TypedDict,
-)
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from nutrient_dws.builder.constant import ActionWithFileInput
 from nutrient_dws.types.build_actions import BuildAction
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from nutrient_dws.inputs import FileInput
     from nutrient_dws.types.analyze_response import AnalyzeBuildResponse
     from nutrient_dws.types.build_output import (
@@ -110,10 +105,7 @@ class WorkflowDryRunResult(TypedDict):
     errors: list[WorkflowError] | None
 
 
-class WorkflowExecuteOptions(TypedDict, total=False):
-    """Options for workflow execution."""
-
-    onProgress: Callable[[int, int], None] | None
+WorkflowExecuteCallback = Callable[[int, int], None]
 
 
 class WorkflowInitialStage(ABC):
@@ -250,7 +242,7 @@ class WorkflowWithOutputStage(ABC):
     @abstractmethod
     async def execute(
         self,
-        options: WorkflowExecuteOptions | None = None,
+        on_progress: WorkflowExecuteCallback | None = None,
     ) -> TypedWorkflowResult:
         """Execute the workflow and return the result."""
         pass

@@ -11,12 +11,12 @@ The main client for interacting with the Nutrient DWS Processor API.
 #### Constructor
 
 ```python
-NutrientClient(options: NutrientClientOptions)
+NutrientClient(api_key: str | Callable[[], Awaitable[str] | str], base_url: str | None = None, timeout: int | None = None)
 ```
 
-Options:
-- `apiKey` (required): Your API key string or async function returning a token
-- `baseUrl` (optional): Custom API base URL (defaults to `https://api.nutrient.io`)
+Parameters:
+- `api_key` (required): Your API key string or async function returning a token
+- `base_url` (optional): Custom API base URL (defaults to `https://api.nutrient.io`)
 - `timeout` (optional): Request timeout in milliseconds
 
 #### Account Methods

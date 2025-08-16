@@ -24,45 +24,51 @@ from nutrient_dws.http import (
 )
 from nutrient_dws.inputs import NormalizedFileData
 
-
 class TestResolveApiKey:
-    def test_resolve_string_api_key(self):
-        result = resolve_api_key("test-api-key")
+    async def test_resolve_string_api_key(self):
+        result = await resolve_api_key("test-api-key")
         assert result == "test-api-key"
 
-    def test_resolve_function_api_key(self):
+    async def test_resolve_function_api_key(self):
         def api_key_func():
             return "function-api-key"
 
-        result = resolve_api_key(api_key_func)
+        result = await resolve_api_key(api_key_func)
         assert result == "function-api-key"
 
-    def test_function_returns_empty_string(self):
+    async def test_resolve_async_function_api_key(self):
+        async def get_token():
+            # Your token retrieval logic here
+            return 'async-function-api-key'
+        result = await resolve_api_key(get_token)
+        assert result == "async-function-api-key"
+
+    async def test_function_returns_empty_string(self):
         def empty_key_func():
             return ""
 
         with pytest.raises(
             AuthenticationError, match="API key function must return a non-empty string"
         ):
-            resolve_api_key(empty_key_func)
+            await resolve_api_key(empty_key_func)
 
-    def test_function_returns_none(self):
+    async def test_function_returns_none(self):
         def none_key_func():
             return None
 
         with pytest.raises(
             AuthenticationError, match="API key function must return a non-empty string"
         ):
-            resolve_api_key(none_key_func)
+            await resolve_api_key(none_key_func)
 
-    def test_function_throws_error(self):
+    async def test_function_throws_error(self):
         def error_key_func():
             raise Exception("Token fetch failed")
 
         with pytest.raises(
             AuthenticationError, match="Failed to resolve API key from function"
         ):
-            resolve_api_key(error_key_func)
+            await resolve_api_key(error_key_func)
 
 
 class TestExtractErrorMessage:

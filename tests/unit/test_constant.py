@@ -41,7 +41,7 @@ class TestBuildActions:
             "height": {"value": 100, "unit": "%"},
         }
 
-        action = BuildActions.watermarkText("CONFIDENTIAL", default_dimensions)
+        action = BuildActions.watermark_text("CONFIDENTIAL", default_dimensions)
 
         assert action == {
             "type": "watermark",
@@ -67,7 +67,7 @@ class TestBuildActions:
             "bottom": {"value": 40, "unit": "pt"},
         }
 
-        action = BuildActions.watermarkText("DRAFT", options)
+        action = BuildActions.watermark_text("DRAFT", options)
 
         assert action == {
             "type": "watermark",
@@ -93,7 +93,7 @@ class TestBuildActions:
             "height": {"value": 100, "unit": "%"},
         }
 
-        action = BuildActions.watermarkImage(image, default_dimensions)
+        action = BuildActions.watermark_image(image, default_dimensions)
 
         # Check that action requires file registration by having fileInput and createAction method
         assert hasattr(action, "fileInput")
@@ -122,7 +122,7 @@ class TestBuildActions:
             "bottom": {"value": 40, "unit": "pt"},
         }
 
-        action = BuildActions.watermarkImage(image, options)
+        action = BuildActions.watermark_image(image, options)
 
         # Check that action requires file registration by having fileInput and createAction method
         assert hasattr(action, "fileInput")
@@ -156,7 +156,7 @@ class TestBuildActions:
 
     def test_apply_instant_json(self):
         file: FileInput = "annotations.json"
-        action = BuildActions.applyInstantJson(file)
+        action = BuildActions.apply_instant_json(file)
 
         # Check that action requires file registration by having fileInput and createAction method
         assert hasattr(action, "fileInput")
@@ -168,7 +168,7 @@ class TestBuildActions:
 
     def test_apply_xfdf(self):
         file: FileInput = "annotations.xfdf"
-        action = BuildActions.applyXfdf(file)
+        action = BuildActions.apply_xfdf(file)
 
         # Check that action requires file registration by having fileInput and createAction method
         assert hasattr(action, "fileInput")
@@ -179,13 +179,13 @@ class TestBuildActions:
         assert result == {"type": "applyXfdf", "file": "asset_1"}
 
     def test_apply_redactions(self):
-        action = BuildActions.applyRedactions()
+        action = BuildActions.apply_redactions()
 
         assert action == {"type": "applyRedactions"}
 
     def test_create_redactions_text_with_minimal_options(self):
         text = "confidential"
-        action = BuildActions.createRedactionsText(text)
+        action = BuildActions.create_redactions_text(text)
 
         assert action == {
             "type": "createRedactions",
@@ -198,7 +198,7 @@ class TestBuildActions:
         options = {}
         strategy_options = {"caseSensitive": True, "wholeWord": True}
 
-        action = BuildActions.createRedactionsText(text, options, strategy_options)
+        action = BuildActions.create_redactions_text(text, options, strategy_options)
 
         assert action == {
             "type": "createRedactions",
@@ -212,7 +212,7 @@ class TestBuildActions:
 
     def test_create_redactions_regex_with_minimal_options(self):
         regex = r"\d{3}-\d{2}-\d{4}"
-        action = BuildActions.createRedactionsRegex(regex)
+        action = BuildActions.create_redactions_regex(regex)
 
         assert action == {
             "type": "createRedactions",
@@ -225,7 +225,7 @@ class TestBuildActions:
         options = {}
         strategy_options = {"caseSensitive": False}
 
-        action = BuildActions.createRedactionsRegex(regex, options, strategy_options)
+        action = BuildActions.create_redactions_regex(regex, options, strategy_options)
 
         assert action == {
             "type": "createRedactions",
@@ -238,7 +238,7 @@ class TestBuildActions:
 
     def test_create_redactions_preset_with_minimal_options(self):
         preset = "date"
-        action = BuildActions.createRedactionsPreset(preset)
+        action = BuildActions.create_redactions_preset(preset)
 
         assert action == {
             "type": "createRedactions",
@@ -251,7 +251,7 @@ class TestBuildActions:
         options = {}
         strategy_options = {"start": 1}
 
-        action = BuildActions.createRedactionsPreset(preset, options, strategy_options)
+        action = BuildActions.create_redactions_preset(preset, options, strategy_options)
 
         assert action == {
             "type": "createRedactions",

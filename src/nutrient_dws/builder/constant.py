@@ -91,7 +91,7 @@ class BuildActions:
         }
 
     @staticmethod
-    def watermarkText(
+    def watermark_text(
         text: str, options: TextWatermarkActionOptions | None = None
     ) -> TextWatermarkAction:
         """Create a text watermark action.
@@ -132,7 +132,7 @@ class BuildActions:
         }
 
     @staticmethod
-    def watermarkImage(
+    def watermark_image(
         image: FileInput, options: ImageWatermarkActionOptions | None = None
     ) -> ActionWithFileInput:
         """Create an image watermark action.
@@ -181,22 +181,22 @@ class BuildActions:
         return ImageWatermarkActionWithFileInput(image, options)
 
     @staticmethod
-    def flatten(annotationIds: list[str | int] | None = None) -> FlattenAction:
+    def flatten(annotation_ids: list[str | int] | None = None) -> FlattenAction:
         """Create a flatten action.
 
         Args:
-            annotationIds: Optional annotation IDs to flatten (all if not specified)
+            annotation_ids: Optional annotation IDs to flatten (all if not specified)
 
         Returns:
             FlattenAction object
         """
         result: FlattenAction = {"type": "flatten"}
-        if annotationIds is not None:
-            result["annotationIds"] = annotationIds
+        if annotation_ids is not None:
+            result["annotationIds"] = annotation_ids
         return result
 
     @staticmethod
-    def applyInstantJson(file: FileInput) -> ActionWithFileInput:
+    def apply_instant_json(file: FileInput) -> ActionWithFileInput:
         """Create an apply Instant JSON action.
 
         Args:
@@ -221,7 +221,7 @@ class BuildActions:
         return ApplyInstantJsonActionWithFileInput(file)
 
     @staticmethod
-    def applyXfdf(
+    def apply_xfdf(
         file: FileInput, options: ApplyXfdfActionOptions | None = None
     ) -> ActionWithFileInput:
         """Create an apply XFDF action.
@@ -255,10 +255,10 @@ class BuildActions:
         return ApplyXfdfActionWithFileInput(file, options)
 
     @staticmethod
-    def createRedactionsText(
+    def create_redactions_text(
         text: str,
         options: BaseCreateRedactionsOptions | None = None,
-        strategyOptions: CreateRedactionsStrategyOptionsText | None = None,
+        strategy_options: CreateRedactionsStrategyOptionsText | None = None,
     ) -> CreateRedactionsActionText:
         """Create redactions with text search.
 
@@ -266,7 +266,7 @@ class BuildActions:
             text: Text to search and redact
             options: Redaction options
                 content: Visual aspects of the redaction annotation (background color, overlay text, etc.)
-            strategyOptions: Redaction strategy options
+            strategy_options: Redaction strategy options
                 includeAnnotations: If true, redaction annotations are created on top of annotations whose content match the provided text (default: true)
                 caseSensitive: If true, the search will be case sensitive (default: false)
                 start: The index of the page from where to start the search (default: 0)
@@ -280,17 +280,17 @@ class BuildActions:
             "strategy": "text",
             "strategyOptions": {
                 "text": text,
-                **(strategyOptions or {}),
+                **(strategy_options or {}),
             },
             **(options or {}),
         }
         return cast("CreateRedactionsActionText", result)
 
     @staticmethod
-    def createRedactionsRegex(
+    def create_redactions_regex(
         regex: str,
         options: BaseCreateRedactionsOptions | None = None,
-        strategyOptions: CreateRedactionsStrategyOptionsRegex | None = None,
+        strategy_options: CreateRedactionsStrategyOptionsRegex | None = None,
     ) -> CreateRedactionsActionRegex:
         """Create redactions with regex pattern.
 
@@ -298,7 +298,7 @@ class BuildActions:
             regex: Regex pattern to search and redact
             options: Redaction options
                 content: Visual aspects of the redaction annotation (background color, overlay text, etc.)
-            strategyOptions: Redaction strategy options
+            strategy_options: Redaction strategy options
                 includeAnnotations: If true, redaction annotations are created on top of annotations whose content match the provided regex (default: true)
                 caseSensitive: If true, the search will be case sensitive (default: true)
                 start: The index of the page from where to start the search (default: 0)
@@ -312,17 +312,17 @@ class BuildActions:
             "strategy": "regex",
             "strategyOptions": {
                 "regex": regex,
-                **(strategyOptions or {}),
+                **(strategy_options or {}),
             },
             **(options or {}),
         }
         return cast("CreateRedactionsActionRegex", result)
 
     @staticmethod
-    def createRedactionsPreset(
+    def create_redactions_preset(
         preset: SearchPreset,
         options: BaseCreateRedactionsOptions | None = None,
-        strategyOptions: CreateRedactionsStrategyOptionsPreset | None = None,
+        strategy_options: CreateRedactionsStrategyOptionsPreset | None = None,
     ) -> CreateRedactionsActionPreset:
         """Create redactions with preset pattern.
 
@@ -330,7 +330,7 @@ class BuildActions:
             preset: Preset pattern to search and redact (e.g. 'email-address', 'credit-card-number', 'social-security-number', etc.)
             options: Redaction options
                 content: Visual aspects of the redaction annotation (background color, overlay text, etc.)
-            strategyOptions: Redaction strategy options
+            strategy_options: Redaction strategy options
                 includeAnnotations: If true, redaction annotations are created on top of annotations whose content match the provided preset (default: true)
                 start: The index of the page from where to start the search (default: 0)
                 limit: Starting from start, the number of pages to search (default: to the end of the document)
@@ -343,14 +343,14 @@ class BuildActions:
             "strategy": "preset",
             "strategyOptions": {
                 "preset": preset,
-                **(strategyOptions or {}),
+                **(strategy_options or {}),
             },
             **(options or {}),
         }
         return cast("CreateRedactionsActionPreset", result)
 
     @staticmethod
-    def applyRedactions() -> ApplyRedactionsAction:
+    def apply_redactions() -> ApplyRedactionsAction:
         """Apply previously created redactions.
 
         Returns:

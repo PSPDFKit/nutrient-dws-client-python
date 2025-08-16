@@ -1,15 +1,23 @@
 """Factory function to create a new workflow builder with staged interface."""
 
+from collections.abc import Callable
+
 from nutrient_dws.builder.builder import StagedWorkflowBuilder
 from nutrient_dws.builder.staged_builders import WorkflowInitialStage
 from nutrient_dws.http import NutrientClientOptions
 
 
-def workflow(client_options: NutrientClientOptions) -> WorkflowInitialStage:
+def workflow(
+    api_key: str | Callable[[], str],
+    base_url: str | None = None,
+    timeout: int | None = None,
+) -> WorkflowInitialStage:
     r"""Factory function to create a new workflow builder with staged interface.
 
     Args:
-        client_options: Client configuration options
+        api_key: API key or API key getter
+        base_url: DWS Base url
+        timeout: DWS request timeout
 
     Returns:
         A new staged workflow builder instance
@@ -28,4 +36,7 @@ def workflow(client_options: NutrientClientOptions) -> WorkflowInitialStage:
         .execute()
         ```
     """
+    client_options = NutrientClientOptions(
+        apiKey=api_key, baseUrl=base_url, timeout=timeout
+    )
     return StagedWorkflowBuilder(client_options)

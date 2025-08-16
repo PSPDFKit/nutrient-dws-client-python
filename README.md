@@ -63,9 +63,7 @@ Provide your API key directly:
 ```python
 from nutrient_dws import NutrientClient
 
-client = NutrientClient({
-    'apiKey': 'your_secret_key'
-})
+client = NutrientClient(api_key='your_api_key')
 ```
 
 ### Token Provider
@@ -82,9 +80,7 @@ async def get_token():
         data = response.json()
         return data['token']
 
-client = NutrientClient({
-    'apiKey': get_token
-})
+client = NutrientClient(api_key=get_token)
 ```
 
 ## Direct Methods
@@ -96,7 +92,7 @@ import asyncio
 from nutrient_dws import NutrientClient
 
 async def main():
-    client = NutrientClient({'apiKey': 'your_api_key'})
+    client = NutrientClient(api_key='your_api_key')
 
     # Convert a document
     pdf_result = await client.convert('document.docx', 'pdf')
@@ -123,13 +119,13 @@ The client also provides a fluent builder pattern with staged interfaces to crea
 from nutrient_dws.builder.constant import BuildActions
 
 async def main():
-    client = NutrientClient({'apiKey': 'your_api_key'})
+    client = NutrientClient(api_key='your_api_key')
 
     result = await (client
         .workflow()
         .add_file_part('document.pdf')
         .add_file_part('appendix.pdf')
-        .apply_action(BuildActions.watermarkText('CONFIDENTIAL', {
+        .apply_action(BuildActions.watermark_text('CONFIDENTIAL', {
             'opacity': 0.5,
             'fontSize': 48
         }))
@@ -167,7 +163,7 @@ from nutrient_dws import (
 )
 
 async def main():
-    client = NutrientClient({'apiKey': 'your_api_key'})
+    client = NutrientClient(api_key='your_api_key')
 
     try:
         result = await client.convert('file.docx', 'pdf')

@@ -11,9 +11,7 @@ Provide your API key directly:
 ```python
 from nutrient_dws import NutrientClient
 
-client = NutrientClient({
-    'apiKey': 'your_secret_key'
-})
+client = NutrientClient(api_key='your_api_key')
 ```
 
 ### Token Provider
@@ -30,9 +28,7 @@ async def get_token():
         data = response.json()
         return data['token']
 
-client = NutrientClient({
-    'apiKey': get_token
-})
+client = NutrientClient(api_key=get_token)
 ```
 
 ## NutrientClient
@@ -42,12 +38,12 @@ The main client for interacting with the Nutrient DWS Processor API.
 ### Constructor
 
 ```python
-NutrientClient(options: NutrientClientOptions)
+NutrientClient(api_key: str | Callable[[], Awaitable[str] | str], base_url: str | None = None, timeout: int | None = None)
 ```
 
-Options:
-- `apiKey` (required): Your API key string or async function returning a token
-- `baseUrl` (optional): Custom API base URL (defaults to `https://api.nutrient.io`)
+Parameters:
+- `api_key` (required): Your API key string or async function returning a token
+- `base_url` (optional): Custom API base URL (defaults to `https://api.nutrient.io`)
 - `timeout` (optional): Request timeout in milliseconds
 
 ## Direct Methods
@@ -1028,15 +1024,16 @@ Adds a file part to the workflow.
 **Returns:** `WorkflowWithPartsStage` - The workflow builder instance for method chaining.
 
 **Example:**
+
 ```python
 # Add a PDF file from a local path
 workflow.add_file_part('/path/to/document.pdf')
 
 # Add a file with options and actions
 workflow.add_file_part(
-    '/path/to/document.pdf',
-    {'pages': {'start': 1, 'end': 3}},
-    [BuildActions.watermarkText('CONFIDENTIAL')]
+  '/path/to/document.pdf',
+  {'pages': {'start': 1, 'end': 3}},
+  [BuildActions.watermark_text('CONFIDENTIAL')]
 )
 ```
 
@@ -1115,9 +1112,9 @@ workflow.add_document_part(
 In this stage, you can apply actions to the document:
 
 ```python
-workflow.apply_action(BuildActions.watermarkText('CONFIDENTIAL', {
-    'opacity': 0.5,
-    'fontSize': 48
+workflow.apply_action(BuildActions.watermark_text('CONFIDENTIAL', {
+  'opacity': 0.5,
+  'fontSize': 48
 }))
 ```
 
@@ -1132,13 +1129,14 @@ Applies a single action to the workflow.
 **Returns:** `WorkflowWithActionsStage` - The workflow builder instance for method chaining.
 
 **Example:**
+
 ```python
 # Apply a watermark action
 workflow.apply_action(
-    BuildActions.watermarkText('CONFIDENTIAL', {
-        'opacity': 0.3,
-        'rotation': 45
-    })
+  BuildActions.watermark_text('CONFIDENTIAL', {
+    'opacity': 0.3,
+    'rotation': 45
+  })
 )
 
 # Apply an OCR action
@@ -1154,12 +1152,13 @@ Applies multiple actions to the workflow.
 **Returns:** `WorkflowWithActionsStage` - The workflow builder instance for method chaining.
 
 **Example:**
+
 ```python
 # Apply multiple actions to the workflow
 workflow.apply_actions([
-    BuildActions.watermarkText('DRAFT', {'opacity': 0.5}),
-    BuildActions.ocr('english'),
-    BuildActions.flatten()
+  BuildActions.watermark_text('DRAFT', {'opacity': 0.5}),
+  BuildActions.ocr('english'),
+  BuildActions.flatten()
 ])
 ```
 
@@ -1220,7 +1219,7 @@ workflow.apply_action(BuildActions.flatten(['annotation1', 'annotation2']))
 
 #### Watermarking
 
-##### `BuildActions.watermarkText(text, options?)`
+##### `BuildActions.watermark_text(text, options?)`
 Creates an action to add a text watermark to the document.
 
 **Parameters:**
@@ -1237,21 +1236,22 @@ Creates an action to add a text watermark to the document.
   - `fontStyle`: Text style list (['bold'], ['italic'], or ['bold', 'italic'])
 
 **Example:**
+
 ```python
 # Simple text watermark
-workflow.apply_action(BuildActions.watermarkText('CONFIDENTIAL'))
+workflow.apply_action(BuildActions.watermark_text('CONFIDENTIAL'))
 
 # Customized text watermark
-workflow.apply_action(BuildActions.watermarkText('DRAFT', {
-    'opacity': 0.5,
-    'rotation': 45,
-    'fontSize': 36,
-    'fontColor': '#FF0000',
-    'fontStyle': ['bold', 'italic']
+workflow.apply_action(BuildActions.watermark_text('DRAFT', {
+  'opacity': 0.5,
+  'rotation': 45,
+  'fontSize': 36,
+  'fontColor': '#FF0000',
+  'fontStyle': ['bold', 'italic']
 }))
 ```
 
-##### `BuildActions.watermarkImage(image, options?)`
+##### `BuildActions.watermark_image(image, options?)`
 Creates an action to add an image watermark to the document.
 
 **Parameters:**
@@ -1264,36 +1264,38 @@ Creates an action to add an image watermark to the document.
   - `opacity`: Watermark opacity (0 is fully transparent, 1 is fully opaque)
 
 **Example:**
+
 ```python
 # Simple image watermark
-workflow.apply_action(BuildActions.watermarkImage('/path/to/logo.png'))
+workflow.apply_action(BuildActions.watermark_image('/path/to/logo.png'))
 
 # Customized image watermark
-workflow.apply_action(BuildActions.watermarkImage('/path/to/logo.png', {
-    'opacity': 0.3,
-    'width': {'value': 50, 'unit': '%'},
-    'height': {'value': 50, 'unit': '%'},
-    'top': {'value': 10, 'unit': 'px'},
-    'left': {'value': 10, 'unit': 'px'},
-    'rotation': 0
+workflow.apply_action(BuildActions.watermark_image('/path/to/logo.png', {
+  'opacity': 0.3,
+  'width': {'value': 50, 'unit': '%'},
+  'height': {'value': 50, 'unit': '%'},
+  'top': {'value': 10, 'unit': 'px'},
+  'left': {'value': 10, 'unit': 'px'},
+  'rotation': 0
 }))
 ```
 
 #### Annotations
 
-##### `BuildActions.applyInstantJson(file)`
+##### `BuildActions.apply_instant_json(file)`
 Creates an action to apply annotations from an Instant JSON file to the document.
 
 **Parameters:**
 - `file: FileInput` - Instant JSON file input (file path, bytes, or file-like object).
 
 **Example:**
+
 ```python
 # Apply annotations from Instant JSON file
-workflow.apply_action(BuildActions.applyInstantJson('/path/to/annotations.json'))
+workflow.apply_action(BuildActions.apply_instant_json('/path/to/annotations.json'))
 ```
 
-##### `BuildActions.applyXfdf(file, options?)`
+##### `BuildActions.apply_xfdf(file, options?)`
 Creates an action to apply annotations from an XFDF file to the document.
 
 **Parameters:**
@@ -1303,20 +1305,21 @@ Creates an action to apply annotations from an XFDF file to the document.
   - `richTextEnabled: bool` - If True, plain text annotations will be converted to rich text annotations. If False, all text annotations will be plain text annotations (default: True)
 
 **Example:**
+
 ```python
 # Apply annotations from XFDF file with default options
-workflow.apply_action(BuildActions.applyXfdf('/path/to/annotations.xfdf'))
+workflow.apply_action(BuildActions.apply_xfdf('/path/to/annotations.xfdf'))
 
 # Apply annotations with specific options
-workflow.apply_action(BuildActions.applyXfdf('/path/to/annotations.xfdf', {
-    'ignorePageRotation': True,
-    'richTextEnabled': False
+workflow.apply_action(BuildActions.apply_xfdf('/path/to/annotations.xfdf', {
+  'ignorePageRotation': True,
+  'richTextEnabled': False
 }))
 ```
 
 #### Redactions
 
-##### `BuildActions.createRedactionsText(text, options?, strategy_options?)`
+##### `BuildActions.create_redactions_text(text, options?, strategy_options?)`
 Creates an action to add redaction annotations based on text search.
 
 **Parameters:**
@@ -1330,28 +1333,29 @@ Creates an action to add redaction annotations based on text search.
   - `limit: int` - Starting from start, the number of pages to search (default: to the end of the document)
 
 **Example:**
+
 ```python
 # Create redactions for all occurrences of "Confidential"
-workflow.apply_action(BuildActions.createRedactionsText('Confidential'))
+workflow.apply_action(BuildActions.create_redactions_text('Confidential'))
 
 # Create redactions with custom appearance and search options
-workflow.apply_action(BuildActions.createRedactionsText('Confidential',
-    {
-        'content': {
-            'backgroundColor': '#000000',
-            'overlayText': 'REDACTED',
-            'textColor': '#FFFFFF'
-        }
-    },
-    {
-        'caseSensitive': True,
-        'start': 2,
-        'limit': 5
-    }
-))
+workflow.apply_action(BuildActions.create_redactions_text('Confidential',
+                                                          {
+                                                            'content': {
+                                                              'backgroundColor': '#000000',
+                                                              'overlayText': 'REDACTED',
+                                                              'textColor': '#FFFFFF'
+                                                            }
+                                                          },
+                                                          {
+                                                            'caseSensitive': True,
+                                                            'start': 2,
+                                                            'limit': 5
+                                                          }
+                                                          ))
 ```
 
-##### `BuildActions.createRedactionsRegex(regex, options?, strategy_options?)`
+##### `BuildActions.create_redactions_regex(regex, options?, strategy_options?)`
 Creates an action to add redaction annotations based on regex pattern matching.
 
 **Parameters:**
@@ -1365,27 +1369,28 @@ Creates an action to add redaction annotations based on regex pattern matching.
   - `limit: int` - Starting from start, the number of pages to search (default: to the end of the document)
 
 **Example:**
+
 ```python
 # Create redactions for email addresses
-workflow.apply_action(BuildActions.createRedactionsRegex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'))
+workflow.apply_action(BuildActions.create_redactions_regex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'))
 
 # Create redactions with custom appearance and search options
-workflow.apply_action(BuildActions.createRedactionsRegex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
-    {
-        'content': {
-            'backgroundColor': '#FF0000',
-            'overlayText': 'EMAIL REDACTED'
-        }
-    },
-    {
-        'caseSensitive': False,
-        'start': 0,
-        'limit': 10
-    }
-))
+workflow.apply_action(BuildActions.create_redactions_regex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+                                                           {
+                                                             'content': {
+                                                               'backgroundColor': '#FF0000',
+                                                               'overlayText': 'EMAIL REDACTED'
+                                                             }
+                                                           },
+                                                           {
+                                                             'caseSensitive': False,
+                                                             'start': 0,
+                                                             'limit': 10
+                                                           }
+                                                           ))
 ```
 
-##### `BuildActions.createRedactionsPreset(preset, options?, strategy_options?)`
+##### `BuildActions.create_redactions_preset(preset, options?, strategy_options?)`
 Creates an action to add redaction annotations based on a preset pattern.
 
 **Parameters:**
@@ -1398,35 +1403,37 @@ Creates an action to add redaction annotations based on a preset pattern.
   - `limit: int` - Starting from start, the number of pages to search (default: to the end of the document)
 
 **Example:**
+
 ```python
 # Create redactions for email addresses using preset
-workflow.apply_action(BuildActions.createRedactionsPreset('email-address'))
+workflow.apply_action(BuildActions.create_redactions_preset('email-address'))
 
 # Create redactions for credit card numbers with custom appearance
-workflow.apply_action(BuildActions.createRedactionsPreset('credit-card-number',
-    {
-        'content': {
-            'backgroundColor': '#000000',
-            'overlayText': 'FINANCIAL DATA'
-        }
-    },
-    {
-        'start': 0,
-        'limit': 5
-    }
-))
+workflow.apply_action(BuildActions.create_redactions_preset('credit-card-number',
+                                                            {
+                                                              'content': {
+                                                                'backgroundColor': '#000000',
+                                                                'overlayText': 'FINANCIAL DATA'
+                                                              }
+                                                            },
+                                                            {
+                                                              'start': 0,
+                                                              'limit': 5
+                                                            }
+                                                            ))
 ```
 
-##### `BuildActions.applyRedactions()`
+##### `BuildActions.apply_redactions()`
 Creates an action to apply previously created redaction annotations, permanently removing the redacted content.
 
 **Example:**
+
 ```python
 # First create redactions
-workflow.apply_action(BuildActions.createRedactionsPreset('email-address'))
+workflow.apply_action(BuildActions.create_redactions_preset('email-address'))
 
 # Then apply them
-workflow.apply_action(BuildActions.applyRedactions())
+workflow.apply_action(BuildActions.apply_redactions())
 ```
 
 ### Stage 3: Set Output Format
@@ -1697,8 +1704,7 @@ Available methods:
 Executes the workflow and returns the result.
 
 **Parameters:**
-- `options: dict[str, Any] | None` - Options for workflow execution (optional):
-  - `options['onProgress']: Callable[[int, int], None]` - Callback for progress updates.
+- `on_progress: Callable[[int, int], None] | None` - Callback for progress updates (optional).
 
 **Returns:** `TypedWorkflowResult` - The workflow result.
 
@@ -1711,9 +1717,7 @@ result = await workflow.execute()
 def progress_callback(current: int, total: int) -> None:
     print(f'Processing step {current} of {total}')
 
-result = await workflow.execute({
-    'onProgress': progress_callback
-})
+result = await workflow.execute(on_progress=progress_callback)
 ```
 
 #### `dry_run(options?)`
@@ -1746,15 +1750,15 @@ result = await (client
 
 ```python
 result = await (client
-    .workflow()
-    .add_file_part('document1.pdf')
-    .add_file_part('document2.pdf')
-    .apply_action(BuildActions.watermarkText('CONFIDENTIAL', {
-        'opacity': 0.5,
-        'fontSize': 48
-    }))
-    .output_pdf()
-    .execute())
+                .workflow()
+                .add_file_part('document1.pdf')
+                .add_file_part('document2.pdf')
+                .apply_action(BuildActions.watermark_text('CONFIDENTIAL', {
+  'opacity': 0.5,
+  'fontSize': 48
+}))
+                .output_pdf()
+                .execute())
 ```
 
 #### OCR with Language Selection
@@ -1795,26 +1799,25 @@ result = await (client
 
 ```python
 def progress_callback(current: int, total: int) -> None:
-    print(f'Processing step {current} of {total}')
+  print(f'Processing step {current} of {total}')
+
 
 result = await (client
-    .workflow()
-    .add_file_part('document.pdf', {'pages': {'start': 0, 'end': 5}})
-    .add_file_part('appendix.pdf')
-    .apply_actions([
-        BuildActions.ocr({'language': 'english'}),
-        BuildActions.watermarkText('CONFIDENTIAL'),
-        BuildActions.createRedactionsPreset('email-address', 'apply')
-    ])
-    .output_pdfa({
-        'level': 'pdfa-2b',
-        'optimize': {
-            'mrcCompression': True
-        }
-    })
-    .execute({
-        'onProgress': progress_callback
-    }))
+                .workflow()
+                .add_file_part('document.pdf', {'pages': {'start': 0, 'end': 5}})
+                .add_file_part('appendix.pdf')
+                .apply_actions([
+  BuildActions.ocr({'language': 'english'}),
+  BuildActions.watermark_text('CONFIDENTIAL'),
+  BuildActions.create_redactions_preset('email-address', 'apply')
+])
+                .output_pdfa({
+  'level': 'pdfa-2b',
+  'optimize': {
+    'mrcCompression': True
+  }
+})
+                .execute(on_progress=progress_callback))
 ```
 
 ### Staged Workflow Builder
@@ -1830,19 +1833,19 @@ workflow.add_file_part('document.pdf')
 
 # Conditionally add more parts
 if include_appendix:
-    workflow.add_file_part('appendix.pdf')
+  workflow.add_file_part('appendix.pdf')
 
 # Conditionally apply actions
 if needs_watermark:
-    workflow.apply_action(BuildActions.watermarkText('CONFIDENTIAL'))
+  workflow.apply_action(BuildActions.watermark_text('CONFIDENTIAL'))
 
 # Set output format based on user preference
 if output_format == 'pdf':
-    workflow.output_pdf()
+  workflow.output_pdf()
 elif output_format == 'docx':
-    workflow.output_office('docx')
+  workflow.output_office('docx')
 else:
-    workflow.output_image('png')
+  workflow.output_image('png')
 
 # Execute the workflow
 result = await workflow.execute()
@@ -1913,5 +1916,5 @@ For optimal performance with workflows:
 1. **Minimize the number of parts**: Combine related files when possible
 2. **Use appropriate output formats**: Choose formats based on your needs
 3. **Consider dry runs**: Use `dry_run()` to estimate resource usage
-4. **Monitor progress**: Use the `onProgress` callback for long-running workflows
+4. **Monitor progress**: Use the `on_progress` callback for long-running workflows
 5. **Handle large files**: For very large files, consider splitting into smaller workflows

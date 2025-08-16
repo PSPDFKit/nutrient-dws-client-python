@@ -120,7 +120,7 @@ Example test:
 ```python
 def test_new_feature():
     """Test description."""
-    client = NutrientClient({'apiKey': 'your_api_key'})
+    client = NutrientClient(api_key='your_api_key')
     result = client.new_feature()
     assert result == expected_value
 ```

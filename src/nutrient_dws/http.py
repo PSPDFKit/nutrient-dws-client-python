@@ -1,7 +1,7 @@
 """HTTP request and response type definitions for API communication."""
 
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any, Generic, Literal, TypeGuard, TypeVar
 
 import httpx
@@ -155,12 +155,12 @@ class ApiResponse(TypedDict, Generic[Output]):
 class NutrientClientOptions(TypedDict):
     """Client options for Nutrient DWS API."""
 
-    apiKey: str | Callable[[], str]
+    apiKey: str | Callable[[], str | Awaitable[str]]
     baseUrl: str | None
     timeout: int | None
 
 
-def resolve_api_key(api_key: str | Callable[[], str]) -> str:
+async def resolve_api_key(api_key: str | Callable[[], str | Awaitable[str]]) -> str:
     """Resolves API key from string or function.
 
     Args:
@@ -177,6 +177,8 @@ def resolve_api_key(api_key: str | Callable[[], str]) -> str:
 
     try:
         resolved_key = api_key()
+        if isinstance(resolved_key, Awaitable):
+            return await resolved_key
         if not isinstance(resolved_key, str) or len(resolved_key) == 0:
             raise AuthenticationError(
                 "API key function must return a non-empty string",
@@ -498,7 +500,6 @@ async def send_request(
     Args:
         config: Request configuration
         client_options: Client options
-        response_type: Expected response type
 
     Returns:
         API response
@@ -508,7 +509,7 @@ async def send_request(
     """
     try:
         # Resolve API key (string or function)
-        api_key = resolve_api_key(client_options["apiKey"])
+        api_key = await resolve_api_key(client_options["apiKey"])
 
         # Build full URL
         base_url: str = client_options.get("baseUrl") or "https://api.nutrient.io"
