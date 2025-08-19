@@ -155,35 +155,6 @@ async def complex_workflow():
         raise error
 
 
-# Example 5: Using sample.pdf directly
-async def sample_pdf_workflow():
-    print('\nExample 5: Using sample.pdf directly')
-
-    try:
-        pdf_path = assets_dir / 'sample.pdf'
-
-        result = await client.workflow() \
-            .add_file_part(pdf_path) \
-            .apply_action(BuildActions.watermark_text('SAMPLE PDF', {
-                'opacity': 0.4,
-                'fontSize': 42,
-                'fontColor': '#008000'
-            })) \
-            .output_pdf() \
-            .execute()
-
-        # Save the result to the output directory
-        output_path = output_dir / 'workflow-sample-pdf-processed.pdf'
-        with open(output_path, 'wb') as f:
-            f.write(result['output']['buffer'])
-
-        print(f'Sample PDF workflow successful. Output saved to: {output_path}')
-        return output_path
-    except Exception as error:
-        print(f'Sample PDF workflow failed: {error}')
-        raise error
-
-
 # Run all examples
 async def run_examples():
     try:
@@ -194,7 +165,6 @@ async def run_examples():
         await merge_with_watermark_workflow()
         await extract_text_workflow(converted_pdf_path)
         await complex_workflow()
-        await sample_pdf_workflow()
 
         print('\nAll workflow examples completed successfully!')
     except Exception as error:

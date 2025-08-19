@@ -2,16 +2,11 @@
 
 import json
 from collections.abc import Awaitable, Callable
-from typing import Any, Generic, Literal, TypeGuard, TypeVar
+from typing import Any, Generic, Literal, TypeGuard, TypeVar, Union, overload
 
 import httpx
 from typing_extensions import NotRequired, TypedDict
 
-from nutrient_dws.builder.staged_builders import (
-    BufferOutput,
-    ContentOutput,
-    JsonContentOutput,
-)
 from nutrient_dws.errors import (
     APIError,
     AuthenticationError,
@@ -20,7 +15,10 @@ from nutrient_dws.errors import (
     ValidationError,
 )
 from nutrient_dws.inputs import FileInput, NormalizedFileData
+from nutrient_dws.types.account_info import AccountInfo
+from nutrient_dws.types.analyze_response import AnalyzeBuildResponse
 from nutrient_dws.types.build_instruction import BuildInstructions
+from nutrient_dws.types.build_response_json import BuildResponseJsonContents
 from nutrient_dws.types.create_auth_token import (
     CreateAuthTokenParameters,
     CreateAuthTokenResponse,
@@ -62,10 +60,13 @@ class DeleteTokenRequestData(TypedDict):
 
 
 # Methods and Endpoints types
-Methods = Literal["GET", "POST", "DELETE"]
-Endpoints = Literal[
-    "/account/info", "/build", "/analyze_build", "/sign", "/ai/redact", "/tokens"
-]
+Method = TypeVar("Method", bound=Literal["GET", "POST", "DELETE"])
+Endpoint = TypeVar(
+    "Endpoint",
+    bound=Literal[
+        "/account/info", "/build", "/analyze_build", "/sign", "/ai/redact", "/tokens"
+    ],
+)
 
 # Type variables for generic types
 Input = TypeVar(
@@ -75,69 +76,78 @@ Input = TypeVar(
     | AnalyzeBuildRequestData
     | SignRequestData
     | RedactRequestData
-    | RedactData
     | DeleteTokenRequestData
     | None,
 )
 Output = TypeVar(
     "Output",
     bound=CreateAuthTokenResponse
-    | BufferOutput
-    | ContentOutput
-    | JsonContentOutput
-    | AnalyzeBuildRequestData,
+    | str
+    | bytes
+    | BuildResponseJsonContents
+    | AnalyzeBuildResponse
+    | AccountInfo
+    | None,
 )
 
 
 # Request configuration
-class RequestConfig(TypedDict, Generic[Input]):
+class RequestConfig(TypedDict, Generic[Method, Endpoint, Input]):
     """HTTP request configuration for API calls."""
 
-    method: Methods
-    endpoint: Endpoints
+    method: Method
+    endpoint: Endpoint
     data: Input  # The actual type depends on the method and endpoint
-    headers: dict[str, Any] | None
+    headers: dict[str, str] | None
 
 
 def is_get_account_info_request_config(
-    request: RequestConfig[Any],
-) -> TypeGuard[RequestConfig[None]]:
+    request: RequestConfig[Method, Endpoint, Input],
+) -> TypeGuard[RequestConfig[Literal["GET"], Literal["/account/info"], None]]:
     return request["method"] == "GET" and request["endpoint"] == "/account/info"
 
 
 def is_post_build_request_config(
-    request: RequestConfig[Any],
-) -> TypeGuard[RequestConfig[BuildRequestData]]:
+    request: RequestConfig[Method, Endpoint, Input],
+) -> TypeGuard[RequestConfig[Literal["POST"], Literal["/build"], BuildRequestData]]:
     return request["method"] == "POST" and request["endpoint"] == "/build"
 
 
 def is_post_analyse_build_request_config(
-    request: RequestConfig[Any],
-) -> TypeGuard[RequestConfig[AnalyzeBuildRequestData]]:
+    request: RequestConfig[Method, Endpoint, Input],
+) -> TypeGuard[
+    RequestConfig[Literal["POST"], Literal["/analyze_build"], AnalyzeBuildRequestData]
+]:
     return request["method"] == "POST" and request["endpoint"] == "/analyze_build"
 
 
 def is_post_sign_request_config(
-    request: RequestConfig[Any],
-) -> TypeGuard[RequestConfig[SignRequestData]]:
+    request: RequestConfig[Method, Endpoint, Input],
+) -> TypeGuard[RequestConfig[Literal["POST"], Literal["/sign"], SignRequestData]]:
     return request["method"] == "POST" and request["endpoint"] == "/sign"
 
 
 def is_post_ai_redact_request_config(
-    request: RequestConfig[Any],
-) -> TypeGuard[RequestConfig[RedactRequestData]]:
+    request: RequestConfig[Method, Endpoint, Input],
+) -> TypeGuard[
+    RequestConfig[Literal["POST"], Literal["/ai/redact"], RedactRequestData]
+]:
     return request["method"] == "POST" and request["endpoint"] == "/ai/redact"
 
 
 def is_post_tokens_request_config(
-    request: RequestConfig[Any],
-) -> TypeGuard[RequestConfig[CreateAuthTokenParameters]]:
+    request: RequestConfig[Method, Endpoint, Input],
+) -> TypeGuard[
+    RequestConfig[Literal["POST"], Literal["/tokens"], CreateAuthTokenParameters]
+]:
     return request["method"] == "POST" and request["endpoint"] == "/tokens"
 
 
 def is_delete_tokens_request_config(
-    request: RequestConfig[Any],
-) -> TypeGuard[RequestConfig[DeleteTokenRequestData]]:
+    request: RequestConfig[Method, Endpoint, Input],
+) -> TypeGuard[
+    RequestConfig[Literal["DELETE"], Literal["/tokens"], DeleteTokenRequestData]
+]:
     return request["method"] == "DELETE" and request["endpoint"] == "/tokens"
 
 
@@ -217,7 +227,7 @@ def append_file_to_form_data(
 
 
 def prepare_request_body(
-    request_config: dict[str, Any], config: RequestConfig[Input]
+    request_config: dict[str, Any], config: RequestConfig[Method, Endpoint, Input]
 ) -> dict[str, Any]:
     """Prepares request body with files and data.
 
@@ -228,22 +238,22 @@ def prepare_request_body(
     Returns:
         Updated request configuration
     """
-    if is_post_build_request_config(config) or is_post_analyse_build_request_config(
-        config
-    ):
-        if is_post_build_request_config(config):
-            # Use multipart/form-data for file uploads
-            files: dict[str, Any] = {}
-            for key, value in config["data"]["files"].items():
-                append_file_to_form_data(files, key, value)
+    if is_post_build_request_config(config):
+        # Use multipart/form-data for file uploads
+        files: dict[str, Any] = {}
+        for key, value in config["data"]["files"].items():
+            append_file_to_form_data(files, key, value)
 
-            request_config["files"] = files
-            request_config["data"] = {
-                "instructions": json.dumps(config["data"]["instructions"])
-            }
-        else:
-            # JSON only request
-            request_config["json"] = config["data"]["instructions"]
+        request_config["files"] = files
+        request_config["data"] = {
+            "instructions": json.dumps(config["data"]["instructions"])
+        }
+
+        return request_config
+
+    if is_post_analyse_build_request_config(config):
+        # JSON only request
+        request_config["json"] = config["data"]["instructions"]
 
         return request_config
 
@@ -422,7 +432,9 @@ def handle_response(response: httpx.Response) -> ApiResponse[Output]:
     }
 
 
-def convert_error(error: Any, config: RequestConfig[Input]) -> NutrientError:
+def convert_error(
+    error: Any, config: RequestConfig[Method, Endpoint, Input]
+) -> NutrientError:
     """Converts various error types to NutrientError.
 
     Args:
@@ -490,8 +502,63 @@ def convert_error(error: Any, config: RequestConfig[Input]) -> NutrientError:
     )
 
 
+@overload
 async def send_request(
-    config: RequestConfig[Input],
+    config: RequestConfig[Literal["GET"], Literal["/account/info"], None],
+    client_options: NutrientClientOptions,
+) -> ApiResponse[AccountInfo]: ...
+
+
+@overload
+async def send_request(
+    config: RequestConfig[
+        Literal["POST"], Literal["/tokens"], CreateAuthTokenParameters
+    ],
+    client_options: NutrientClientOptions,
+) -> ApiResponse[CreateAuthTokenResponse]: ...
+
+
+@overload
+async def send_request(
+    config: RequestConfig[Literal["POST"], Literal["/build"], BuildRequestData],
+    client_options: NutrientClientOptions,
+) -> ApiResponse[Union[BuildResponseJsonContents, bytes, str]]: ...
+
+
+@overload
+async def send_request(
+    config: RequestConfig[
+        Literal["POST"], Literal["/analyze_build"], AnalyzeBuildRequestData
+    ],
+    client_options: NutrientClientOptions,
+) -> ApiResponse[AnalyzeBuildResponse]: ...
+
+
+@overload
+async def send_request(
+    config: RequestConfig[Literal["POST"], Literal["/sign"], SignRequestData],
+    client_options: NutrientClientOptions,
+) -> ApiResponse[bytes]: ...
+
+
+@overload
+async def send_request(
+    config: RequestConfig[Literal["POST"], Literal["/ai/redact"], RedactRequestData],
+    client_options: NutrientClientOptions,
+) -> ApiResponse[bytes]: ...
+
+
+@overload
+async def send_request(
+    config: RequestConfig[
+        Literal["DELETE"], Literal["/tokens"], DeleteTokenRequestData
+    ],
+    client_options: NutrientClientOptions,
+) -> ApiResponse[None]: ...
+
+
+async def send_request(
+    config: RequestConfig[Method, Endpoint, Input],
     client_options: NutrientClientOptions,
 ) -> ApiResponse[Output]:
     """Sends HTTP request to Nutrient DWS Processor API.

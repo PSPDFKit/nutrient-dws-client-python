@@ -18,6 +18,8 @@ from nutrient_dws.builder.staged_builders import (
 from nutrient_dws.errors import NutrientError, ValidationError
 from nutrient_dws.http import (
     NutrientClientOptions,
+    RedactRequestData,
+    RequestConfig,
     SignRequestData,
     SignRequestOptions,
     send_request,
@@ -54,7 +56,7 @@ from nutrient_dws.types.create_auth_token import (
     CreateAuthTokenResponse,
 )
 from nutrient_dws.types.misc import OcrLanguage, PageRange, Pages
-from nutrient_dws.types.redact_data import RedactData, RedactOptions
+from nutrient_dws.types.redact_data import RedactOptions
 from nutrient_dws.types.sign_request import CreateDigitalSignature
 
 if TYPE_CHECKING:
@@ -1054,13 +1056,15 @@ class NutrientClient:
         if options:
             request_data["data"]["options"] = options  # type: ignore
 
+        config = RequestConfig(
+            method="POST",
+            data=cast("RedactRequestData", request_data),
+            endpoint="/ai/redact",
+            headers=None,
+        )
+
         response: Any = await send_request(
-            {
-                "method": "POST",
-                "endpoint": "/ai/redact",
-                "data": cast("RedactData", request_data),
-                "headers": None,
-            },
+            config,
             self.options,
         )
 

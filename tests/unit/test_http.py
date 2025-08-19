@@ -2,6 +2,7 @@
 
 import json
 import re
+from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -163,7 +164,7 @@ class TestSendRequest:
                 mock_response
             )
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
@@ -207,7 +208,7 @@ class TestSendRequest:
                 mock_response
             )
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
@@ -232,7 +233,7 @@ class TestSendRequest:
             "timeout": None,
         }
 
-        config: RequestConfig[None] = {
+        config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
             "endpoint": "/account/info",
             "method": "GET",
             "data": None,
@@ -255,7 +256,7 @@ class TestSendRequest:
             "timeout": None,
         }
 
-        config: RequestConfig[None] = {
+        config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
             "endpoint": "/account/info",
             "method": "GET",
             "data": None,
@@ -317,7 +318,7 @@ class TestSendRequest:
                 },
             }
 
-            config: RequestConfig[BuildRequestData] = {
+            config: RequestConfig[Literal["POST"], Literal["/build"], BuildRequestData] = {
                 "endpoint": "/build",
                 "method": "POST",
                 "data": build_data,
@@ -355,7 +356,7 @@ class TestSendRequest:
                 mock_response
             )
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
@@ -411,7 +412,7 @@ class TestSendRequest:
                 network_error
             )
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
@@ -437,7 +438,7 @@ class TestSendRequest:
                 network_error
             )
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
@@ -478,7 +479,7 @@ class TestSendRequest:
                 mock_response
             )
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
@@ -504,7 +505,7 @@ class TestSendRequest:
                 mock_response
             )
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
@@ -543,7 +544,7 @@ class TestSendRequest:
                 },
             }
 
-            config: RequestConfig[BuildRequestData] = {
+            config: RequestConfig[Literal["POST"], Literal["/build"], BuildRequestData] = {
                 "endpoint": "/build",
                 "method": "POST",
                 "data": build_data,
@@ -612,7 +613,7 @@ class TestSendRequest:
                 "timeout": None,
             }
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,
@@ -643,7 +644,7 @@ class TestSendRequest:
                 "timeout": None,
             }
 
-            config: RequestConfig[None] = {
+            config: RequestConfig[Literal["GET"], Literal["/account/info"], None] = {
                 "endpoint": "/account/info",
                 "method": "GET",
                 "data": None,

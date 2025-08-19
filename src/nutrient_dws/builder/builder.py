@@ -46,6 +46,7 @@ if TYPE_CHECKING:
         PDFOutputOptions,
         PDFUAOutputOptions,
     )
+    from nutrient_dws.types.build_response_json import BuildResponseJsonContents
     from nutrient_dws.types.input_parts import (
         DocumentPart,
         DocumentPartOptions,
@@ -537,12 +538,14 @@ class StagedWorkflowBuilder(
 
             if output_config["type"] == "json-content":
                 result["success"] = True
-                result["output"] = JsonContentOutput(data=response)
+                result["output"] = JsonContentOutput(
+                    data=cast("BuildResponseJsonContents", response)
+                )
             elif output_config["type"] in ["html", "markdown"]:
                 mime_info = BuildOutputs.getMimeTypeForOutput(output_config)
                 result["success"] = True
                 result["output"] = ContentOutput(
-                    content=response,
+                    content=cast("str", response),
                     mimeType=mime_info["mimeType"],
                     filename=mime_info.get("filename"),
                 )
@@ -550,7 +553,7 @@ class StagedWorkflowBuilder(
                 mime_info = BuildOutputs.getMimeTypeForOutput(output_config)
                 result["success"] = True
                 result["output"] = BufferOutput(
-                    buffer=response,
+                    buffer=cast("bytes", response),
                     mimeType=mime_info["mimeType"],
                     filename=mime_info.get("filename"),
                 )
