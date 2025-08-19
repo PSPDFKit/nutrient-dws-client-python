@@ -34,6 +34,11 @@ pytestmark = pytest.mark.skipif(
     reason="Integration tests require NUTRIENT_API_KEY environment variable",
 )
 
+@pytest.fixture(scope="class")
+def integration_client():
+    """Create client instance for testing."""
+    return NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", ""), base_url=os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"))
+
 
 class TestIntegrationDirectMethods:
     """Integration tests with live API - direct client methods."""
@@ -165,7 +170,7 @@ class TestIntegrationDirectMethods:
         if output_type not in ["markdown", "html"]:
             assert isinstance(result.get("buffer"), (bytes, bytearray))
         else:
-            assert isinstance(result.get("content"), bytes)
+            assert isinstance(result.get("content"), str)
         assert result["mimeType"] == expected_mime
 
     @pytest.mark.asyncio

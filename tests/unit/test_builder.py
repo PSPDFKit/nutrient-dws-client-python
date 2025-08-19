@@ -840,7 +840,7 @@ class TestStagedWorkflowBuilderExecutionMethods:
                         assert result["success"] is True
                         assert (
                             result["output"]["content"]
-                            == b"<html><body>Content</body></html>"
+                            == "<html><body>Content</body></html>"
                         )
                         assert result["output"]["mimeType"] == "text/html"
                         assert result["output"]["filename"] == "output.html"
@@ -873,7 +873,7 @@ class TestStagedWorkflowBuilderExecutionMethods:
                         result = await builder.execute()
 
                         assert result["success"] is True
-                        assert result["output"]["content"] == b"# Header\n\nContent"
+                        assert result["output"]["content"] == "# Header\n\nContent"
                         assert result["output"]["mimeType"] == "text/markdown"
                         assert result["output"]["filename"] == "output.md"
 

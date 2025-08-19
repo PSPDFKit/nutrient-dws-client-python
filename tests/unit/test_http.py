@@ -178,7 +178,7 @@ class TestSendRequest:
             assert call_kwargs["method"] == "GET"
             assert call_kwargs["url"] == "https://api.test.com/v1/account/info"
             assert call_kwargs["headers"]["Authorization"] == "Bearer test-api-key"
-            assert re.match(r'^nutrient-dws/\d+\.\d+\.\d+', call_kwargs["headers"]["User-Agent"])
+            assert re.match(r'^nutrient-dws/\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?', call_kwargs["headers"]["User-Agent"])
             assert call_kwargs["timeout"] is None
 
             assert result["data"] == {"result": "success"}

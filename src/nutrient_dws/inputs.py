@@ -33,8 +33,7 @@ def is_url(string: str) -> bool:
 
 def is_valid_pdf(file_bytes: bytes) -> bool:
     """Check if a file is a valid PDF."""
-    pdf_header = file_bytes[:5].decode("ascii")
-    return pdf_header == "%PDF-"
+    return file_bytes.startswith(b"%PDF-")
 
 
 def is_remote_file_input(file_input: FileInput) -> TypeGuard[str]:

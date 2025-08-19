@@ -1,3 +1,6 @@
+import os
+from unittest import mock
+
 import pytest
 import re
 from nutrient_dws.utils import (
@@ -45,6 +48,21 @@ class TestUtilityFunctions:
         # Should match: nutrient-dws/VERSION
         expected_pattern = r'^nutrient-dws/\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$'
         assert re.match(expected_pattern, user_agent)
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "PYTHON_ENV": "development",
+        },
+        clear=True,
+    )
+    def test_get_user_agent_follows_expected_format_development(self):
+        """Should follow the expected User-Agent format in development"""
+        user_agent = get_user_agent()
+
+        # Should match: nutrient-dws/VERSION
+        assert user_agent == "nutrient-dws/0.0.0-dev"
+
 
     def test_get_user_agent_includes_correct_library_name(self):
         """Should include the correct library name"""

@@ -152,7 +152,7 @@ class NutrientClient:
             raise ValidationError("API key is required")
 
         api_key = options["apiKey"]
-        if not isinstance(api_key, (str, type(lambda: None))):
+        if not (isinstance(api_key, str) or callable(api_key)):
             raise ValidationError(
                 "API key must be a string or a function that returns a string"
             )

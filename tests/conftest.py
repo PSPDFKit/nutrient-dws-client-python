@@ -1,12 +1,8 @@
-import os
 from unittest.mock import AsyncMock
 
 import pytest
-from dotenv import load_dotenv
 from nutrient_dws import NutrientClient
 from tests.helpers import TestDocumentGenerator
-
-load_dotenv()  # Load environment variables
 
 @pytest.fixture
 def mock_workflow_instance():
@@ -49,12 +45,6 @@ def valid_client_options():
 @pytest.fixture
 def unit_client():
     return NutrientClient(api_key="test-api-key", base_url="https://api.test.com/v1")
-
-@pytest.fixture(scope="class")
-def integration_client():
-    """Create client instance for testing."""
-    return NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", ""), base_url=os.getenv("NUTRIENT_BASE_URL", "https://api.nutrient.io"))
-
 
 @pytest.fixture
 def test_table_pdf():
