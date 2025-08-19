@@ -64,7 +64,6 @@ This will:
 2. Extract text from the PDF
 3. Add a watermark to the PDF
 4. Merge multiple documents
-5. Process sample.pdf directly with text extraction and image watermarking
 
 ### Workflow Examples
 
@@ -79,7 +78,6 @@ This will:
 2. Create a document merging with watermark workflow
 3. Extract text with JSON output
 4. Execute a complex multi-step workflow
-5. Process sample.pdf using workflow pattern
 
 ## Output
 
@@ -90,5 +88,5 @@ All processed files will be saved to the `output/` directory. You can examine th
 For more information about the Nutrient DWS Python Client, refer to:
 
 - [README.md](../README.md) - Main documentation
-- [METHODS.md](../METHODS.md) - Direct methods documentation
-- [LLM_DOC.md](../LLM_DOC.md) - Complete API documentation
+- [METHODS.md](../docs/METHODS.md) - Direct methods documentation
+- [WORKFLOW.md](../docs/WORKFLOW.md) - Workflow system documentation

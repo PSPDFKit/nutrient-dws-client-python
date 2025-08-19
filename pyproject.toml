@@ -11,8 +11,8 @@ where = ["src"]
 [tool.setuptools.package-data]
 nutrient_dws = [
     "py.typed",
-    "../../WORKFLOW.md",
-    "../../METHODS.md",
+    "../../docs/WORKFLOW.md",
+    "../../docs/METHODS.md",
     "../../LLM_DOC.md",
 ]
 

@@ -19,6 +19,32 @@ Parameters:
 - `base_url` (optional): Custom API base URL (defaults to `https://api.nutrient.io`)
 - `timeout` (optional): Request timeout in milliseconds
 
+#### Authentication
+
+Provide your API key directly:
+
+```python
+from nutrient_dws import NutrientClient
+
+client = NutrientClient(api_key='your_api_key')
+```
+
+Or use an async token provider to fetch tokens from a secure source:
+
+```python
+import httpx
+from nutrient_dws import NutrientClient
+
+async def get_token():
+    async with httpx.AsyncClient() as http_client:
+        response = await http_client.get('/api/get-nutrient-token')
+        data = response.json()
+        return data['token']
+
+client = NutrientClient(api_key=get_token)
+```
+
+
 #### Account Methods
 
 ##### get_account_info()
@@ -815,7 +841,7 @@ with open('modified-document.pdf', 'wb') as f:
 
 ## Workflow Builder Methods
 
-The workflow builder provides a fluent interface for chaining multiple operations. See [WORKFLOW.md](./WORKFLOW.md) for detailed information about workflow methods including:
+The workflow builder provides a fluent interface for chaining multiple operations. See [WORKFLOW.md](WORKFLOW.md) for detailed information about workflow methods including:
 
 - `workflow()` - Create a new workflow builder
 - `add_file_part()` - Add file parts to the workflow

@@ -125,38 +125,7 @@ async def merge_documents():
         raise error
 
 
-# Example 5: Process sample.pdf directly
-async def process_sample_pdf():
-    print('\nExample 5: Processing sample.pdf directly')
 
-    try:
-        pdf_path = assets_dir / 'sample.pdf'
-
-        # Extract text from sample.pdf
-        extract_result = await client.extract_text(pdf_path)
-        extract_output_path = output_dir / 'sample-pdf-extracted-text.json'
-        with open(extract_output_path, 'w') as f:
-            json.dump(extract_result['data'], f, indent=2, default=str)
-
-        watermark_image_path = assets_dir / 'sample.png'
-
-        # Add watermark to sample.pdf
-        watermark_result = await client.watermark_image(pdf_path, watermark_image_path, {
-            'opacity': 0.4,
-        })
-
-        watermark_output_path = output_dir / 'sample-pdf-watermarked.pdf'
-        with open(watermark_output_path, 'wb') as f:
-            f.write(watermark_result['buffer'])
-
-        print('Sample PDF processing successful.')
-        print(f'Extracted text saved to: {extract_output_path}')
-        print(f'Watermarked PDF saved to: {watermark_output_path}')
-
-        return watermark_output_path
-    except Exception as error:
-        print(f'Sample PDF processing failed: {error}')
-        raise error
 
 
 # Run all examples
@@ -169,7 +138,6 @@ async def run_examples():
         await extract_text(converted_pdf_path)
         await add_watermark(converted_pdf_path)
         await merge_documents()
-        await process_sample_pdf()
 
         print('\nAll examples completed successfully!')
     except Exception as error:

@@ -54,33 +54,10 @@ The documentation for Nutrient DWS Python Client is also available on [Context7]
 
 ## Quick Start
 
-## Authentication
-
-### Direct API Key
-
-Provide your API key directly:
-
 ```python
 from nutrient_dws import NutrientClient
 
 client = NutrientClient(api_key='your_api_key')
-```
-
-### Token Provider
-
-Use an async token provider to fetch tokens from a secure source:
-
-```python
-import httpx
-from nutrient_dws import NutrientClient
-
-async def get_token():
-    async with httpx.AsyncClient() as http_client:
-        response = await http_client.get('/api/get-nutrient-token')
-        data = response.json()
-        return data['token']
-
-client = NutrientClient(api_key=get_token)
 ```
 
 ## Direct Methods
@@ -109,7 +86,7 @@ async def main():
 asyncio.run(main())
 ```
 
-For a complete list of available methods with examples, see the [Methods Documentation](./METHODS.md).
+For a complete list of available methods with examples, see the [Methods Documentation](docs/METHODS.md).
 
 ## Workflow System
 
@@ -146,7 +123,7 @@ The workflow system follows a staged approach:
 3. Set output format
 4. Execute or perform a dry run
 
-For detailed information about the workflow system, including examples and best practices, see the [Workflow Documentation](./WORKFLOW.md).
+For detailed information about the workflow system, including examples and best practices, see the [Workflow Documentation](docs/WORKFLOW.md).
 
 ## Error Handling
 
@@ -241,7 +218,7 @@ Quick start for contributors:
 5. Ensure type checking passes with mypy
 6. Follow Python code style with ruff
 
-For detailed contribution guidelines, see the [Contributing Guide](./CONTRIBUTING.md).
+For detailed contribution guidelines, see the [Contributing Guide](docs/CONTRIBUTING.md).
 
 ## Project Structure
 

@@ -545,7 +545,7 @@ class StagedWorkflowBuilder(
                 mime_info = BuildOutputs.getMimeTypeForOutput(output_config)
                 result["success"] = True
                 result["output"] = ContentOutput(
-                    content=cast("str", response),
+                    content=cast("bytes", response).decode("utf-8"),
                     mimeType=mime_info["mimeType"],
                     filename=mime_info.get("filename"),
                 )
