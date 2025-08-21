@@ -13,10 +13,53 @@ This example project demonstrates how to use the Nutrient DWS Python Client for 
 
 ## Prerequisites
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - pip
 
 ## Setup
+
+### Option 1: Virtual Environment Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/pspdfkit-labs/nutrient-dws-client-python.git
+   cd nutrient-dws-client-python
+   ```
+
+2. Build the package from source:
+   ```bash
+   python -m build
+   ```
+
+3. Navigate to the examples directory:
+   ```bash
+   cd examples
+   ```
+
+4. Set up and activate the virtual environment:
+   ```bash
+   # Set up the virtual environment and install dependencies
+   python setup_venv.py
+
+   # Activate the virtual environment
+   # On macOS/Linux:
+   source example_venv/bin/activate
+
+   # On Windows:
+   example_venv\Scripts\activate
+   ```
+
+5. Create a `.env` file from the example:
+   ```bash
+   cp .env.example .env
+   ```
+
+6. Edit the `.env` file and add your Nutrient DWS Processor API key. You can sign up for a free API key by visiting [Nutrient](https://www.nutrient.io/api/):
+   ```
+   NUTRIENT_API_KEY=your_api_key_here
+   ```
+
+### Option 2: Development Mode Setup
 
 1. Clone the repository:
    ```bash
