@@ -1,0 +1,128 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+
+jobs:
+  secret-scanning:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+      continue-on-error: true
+
+    - name: Check for hardcoded secrets
+      run: |
+        echo "🔍 Scanning for hardcoded secrets..."
+
+        # Check for potential API keys
+        if grep -r "pdf_live_" --include="*.py" --include="*.json" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
+          echo "❌ Found hardcoded API keys!"
+          exit 1
+        fi
+
+        # Check for base64 encoded secrets (common Nutrient patterns)
+        if grep -r "cGRmX2xpdmVf" --include="*.py" --include="*.json" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
+          echo "❌ Found base64 encoded API keys!"
+          exit 1
+        fi
+
+        # Check for other common secret patterns
+        if grep -rE "(sk_|pk_|nutr_sk_)" --include="*.py" --include="*.json" --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.pytest_cache . 2>/dev/null; then
+          echo "❌ Found potential secret keys!"
+          exit 1
+        fi
+
+        echo "✅ No hardcoded secrets found"
+
+  dependency-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install ".[dev]"
+        pip install safety bandit
+
+    - name: Run Safety check
+      run: |
+        echo "🔍 Running Safety security scan..."
+        safety check --json --output safety-report.json || echo "⚠️ Safety found issues but continuing..."
+
+        # Display summary if report exists
+        if [ -f safety-report.json ]; then
+          echo "Safety report generated - check artifacts for details"
+        fi
+      continue-on-error: true
+
+    - name: Run Bandit security linter
+      run: |
+        echo "🔍 Running Bandit security linter..."
+        bandit -r src/ -f json -o bandit-report.json || echo "⚠️ Bandit found issues but continuing..."
+
+        # Display summary
+        bandit -r src/ --severity-level medium || echo "⚠️ Medium+ severity issues found"
+      continue-on-error: true
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports-${{ github.run_number }}
+        path: |
+          safety-report.json
+          bandit-report.json
+        retention-days: 30
+
+    - name: Run pip audit (if available)
+      run: |
+        echo "🔍 Running pip audit..."
+        pip install pip-audit || echo "pip-audit not available"
+        pip-audit --format=json --output=pip-audit-report.json || echo "⚠️ pip-audit found issues but continuing..."
+      continue-on-error: true
+
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install ".[dev]"
+
+    - name: Run additional security checks with ruff
+      run: |
+        echo "🔍 Running security-focused linting..."
+        python -m ruff check . --select=S  # Security rules
+      continue-on-error: true

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Nutrient DWS Python Client",
+  "description": "Python client library for Nutrient Document Web Services (DWS) API.\n",
+  "excludeFolders": ["src", "docs", "example", ".github"],
+  "excludeFiles": ["README.md"]
+}

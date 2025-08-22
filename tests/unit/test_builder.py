@@ -1,500 +1,1234 @@
-"""Comprehensive unit tests for Builder API."""
+"""Tests for StagedWorkflowBuilder functionality."""
 
-import io
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
 
 import pytest
 
-from nutrient_dws.builder import BuildAPIWrapper
+from nutrient_dws.builder.builder import StagedWorkflowBuilder
+from nutrient_dws.builder.constant import BuildActions, BuildOutputs
+from nutrient_dws.errors import ValidationError, NutrientError
 
 
-class TestBuilderInitialization:
-    """Test suite for BuildAPIWrapper initialization."""
-
-    def test_builder_init_with_string_path(self):
-        """Test builder initialization with string file path."""
-        builder = BuildAPIWrapper(None, "test.pdf")
-        assert builder._input_file == "test.pdf"
-        assert builder._actions == []
-        assert builder._parts == [{"file": "file"}]
-        assert "file" in builder._files
-
-    def test_builder_init_with_bytes(self):
-        """Test builder initialization with bytes input."""
-        content = b"PDF content"
-        builder = BuildAPIWrapper(None, content)
-        assert builder._input_file == content
-        assert builder._actions == []
-        assert builder._parts == [{"file": "file"}]
-        assert "file" in builder._files
-
-    def test_builder_init_with_file_like_object(self):
-        """Test builder initialization with file-like object."""
-        file_obj = io.BytesIO(b"File content")
-        file_obj.name = "test.pdf"
-
-        builder = BuildAPIWrapper(None, file_obj)
-        assert builder._input_file == file_obj
-        assert builder._actions == []
-        assert builder._parts == [{"file": "file"}]
-        assert "file" in builder._files
-
-    def test_builder_init_with_mock_client(self):
-        """Test builder initialization with mock client."""
-        mock_client = Mock()
-        builder = BuildAPIWrapper(mock_client, "test.pdf")
-        assert builder._client == mock_client
 
 
-class TestBuilderAddStep:
-    """Test suite for BuildAPIWrapper add_step method."""
 
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.builder = BuildAPIWrapper(None, "test.pdf")
+@pytest.fixture
+def mock_send_request():
+    """Mock the send request method."""
 
-    def test_add_step_basic(self):
-        """Test adding basic step without options."""
-        result = self.builder.add_step("convert-to-pdf")
+    async def mock_request(endpoint, data):
+        if endpoint == "/build":
+            return b"mock-response"
+        elif endpoint == "/analyze_build":
+            return {"cost": 1.0, "required_features": {}}
+        return b"mock-response"
 
-        assert result is self.builder  # Should return self for chaining
-        assert len(self.builder._actions) == 1
-        assert self.builder._actions[0]["type"] == "convert-to-pdf"
+    with patch(
+        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+        side_effect=mock_request,
+    ) as mock:
+        yield mock
 
-    def test_add_step_with_options(self):
-        """Test adding step with options."""
-        result = self.builder.add_step("rotate-pages", options={"degrees": 90})
 
-        assert result is self.builder
-        assert len(self.builder._actions) == 1
-        assert self.builder._actions[0]["type"] == "rotate"
-        assert self.builder._actions[0]["rotateBy"] == 90
+@pytest.fixture
+def mock_validate_file_input():
+    """Mock file input validation."""
+    with patch("nutrient_dws.inputs.validate_file_input") as mock:
+        mock.return_value = True
+        yield mock
 
-    def test_add_step_with_complex_options(self):
-        """Test adding step with complex options."""
+
+@pytest.fixture
+def mock_is_remote_file_input():
+    """Mock remote file input check."""
+    with patch("nutrient_dws.inputs.is_remote_file_input") as mock:
+        mock.return_value = False
+        yield mock
+
+
+@pytest.fixture
+def mock_process_file_input():
+    """Mock file input processing."""
+
+    async def mock_process(file_input):
+        return ("test-content", "application/pdf")
+
+    with patch(
+        "nutrient_dws.inputs.process_file_input", side_effect=mock_process
+    ) as mock:
+        yield mock
+
+
+class TestStagedWorkflowBuilderConstructor:
+    """Tests for StagedWorkflowBuilder constructor."""
+
+    def test_create_workflow_builder_with_valid_options(self, valid_client_options):
+        """Test creating a workflow builder with valid options."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        assert builder is not None
+        assert builder.build_instructions == {"parts": []}
+        assert builder.assets == {}
+        assert builder.asset_index == 0
+        assert builder.current_step == 0
+        assert builder.is_executed is False
+
+
+class TestStagedWorkflowBuilderPrivateMethods:
+    """Tests for StagedWorkflowBuilder private methods."""
+
+    def test_register_asset_with_valid_file(self, valid_client_options):
+        """Test registering a valid file asset."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ) as mock_validate:
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ) as mock_is_remote:
+                builder = StagedWorkflowBuilder(valid_client_options)
+                test_file = "test.pdf"
+
+                asset_key = builder._register_asset(test_file)
+
+                assert asset_key == "asset_0"
+                assert builder.assets["asset_0"] == test_file
+                assert builder.asset_index == 1
+                mock_validate.assert_called_once_with(test_file)
+                mock_is_remote.assert_called_once_with(test_file)
+
+    def test_register_asset_with_invalid_file(self, valid_client_options):
+        """Test registering an invalid file asset throws ValidationError."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=False
+        ):
+            builder = StagedWorkflowBuilder(valid_client_options)
+
+            with pytest.raises(
+                ValidationError, match="Invalid file input provided to workflow"
+            ):
+                builder._register_asset("invalid-file")
+
+    def test_register_asset_with_remote_file(self, valid_client_options):
+        """Test registering a remote file throws ValidationError."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=True
+            ):
+                builder = StagedWorkflowBuilder(valid_client_options)
+
+                with pytest.raises(
+                    ValidationError,
+                    match="Remote file input doesn't need to be registered",
+                ):
+                    builder._register_asset("https://example.com/file.pdf")
+
+    def test_register_multiple_assets_increments_counter(self, valid_client_options):
+        """Test that registering multiple assets increments the counter."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                builder = StagedWorkflowBuilder(valid_client_options)
+
+                first_key = builder._register_asset("file1.pdf")
+                second_key = builder._register_asset("file2.pdf")
+
+                assert first_key == "asset_0"
+                assert second_key == "asset_1"
+                assert builder.asset_index == 2
+
+    def test_ensure_not_executed_with_fresh_workflow(self, valid_client_options):
+        """Test ensure_not_executed passes with fresh workflow."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        # Should not raise exception
+        builder._ensure_not_executed()
+
+    def test_ensure_not_executed_with_executed_workflow(self, valid_client_options):
+        """Test ensure_not_executed throws error when workflow is executed."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.is_executed = True
+
+        with pytest.raises(
+            ValidationError, match="This workflow has already been executed"
+        ):
+            builder._ensure_not_executed()
+
+    def test_validate_with_no_parts(self, valid_client_options):
+        """Test validate throws error when workflow has no parts."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        with pytest.raises(ValidationError, match="Workflow has no parts to execute"):
+            builder._validate()
+
+    def test_validate_with_parts_but_no_output(self, valid_client_options):
+        """Test validate adds default PDF output when no output is specified."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.build_instructions["parts"] = [{"file": "asset_0"}]
+
+        builder._validate()
+
+        assert builder.build_instructions["output"] == {"type": "pdf"}
+
+    def test_validate_with_parts_and_output(self, valid_client_options):
+        """Test validate passes when workflow has parts and output."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.build_instructions["parts"] = [{"file": "asset_0"}]
+        builder.build_instructions["output"] = {"type": "png", "format": "png"}
+
+        # Should not raise exception
+        builder._validate()
+
+    def test_process_action_with_regular_action(self, valid_client_options):
+        """Test processing a regular action without file input."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        action = {"type": "ocr", "language": "english"}
+
+        result = builder._process_action(action)
+
+        assert result == action
+
+    def test_process_action_with_file_input_action(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test processing an action that requires file registration."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        # Create a mock action with file input
+        mock_action = MagicMock()
+        mock_action.__needsFileRegistration = True
+        mock_action.fileInput = "watermark.png"
+        mock_action.createAction.return_value = {
+            "type": "watermark",
+            "image": "asset_0",
+        }
+
+        result = builder._process_action(mock_action)
+
+        assert result == {"type": "watermark", "image": "asset_0"}
+        mock_action.createAction.assert_called_once_with("asset_0")
+
+    def test_process_action_with_remote_file_input_action(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test processing an action with remote file input."""
+        mock_is_remote_file_input.return_value = True
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        # Create a mock action with remote file input
+        mock_action = MagicMock()
+        mock_action.__needsFileRegistration = True
+        mock_action.fileInput = "https://example.com/watermark.png"
+        mock_action.createAction.return_value = {
+            "type": "watermark",
+            "image": {"url": "https://example.com/watermark.png"},
+        }
+
+        result = builder._process_action(mock_action)
+
+        expected_file_handle = {"url": "https://example.com/watermark.png"}
+        assert result == {"type": "watermark", "image": expected_file_handle}
+        mock_action.createAction.assert_called_once_with(expected_file_handle)
+
+    def test_is_action_with_file_input_returns_true_for_file_action(
+        self, valid_client_options
+    ):
+        """Test is_action_with_file_input returns True for actions with file input."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        # Create a mock action that needs file registration
+        mock_action = MagicMock()
+        mock_action.__needsFileRegistration = True
+        mock_action.fileInput = "test.png"
+        mock_action.createAction = MagicMock()
+
+        result = builder._is_action_with_file_input(mock_action)
+
+        assert result is True
+
+    def test_is_action_with_file_input_returns_false_for_regular_action(
+        self, valid_client_options
+    ):
+        """Test is_action_with_file_input returns False for regular actions."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        action = {"type": "ocr", "language": "english"}
+
+        result = builder._is_action_with_file_input(action)
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_prepare_files_processes_assets_concurrently(
+        self, valid_client_options
+    ):
+        """Test prepare_files processes all assets concurrently."""
+
+        async def mock_process(file_input):
+            if file_input == "file1.pdf":
+                return ("content1", "application/pdf")
+            elif file_input == "file2.pdf":
+                return ("content2", "application/pdf")
+            return ("test-content", "application/pdf")
+
+        with patch(
+            "nutrient_dws.builder.builder.process_file_input", side_effect=mock_process
+        ) as mock_process_file:
+            builder = StagedWorkflowBuilder(valid_client_options)
+            builder.assets = {"asset_0": "file1.pdf", "asset_1": "file2.pdf"}
+
+            result = await builder._prepare_files()
+
+            assert result == {
+                "asset_0": ("content1", "application/pdf"),
+                "asset_1": ("content2", "application/pdf"),
+            }
+            assert mock_process_file.call_count == 2
+
+    def test_cleanup_resets_builder_state(self, valid_client_options):
+        """Test cleanup resets the builder to initial state."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.assets = {"asset_0": "test.pdf"}
+        builder.asset_index = 5
+        builder.current_step = 2
+
+        builder._cleanup()
+
+        assert builder.assets == {}
+        assert builder.asset_index == 0
+        assert builder.current_step == 0
+        assert builder.is_executed is True
+
+
+class TestStagedWorkflowBuilderPartMethods:
+    """Tests for StagedWorkflowBuilder part methods."""
+
+    def test_add_file_part_with_local_file(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test adding a file part with local file."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        test_file = "test.pdf"
+
+        result = builder.add_file_part(test_file)
+
+        assert result is builder
+        assert len(builder.build_instructions["parts"]) == 1
+
+        file_part = builder.build_instructions["parts"][0]
+        assert file_part["file"] == "asset_0"
+        assert builder.assets["asset_0"] == test_file
+
+    def test_add_file_part_with_remote_file(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test adding a file part with remote file URL."""
+        mock_is_remote_file_input.return_value = True
+        builder = StagedWorkflowBuilder(valid_client_options)
+        test_url = "https://example.com/document.pdf"
+
+        result = builder.add_file_part(test_url)
+
+        assert result is builder
+        assert len(builder.build_instructions["parts"]) == 1
+
+        file_part = builder.build_instructions["parts"][0]
+        assert file_part["file"] == {"url": test_url}
+        assert len(builder.assets) == 0  # Remote files are not registered
+
+    def test_add_file_part_with_options_and_actions(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test adding a file part with options and actions."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        test_file = "test.pdf"
+        options = {"pages": {"start": 0, "end": 5}}
+        actions = [{"type": "ocr", "language": "english"}]
+
+        result = builder.add_file_part(test_file, options, actions)
+
+        assert result is builder
+        file_part = builder.build_instructions["parts"][0]
+        assert file_part["pages"] == {"start": 0, "end": 5}
+        assert file_part["actions"] == [{"type": "ocr", "language": "english"}]
+
+    def test_add_file_part_throws_error_when_executed(self, valid_client_options):
+        """Test add_file_part throws error when workflow is already executed."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.is_executed = True
+
+        with pytest.raises(
+            ValidationError, match="This workflow has already been executed"
+        ):
+            builder.add_file_part("test.pdf")
+
+    def test_add_html_part_with_local_file(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test adding an HTML part with local file."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        html_content = b"<html><body>Test</body></html>"
+
+        result = builder.add_html_part(html_content)
+
+        assert result is builder
+        assert len(builder.build_instructions["parts"]) == 1
+
+        html_part = builder.build_instructions["parts"][0]
+        assert html_part["html"] == "asset_0"
+        assert builder.assets["asset_0"] == html_content
+
+    def test_add_html_part_with_remote_url(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test adding an HTML part with remote URL."""
+        mock_is_remote_file_input.return_value = True
+        builder = StagedWorkflowBuilder(valid_client_options)
+        html_url = "https://example.com/page.html"
+
+        result = builder.add_html_part(html_url)
+
+        assert result is builder
+        html_part = builder.build_instructions["parts"][0]
+        assert html_part["html"] == {"url": html_url}
+        assert len(builder.assets) == 0
+
+    def test_add_html_part_with_assets_and_actions(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test adding HTML part with assets and actions."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        html_content = b"<html><body>Test</body></html>"
+        assets = [b"p {color: red;}", b"img {width: 100px;}"]
+        options = {"layout": "page"}
+        actions = [{"type": "ocr", "language": "english"}]
+
+        result = builder.add_html_part(html_content, assets, options, actions)
+
+        assert result is builder
+        html_part = builder.build_instructions["parts"][0]
+        assert html_part["html"] == "asset_0"
+        assert html_part["layout"] == "page"
+        assert html_part["assets"] == ["asset_1", "asset_2"]
+        assert html_part["actions"] == [{"type": "ocr", "language": "english"}]
+        assert len(builder.assets) == 3  # HTML + 2 assets
+
+    def test_add_html_part_with_remote_assets_throws_error(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test adding HTML part with remote assets throws ValidationError."""
+
+        def is_remote_side_effect(input_file):
+            return input_file.startswith("https://")
+
+        mock_is_remote_file_input.side_effect = is_remote_side_effect
+        builder = StagedWorkflowBuilder(valid_client_options)
+        html_content = b"<html><body>Test</body></html>"
+        assets = ["https://example.com/style.css"]
+
+        with pytest.raises(ValidationError, match="Assets file input cannot be a URL"):
+            builder.add_html_part(html_content, assets)
+
+    def test_add_new_page_with_no_options(self, valid_client_options):
+        """Test adding a new page with no options."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        result = builder.add_new_page()
+
+        assert result is builder
+        assert len(builder.build_instructions["parts"]) == 1
+
+        page_part = builder.build_instructions["parts"][0]
+        assert page_part["page"] == "new"
+
+    def test_add_new_page_with_options_and_actions(self, valid_client_options):
+        """Test adding a new page with options and actions."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        options = {"pageCount": 3, "layout": "A4"}
+        actions = [{"type": "ocr", "language": "english"}]
+
+        result = builder.add_new_page(options, actions)
+
+        assert result is builder
+        page_part = builder.build_instructions["parts"][0]
+        assert page_part["page"] == "new"
+        assert page_part["pageCount"] == 3
+        assert page_part["layout"] == "A4"
+        assert page_part["actions"] == [{"type": "ocr", "language": "english"}]
+
+    def test_add_document_part_with_basic_options(self, valid_client_options):
+        """Test adding a document part with basic options."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        document_id = "doc-123"
+
+        result = builder.add_document_part(document_id)
+
+        assert result is builder
+        assert len(builder.build_instructions["parts"]) == 1
+
+        doc_part = builder.build_instructions["parts"][0]
+        assert doc_part["document"] == {"id": "doc-123"}
+
+    def test_add_document_part_with_options_and_actions(self, valid_client_options):
+        """Test adding a document part with options and actions."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        document_id = "doc-123"
         options = {
-            "text": "CONFIDENTIAL",
-            "width": 200,
-            "height": 100,
-            "opacity": 0.5,
-            "position": "center",
+            "layer": "layer1",
+            "password": "secret",
+            "pages": {"start": 0, "end": 10},
         }
-        result = self.builder.add_step("watermark-pdf", options=options)
+        actions = [{"type": "ocr", "language": "english"}]
 
-        assert result is self.builder
-        assert len(self.builder._actions) == 1
-        action = self.builder._actions[0]
-        assert action["type"] == "watermark"
-        assert action["text"] == "CONFIDENTIAL"
-        assert action["width"] == 200
-        assert action["height"] == 100
-        assert action["opacity"] == 0.5
-        assert action["position"] == "center"
-
-    def test_add_multiple_steps(self):
-        """Test adding multiple steps."""
-        self.builder.add_step("convert-to-pdf")
-        self.builder.add_step("rotate-pages", options={"degrees": 90})
-        self.builder.add_step("watermark-pdf", options={"text": "DRAFT"})
-
-        assert len(self.builder._actions) == 3
-        assert self.builder._actions[0]["type"] == "convert-to-pdf"
-        assert self.builder._actions[1]["type"] == "rotate"
-        assert self.builder._actions[2]["type"] == "watermark"
-
-
-class TestBuilderChaining:
-    """Test suite for BuildAPIWrapper method chaining."""
-
-    def test_basic_chaining(self):
-        """Test basic method chaining."""
-        builder = BuildAPIWrapper(None, "test.pdf")
-        result = (
-            builder.add_step("convert-to-pdf")
-            .add_step("rotate-pages", options={"degrees": 90})
-            .add_step("watermark-pdf", options={"text": "DRAFT"})
-        )
+        result = builder.add_document_part(document_id, options, actions)
 
         assert result is builder
-        assert len(builder._actions) == 3
-        assert all("type" in action for action in builder._actions)
+        doc_part = builder.build_instructions["parts"][0]
+        assert doc_part["document"] == {"id": "doc-123", "layer": "layer1"}
+        assert doc_part["password"] == "secret"
+        assert doc_part["pages"] == {"start": 0, "end": 10}
+        assert doc_part["actions"] == [{"type": "ocr", "language": "english"}]
 
-    def test_chaining_with_output_options(self):
-        """Test chaining with output options."""
-        builder = BuildAPIWrapper(None, "test.pdf")
-        result = (
-            builder.add_step("convert-to-pdf")
-            .set_output_options(metadata={"title": "Test"}, optimize=True)
-            .add_step("watermark-pdf", options={"text": "FINAL"})
-        )
 
-        assert result is builder
-        assert len(builder._actions) == 2
-        assert builder._output_options["metadata"]["title"] == "Test"
-        assert builder._output_options["optimize"] is True
+class TestStagedWorkflowBuilderActionMethods:
+    """Tests for StagedWorkflowBuilder action methods."""
 
-    def test_complex_workflow_chaining(self):
-        """Test complex workflow with multiple operations."""
-        builder = BuildAPIWrapper(None, "document.docx")
-        result = (
-            builder.add_step("convert-to-pdf")
-            .add_step("ocr-pdf", options={"language": "english"})
-            .add_step("rotate-pages", options={"degrees": 90, "page_indexes": [0, 2]})
-            .add_step("watermark-pdf", options={"text": "PROCESSED"})
-            .add_step("flatten-annotations")
-            .set_output_options(optimize=True, metadata={"title": "Processed Document"})
-        )
+    def test_apply_actions_with_multiple_actions(self, valid_client_options):
+        """Test applying multiple actions to workflow."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        actions = [{"type": "ocr", "language": "english"}, {"type": "flatten"}]
+
+        result = builder.apply_actions(actions)
 
         assert result is builder
-        assert len(builder._actions) == 5
-        assert builder._actions[0]["type"] == "convert-to-pdf"
-        assert builder._actions[1]["type"] == "ocr"
-        assert builder._actions[2]["type"] == "rotate"
-        assert builder._actions[3]["type"] == "watermark"
-        assert builder._actions[4]["type"] == "flatten"
+        assert builder.build_instructions["actions"] == actions
 
+    def test_apply_actions_extends_existing_actions(self, valid_client_options):
+        """Test that apply_actions extends existing actions."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.build_instructions["actions"] = [{"type": "rotate", "rotateBy": 90}]
 
-class TestBuilderOutputOptions:
-    """Test suite for BuildAPIWrapper output options."""
+        new_actions = [{"type": "ocr", "language": "english"}]
+        result = builder.apply_actions(new_actions)
 
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.builder = BuildAPIWrapper(None, "test.pdf")
+        assert result is builder
+        expected_actions = [
+            {"type": "rotate", "rotateBy": 90},
+            {"type": "ocr", "language": "english"},
+        ]
+        assert builder.build_instructions["actions"] == expected_actions
 
-    def test_set_output_options_basic(self):
-        """Test setting basic output options."""
-        result = self.builder.set_output_options(optimize=True)
+    def test_apply_action_with_single_action(self, valid_client_options):
+        """Test applying a single action to workflow."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        action = {"type": "ocr", "language": "english"}
 
-        assert result is self.builder
-        assert self.builder._output_options["optimize"] is True
+        result = builder.apply_action(action)
 
-    def test_set_output_options_metadata(self):
-        """Test setting output options with metadata."""
-        metadata = {"title": "Test Doc", "author": "Test Author"}
-        result = self.builder.set_output_options(metadata=metadata)
+        assert result is builder
+        assert builder.build_instructions["actions"] == [action]
 
-        assert result is self.builder
-        assert self.builder._output_options["metadata"]["title"] == "Test Doc"
-        assert self.builder._output_options["metadata"]["author"] == "Test Author"
+    def test_apply_actions_with_file_input_action(
+        self, valid_client_options, mock_validate_file_input, mock_is_remote_file_input
+    ):
+        """Test applying actions that require file registration."""
+        builder = StagedWorkflowBuilder(valid_client_options)
 
-    def test_set_output_options_multiple_calls(self):
-        """Test multiple calls to set_output_options merge properly."""
-        self.builder.set_output_options(optimize=True)
-        self.builder.set_output_options(metadata={"title": "Test"})
-        self.builder.set_output_options(compress=True)
-
-        assert self.builder._output_options["optimize"] is True
-        assert self.builder._output_options["metadata"]["title"] == "Test"
-        assert self.builder._output_options["compress"] is True
-
-    def test_set_output_options_overwrites_same_key(self):
-        """Test that setting same option key overwrites previous value."""
-        self.builder.set_output_options(optimize=True)
-        self.builder.set_output_options(optimize=False)
-
-        assert self.builder._output_options["optimize"] is False
-
-    def test_set_output_options_complex_metadata(self):
-        """Test setting complex metadata structure."""
-        metadata = {
-            "title": "Complex Document",
-            "author": "Test Author",
-            "subject": "Test Subject",
-            "keywords": ["test", "document", "processing"],
-            "custom": {"version": "1.0", "department": "Engineering"},
+        # Create a mock action with file input
+        mock_action = MagicMock()
+        mock_action.__needsFileRegistration = True
+        mock_action.fileInput = "watermark.png"
+        mock_action.createAction.return_value = {
+            "type": "watermark",
+            "image": "asset_0",
         }
-        result = self.builder.set_output_options(metadata=metadata)
 
-        assert result is self.builder
-        assert self.builder._output_options["metadata"] == metadata
+        result = builder.apply_actions([mock_action])
 
-
-class TestBuilderToolToActionMapping:
-    """Test suite for BuildAPIWrapper tool to action mapping."""
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.builder = BuildAPIWrapper(None, "test.pdf")
-
-    def test_map_tool_to_action_convert_to_pdf(self):
-        """Test mapping convert-to-pdf tool."""
-        self.builder.add_step("convert-to-pdf")
-        action = self.builder._actions[0]
-        assert action["type"] == "convert-to-pdf"
-
-    def test_map_tool_to_action_flatten_annotations(self):
-        """Test mapping flatten-annotations tool."""
-        self.builder.add_step("flatten-annotations")
-        action = self.builder._actions[0]
-        assert action["type"] == "flatten"
-
-    def test_map_tool_to_action_rotate_pages(self):
-        """Test mapping rotate-pages tool with options."""
-        self.builder.add_step("rotate-pages", options={"degrees": 180})
-        action = self.builder._actions[0]
-        assert action["type"] == "rotate"
-        assert action["rotateBy"] == 180
-
-    def test_map_tool_to_action_rotate_pages_with_page_indexes(self):
-        """Test mapping rotate-pages tool with page indexes."""
-        self.builder.add_step("rotate-pages", options={"degrees": 90, "page_indexes": [0, 2, 4]})
-        action = self.builder._actions[0]
-        assert action["type"] == "rotate"
-        assert action["rotateBy"] == 90
-        assert action["pageIndexes"] == [0, 2, 4]
-
-    def test_map_tool_to_action_ocr_pdf(self):
-        """Test mapping ocr-pdf tool with language."""
-        self.builder.add_step("ocr-pdf", options={"language": "german"})
-        action = self.builder._actions[0]
-        assert action["type"] == "ocr"
-        assert action["language"] == "deu"  # Maps to API format
-
-    def test_map_tool_to_action_ocr_pdf_english(self):
-        """Test mapping ocr-pdf tool with english language."""
-        self.builder.add_step("ocr-pdf", options={"language": "english"})
-        action = self.builder._actions[0]
-        assert action["type"] == "ocr"
-        assert action["language"] == "english"
-
-    def test_map_tool_to_action_watermark_pdf(self):
-        """Test mapping watermark-pdf tool with all options."""
-        options = {
-            "text": "CONFIDENTIAL",
-            "width": 300,
-            "height": 150,
-            "opacity": 0.7,
-            "position": "top-right",
-        }
-        self.builder.add_step("watermark-pdf", options=options)
-        action = self.builder._actions[0]
-        assert action["type"] == "watermark"
-        assert action["text"] == "CONFIDENTIAL"
-        assert action["width"] == 300
-        assert action["height"] == 150
-        assert action["opacity"] == 0.7
-        assert action["position"] == "top-right"
-
-    def test_map_tool_to_action_watermark_pdf_defaults(self):
-        """Test mapping watermark-pdf tool with minimal options."""
-        self.builder.add_step("watermark-pdf", options={"text": "TEST"})
-        action = self.builder._actions[0]
-        assert action["type"] == "watermark"
-        assert action["text"] == "TEST"
-        assert action["width"] == 200  # Default
-        assert action["height"] == 100  # Default
-
-    def test_map_tool_to_action_apply_redactions(self):
-        """Test mapping apply-redactions tool."""
-        self.builder.add_step("apply-redactions")
-        action = self.builder._actions[0]
-        assert action["type"] == "applyRedactions"
-
-
-class TestBuilderFileHandling:
-    """Test suite for BuildAPIWrapper file handling."""
-
-    def test_builder_stores_file_for_upload(self):
-        """Test that builder stores files for later upload."""
-        builder = BuildAPIWrapper(None, "test.pdf")
-
-        # The file is stored for later preparation during execute
-        assert "file" in builder._files
-        assert builder._files["file"] == "test.pdf"
-
-    def test_builder_handles_bytes_input(self):
-        """Test that builder handles bytes input."""
-        content = b"PDF content bytes"
-        builder = BuildAPIWrapper(None, content)
-
-        assert "file" in builder._files
-        assert builder._files["file"] == content
-
-
-class TestBuilderExecute:
-    """Test suite for BuildAPIWrapper execute method."""
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.mock_client = Mock()
-        self.mock_client._http_client = Mock()
-        self.builder = BuildAPIWrapper(self.mock_client, "test.pdf")
-
-    @patch("nutrient_dws.builder.prepare_file_for_upload")
-    @patch("nutrient_dws.builder.save_file_output")
-    def test_execute_without_output_path(self, mock_save, mock_prepare):
-        """Test execute without output path returns bytes."""
-        mock_prepare.return_value = ("file", ("test.pdf", b"content", "application/pdf"))
-        self.mock_client._http_client.post.return_value = b"processed content"
-
-        result = self.builder.execute()
-
-        assert result == b"processed content"
-        mock_save.assert_not_called()
-        self.mock_client._http_client.post.assert_called_once()
-
-    @patch("nutrient_dws.builder.prepare_file_for_upload")
-    @patch("nutrient_dws.builder.save_file_output")
-    def test_execute_with_output_path(self, mock_save, mock_prepare):
-        """Test execute with output path saves file."""
-        mock_prepare.return_value = ("file", ("test.pdf", b"content", "application/pdf"))
-        self.mock_client._http_client.post.return_value = b"processed content"
-
-        result = self.builder.execute("output.pdf")
-
-        assert result is None
-        mock_save.assert_called_once_with(b"processed content", "output.pdf")
-        self.mock_client._http_client.post.assert_called_once()
-
-    @patch("nutrient_dws.builder.prepare_file_for_upload")
-    def test_execute_builds_correct_instructions(self, mock_prepare):
-        """Test that execute builds correct instructions."""
-        mock_prepare.return_value = ("file", ("test.pdf", b"content", "application/pdf"))
-        self.mock_client._http_client.post.return_value = b"result"
-
-        self.builder.add_step("convert-to-pdf")
-        self.builder.add_step("watermark-pdf", options={"text": "TEST"})
-        self.builder.set_output_options(optimize=True)
-
-        self.builder.execute()
-
-        # Verify the client.post was called with correct parameters
-        call_args = self.mock_client._http_client.post.call_args
-        assert call_args[0][0] == "/build"  # endpoint
-        assert "files" in call_args[1]
-        assert "json_data" in call_args[1]
-
-        # Check the instruction structure
-        instructions = call_args[1]["json_data"]
-        assert "parts" in instructions
-        assert "actions" in instructions
-        assert "output" in instructions  # Should include output options
-        assert len(instructions["actions"]) == 2
-        assert instructions["actions"][0]["type"] == "convert-to-pdf"
-        assert instructions["actions"][1]["type"] == "watermark"
-
-    @patch("nutrient_dws.builder.prepare_file_for_upload")
-    def test_execute_with_no_client_raises_error(self, mock_prepare):
-        """Test that execute without client raises appropriate error."""
-        mock_prepare.return_value = ("file", ("test.pdf", b"content", "application/pdf"))
-        builder = BuildAPIWrapper(None, "test.pdf")
-
-        with pytest.raises(AttributeError):
-            builder.execute()
-
-    @patch("nutrient_dws.builder.prepare_file_for_upload")
-    def test_execute_propagates_client_errors(self, mock_prepare):
-        """Test that execute propagates errors from HTTP client."""
-        from nutrient_dws.exceptions import APIError
-
-        mock_prepare.return_value = ("file", ("test.pdf", b"content", "application/pdf"))
-        self.mock_client._http_client.post.side_effect = APIError("API error", 400, "Bad request")
-
-        with pytest.raises(APIError):
-            self.builder.execute()
-
-
-class TestBuilderEdgeCases:
-    """Test edge cases and boundary conditions."""
-
-    @patch("nutrient_dws.builder.prepare_file_for_upload")
-    def test_builder_with_empty_actions(self, mock_prepare):
-        """Test builder with no actions added."""
-        mock_prepare.return_value = ("file", ("test.pdf", b"content", "application/pdf"))
-        mock_client = Mock()
-        mock_client._http_client = Mock()
-        mock_client._http_client.post.return_value = b"empty workflow result"
-
-        builder = BuildAPIWrapper(mock_client, "test.pdf")
-        result = builder.execute()
-
-        assert result == b"empty workflow result"
-
-        # Verify instructions have empty actions
-        call_args = mock_client._http_client.post.call_args
-        instructions = call_args[1]["json_data"]
-        assert instructions["actions"] == []
-
-    @patch("nutrient_dws.builder.prepare_file_for_upload")
-    def test_builder_action_order_preservation(self, mock_prepare):
-        """Test that actions are executed in the correct order."""
-        mock_prepare.return_value = ("file", ("test.pdf", b"content", "application/pdf"))
-        mock_client = Mock()
-        mock_client._http_client = Mock()
-        mock_client._http_client.post.return_value = b"ordered result"
-
-        builder = BuildAPIWrapper(mock_client, "test.pdf")
-        builder.add_step("convert-to-pdf")
-        builder.add_step("ocr-pdf", options={"language": "english"})
-        builder.add_step("rotate-pages", options={"degrees": 90})
-        builder.add_step("watermark-pdf", options={"text": "FINAL"})
-
-        builder.execute()
-
-        # Verify action order
-        call_args = mock_client._http_client.post.call_args
-        instructions = call_args[1]["json_data"]
-        actions = instructions["actions"]
-
-        assert len(actions) == 4
-        assert actions[0]["type"] == "convert-to-pdf"
-        assert actions[1]["type"] == "ocr"
-        assert actions[2]["type"] == "rotate"
-        assert actions[3]["type"] == "watermark"
-
-    def test_builder_with_large_file_input(self):
-        """Test builder with large file input."""
-        large_content = b"x" * (10 * 1024 * 1024)  # 10MB
-
-        builder = BuildAPIWrapper(None, large_content)
-        assert builder._input_file == large_content
-
-    def test_builder_set_page_labels(self):
-        """Test setting page labels."""
-        builder = BuildAPIWrapper(None, "test.pdf")
-
-        labels = [
-            {"pages": {"start": 0, "end": 2}, "label": "Introduction"},
-            {"pages": {"start": 3, "end": 9}, "label": "Chapter 1"},
-            {"pages": {"start": 10}, "label": "Appendix"},
+        assert result is builder
+        assert builder.build_instructions["actions"] == [
+            {"type": "watermark", "image": "asset_0"}
         ]
 
-        result = builder.set_page_labels(labels)
+    def test_apply_actions_throws_error_when_executed(self, valid_client_options):
+        """Test apply_actions throws error when workflow is already executed."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.is_executed = True
 
-        assert result is builder  # Should return self for chaining
-        assert builder._output_options["labels"] == labels
+        with pytest.raises(
+            ValidationError, match="This workflow has already been executed"
+        ):
+            builder.apply_actions([{"type": "ocr", "language": "english"}])
 
-    def test_builder_set_page_labels_chaining(self):
-        """Test page labels can be chained with other operations."""
-        builder = BuildAPIWrapper(None, "test.pdf")
 
-        labels = [{"pages": {"start": 0, "end": 0}, "label": "Cover"}]
+class TestStagedWorkflowBuilderOutputMethods:
+    """Tests for StagedWorkflowBuilder output methods."""
 
-        result = (
-            builder.add_step("rotate-pages", options={"degrees": 90})
-            .set_page_labels(labels)
-            .set_output_options(metadata={"title": "Test"})
-        )
+    def test_output_pdf_with_no_options(self, valid_client_options):
+        """Test setting PDF output with no options."""
+        builder = StagedWorkflowBuilder(valid_client_options)
 
-        assert result is builder
-        assert len(builder._actions) == 1
-        assert builder._output_options["labels"] == labels
-        assert builder._output_options["metadata"]["title"] == "Test"
-
-    def test_builder_options_none_handling(self):
-        """Test builder handles None options gracefully."""
-        builder = BuildAPIWrapper(None, "test.pdf")
-        result = builder.add_step("convert-to-pdf", options=None)
+        result = builder.output_pdf()
 
         assert result is builder
-        assert len(builder._actions) == 1
-        assert builder._actions[0]["type"] == "convert-to-pdf"
+        assert builder.build_instructions["output"] == {"type": "pdf"}
 
-    def test_builder_empty_output_options(self):
-        """Test builder with empty output options."""
-        builder = BuildAPIWrapper(None, "test.pdf")
-        result = builder.set_output_options()
+    def test_output_pdf_with_options(self, valid_client_options):
+        """Test setting PDF output with options."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        options = {"user_password": "secret", "owner_password": "owner"}
+
+        result = builder.output_pdf(options)
 
         assert result is builder
-        # Should still create empty output options dict
-        assert isinstance(builder._output_options, dict)
+        expected_output = {
+            "type": "pdf",
+            "user_password": "secret",
+            "owner_password": "owner",
+        }
+        assert builder.build_instructions["output"] == expected_output
+
+    def test_output_pdfa_with_options(self, valid_client_options):
+        """Test setting PDF/A output with options."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        options = {"conformance": "pdfa-2b", "vectorization": True}
+
+        result = builder.output_pdfa(options)
+
+        assert result is builder
+        expected_output = {
+            "type": "pdfa",
+            "conformance": "pdfa-2b",
+            "vectorization": True,
+        }
+        assert builder.build_instructions["output"] == expected_output
+
+    def test_output_pdfua_with_options(self, valid_client_options):
+        """Test setting PDF/UA output with options."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        options = {"metadata": {"title": "Accessible Document"}}
+
+        result = builder.output_pdfua(options)
+
+        assert result is builder
+        expected_output = {
+            "type": "pdfua",
+            "metadata": {"title": "Accessible Document"},
+        }
+        assert builder.build_instructions["output"] == expected_output
+
+    def test_output_image_with_dpi(self, valid_client_options):
+        """Test setting image output with DPI option."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        options = {"dpi": 300}
+
+        result = builder.output_image("png", options)
+
+        assert result is builder
+        expected_output = {"type": "image", "format": "png", "dpi": 300}
+        assert builder.build_instructions["output"] == expected_output
+
+    def test_output_image_with_dimensions(self, valid_client_options):
+        """Test setting image output with width and height."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        options = {"width": 800, "height": 600}
+
+        result = builder.output_image("jpeg", options)
+
+        assert result is builder
+        expected_output = {
+            "type": "image",
+            "format": "jpeg",
+            "width": 800,
+            "height": 600,
+        }
+        assert builder.build_instructions["output"] == expected_output
+
+    def test_output_image_without_required_options_throws_error(
+        self, valid_client_options
+    ):
+        """Test that image output without required options throws ValidationError."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        with pytest.raises(
+            ValidationError,
+            match="Image output requires at least one of the following options: dpi, height, width",
+        ):
+            builder.output_image("png")
+
+        with pytest.raises(
+            ValidationError,
+            match="Image output requires at least one of the following options: dpi, height, width",
+        ):
+            builder.output_image("png", {})
+
+    def test_output_office_formats(self, valid_client_options):
+        """Test setting office output formats."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        # Test DOCX
+        result_docx = builder.output_office("docx")
+        assert result_docx is builder
+        assert builder.build_instructions["output"] == {"type": "docx"}
+
+        # Test XLSX
+        builder2 = StagedWorkflowBuilder(valid_client_options)
+        result_xlsx = builder2.output_office("xlsx")
+        assert result_xlsx is builder2
+        assert builder2.build_instructions["output"] == {"type": "xlsx"}
+
+        # Test PPTX
+        builder3 = StagedWorkflowBuilder(valid_client_options)
+        result_pptx = builder3.output_office("pptx")
+        assert result_pptx is builder3
+        assert builder3.build_instructions["output"] == {"type": "pptx"}
+
+    def test_output_html_with_default_layout(self, valid_client_options):
+        """Test setting HTML output with default layout."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        result = builder.output_html()
+
+        assert result is builder
+        assert builder.build_instructions["output"] == {
+            "type": "html",
+            "layout": "page",
+        }
+
+    def test_output_html_with_reflow_layout(self, valid_client_options):
+        """Test setting HTML output with reflow layout."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        result = builder.output_html("reflow")
+
+        assert result is builder
+        assert builder.build_instructions["output"] == {
+            "type": "html",
+            "layout": "reflow",
+        }
+
+    def test_output_markdown(self, valid_client_options):
+        """Test setting Markdown output."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+
+        result = builder.output_markdown()
+
+        assert result is builder
+        assert builder.build_instructions["output"] == {"type": "markdown"}
+
+    def test_output_json_with_options(self, valid_client_options):
+        """Test setting JSON content output with options."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        options = {"plainText": True, "tables": False}
+
+        result = builder.output_json(options)
+
+        assert result is builder
+        expected_output = {"type": "json-content", "plainText": True, "tables": False}
+        assert builder.build_instructions["output"] == expected_output
+
+    def test_output_methods_throw_error_when_executed(self, valid_client_options):
+        """Test output methods throw error when workflow is already executed."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.is_executed = True
+
+        with pytest.raises(
+            ValidationError, match="This workflow has already been executed"
+        ):
+            builder.output_pdf()
+
+
+class TestStagedWorkflowBuilderExecutionMethods:
+    """Tests for StagedWorkflowBuilder execution methods."""
+
+    @pytest.mark.asyncio
+    async def test_execute_with_pdf_output(self, valid_client_options):
+        """Test executing workflow with PDF output."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    async def mock_request(endpoint, data):
+                        return b"pdf-content"
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ) as mock_send:
+                        builder = StagedWorkflowBuilder(valid_client_options)
+                        builder.add_file_part("test.pdf")
+                        builder.output_pdf()
+
+                        result = await builder.execute()
+
+                        assert result["success"] is True
+                        assert result["errors"] == []
+                        assert result["output"]["buffer"] == b"pdf-content"
+                        assert result["output"]["mimeType"] == "application/pdf"
+                        assert result["output"]["filename"] == "output.pdf"
+                        assert builder.is_executed is True
+                        mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_execute_with_json_output(self, valid_client_options):
+        """Test executing workflow with JSON content output."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    mock_response_data = {"pages": [{"plainText": "Some text"}]}
+
+                    async def mock_request(endpoint, data):
+                        return mock_response_data
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+                        builder.add_file_part("test.pdf")
+                        builder.output_json({"plainText": True})
+
+                        result = await builder.execute()
+
+                        assert result["success"] is True
+                        assert result["output"]["data"] == mock_response_data
+
+    @pytest.mark.asyncio
+    async def test_execute_with_html_output(self, valid_client_options):
+        """Test executing workflow with HTML output."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    async def mock_request(endpoint, data):
+                        return b"<html><body>Content</body></html>"
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+                        builder.add_file_part("test.pdf")
+                        builder.output_html("page")
+
+                        result = await builder.execute()
+
+                        assert result["success"] is True
+                        assert (
+                            result["output"]["content"]
+                            == "<html><body>Content</body></html>"
+                        )
+                        assert result["output"]["mimeType"] == "text/html"
+                        assert result["output"]["filename"] == "output.html"
+
+    @pytest.mark.asyncio
+    async def test_execute_with_markdown_output(self, valid_client_options):
+        """Test executing workflow with Markdown output."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    async def mock_request(endpoint, data):
+                        return b"# Header\n\nContent"
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+                        builder.add_file_part("test.pdf")
+                        builder.output_markdown()
+
+                        result = await builder.execute()
+
+                        assert result["success"] is True
+                        assert result["output"]["content"] == "# Header\n\nContent"
+                        assert result["output"]["mimeType"] == "text/markdown"
+                        assert result["output"]["filename"] == "output.md"
+
+    @pytest.mark.asyncio
+    async def test_execute_with_progress_callback(self, valid_client_options):
+        """Test executing workflow with progress callback."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    progress_calls = []
+
+                    def on_progress(current: int, total: int) -> None:
+                        progress_calls.append((current, total))
+
+                    async def mock_request(endpoint, data):
+                        return b"pdf-content"
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+                        builder.add_file_part("test.pdf")
+                        builder.output_pdf()
+
+                        await builder.execute(on_progress=on_progress)
+
+                        assert progress_calls == [(1, 3), (2, 3), (3, 3)]
+
+    @pytest.mark.asyncio
+    async def test_execute_handles_validation_error(self, valid_client_options):
+        """Test execute handles validation errors properly."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        # Don't add any parts - should trigger validation error
+
+        result = await builder.execute()
+
+        assert result["success"] is False
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["step"] == 1
+        assert isinstance(result["errors"][0]["error"], ValidationError)
+        assert builder.is_executed is True
+
+    @pytest.mark.asyncio
+    async def test_execute_handles_request_error(self, valid_client_options):
+        """Test execute handles request errors properly."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    async def mock_request(endpoint, data):
+                        raise Exception("Network error")
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+                        builder.add_file_part("test.pdf")
+                        builder.output_pdf()
+
+                        result = await builder.execute()
+
+                        assert result["success"] is False
+                        assert len(result["errors"]) == 1
+                        assert result["errors"][0]["step"] == 2
+                        assert str(result["errors"][0]["error"]) == "Network error"
+
+    @pytest.mark.asyncio
+    async def test_execute_throws_error_when_already_executed(
+        self, valid_client_options
+    ):
+        """Test execute throws error when workflow is already executed."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.is_executed = True
+
+        with pytest.raises(
+            ValidationError, match="This workflow has already been executed"
+        ):
+            await builder.execute()
+
+    @pytest.mark.asyncio
+    async def test_dry_run_success(self, valid_client_options):
+        """Test successful dry run execution."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                mock_analysis_data = {"estimatedTime": 5.2, "cost": 0.10}
+
+                async def mock_request(endpoint, data):
+                    return mock_analysis_data
+
+                with patch(
+                    "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                    side_effect=mock_request,
+                ) as mock_send:
+                    builder = StagedWorkflowBuilder(valid_client_options)
+                    builder.add_file_part("test.pdf")
+
+                    result = await builder.dry_run()
+
+                    assert result["success"] is True
+                    assert result["errors"] == []
+                    assert result["analysis"] == mock_analysis_data
+                    mock_send.assert_called_once()
+                    # Verify it called the analyze_build endpoint
+                    call_args = mock_send.call_args
+                    assert call_args[0][0] == "/analyze_build"
+
+    @pytest.mark.asyncio
+    async def test_dry_run_handles_validation_error(self, valid_client_options):
+        """Test dry run handles validation errors properly."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        # Don't add any parts - should trigger validation error
+
+        result = await builder.dry_run()
+
+        assert result["success"] is False
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["step"] == 0
+        assert isinstance(result["errors"][0]["error"], ValidationError)
+
+    @pytest.mark.asyncio
+    async def test_dry_run_handles_request_error(
+        self,
+        valid_client_options,
+        mock_send_request,
+        mock_validate_file_input,
+        mock_is_remote_file_input,
+    ):
+        """Test dry run handles request errors properly."""
+        mock_send_request.side_effect = Exception("Analysis failed")
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.add_file_part("test.pdf")
+
+        result = await builder.dry_run()
+
+        assert result["success"] is False
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["step"] == 0
+        assert str(result["errors"][0]["error"]) == "Analysis failed"
+
+    @pytest.mark.asyncio
+    async def test_dry_run_throws_error_when_already_executed(
+        self, valid_client_options
+    ):
+        """Test dry run throws error when workflow is already executed."""
+        builder = StagedWorkflowBuilder(valid_client_options)
+        builder.is_executed = True
+
+        with pytest.raises(
+            ValidationError, match="This workflow has already been executed"
+        ):
+            await builder.dry_run()
+
+
+class TestStagedWorkflowBuilderChaining:
+    """Tests for StagedWorkflowBuilder method chaining and type safety."""
+
+    @pytest.mark.asyncio
+    async def test_complete_workflow_chaining(self, valid_client_options):
+        """Test complete workflow with method chaining."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    async def mock_request(endpoint, data):
+                        return b"pdf-content"
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+
+                        result = await (
+                            builder.add_file_part("test.pdf")
+                            .apply_action({"type": "ocr", "language": "english"})
+                            .output_pdf({"user_password": "secret"})
+                            .execute()
+                        )
+
+                        assert result["success"] is True
+                        assert result["output"]["buffer"] == b"pdf-content"
+
+                        # Verify the build instructions were set correctly
+                        assert len(builder.build_instructions["parts"]) == 1
+                        assert builder.build_instructions["actions"] == [
+                            {"type": "ocr", "language": "english"}
+                        ]
+                        assert (
+                            builder.build_instructions["output"]["user_password"]
+                            == "secret"
+                        )
+
+    @pytest.mark.asyncio
+    async def test_complex_workflow_with_multiple_parts_and_actions(
+        self, valid_client_options
+    ):
+        """Test complex workflow with multiple parts and actions."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    async def mock_request(endpoint, data):
+                        return b"merged-pdf-content"
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+
+                        result = await (
+                            builder.add_file_part(
+                                "doc1.pdf", {"pages": {"start": 0, "end": 5}}
+                            )
+                            .add_file_part(
+                                "doc2.pdf", {"pages": {"start": 2, "end": 8}}
+                            )
+                            .add_new_page({"pageCount": 1})
+                            .apply_actions(
+                                [
+                                    {"type": "ocr", "language": "english"},
+                                    {"type": "flatten"},
+                                ]
+                            )
+                            .output_pdf({"metadata": {"title": "Merged Document"}})
+                            .execute()
+                        )
+
+        assert result["success"] is True
+        assert len(builder.build_instructions["parts"]) == 3
+        assert len(builder.build_instructions["actions"]) == 2
+
+
+class TestStagedWorkflowBuilderIntegration:
+    """Integration tests for StagedWorkflowBuilder with real BuildActions."""
+
+    @pytest.mark.asyncio
+    async def test_workflow_with_watermark_action(self, valid_client_options):
+        """Test workflow with watermark action that requires file registration."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    async def mock_request(endpoint, data):
+                        return b"watermarked-pdf"
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+
+                        # Create a watermark action that needs file registration
+                        watermark_action = BuildActions.watermark_image("logo.png")
+
+                        result = await (
+                            builder.add_file_part("document.pdf")
+                            .apply_action(watermark_action)
+                            .output_pdf()
+                            .execute()
+                        )
+
+                        assert result["success"] is True
+
+                        # Verify that actions were applied (the specific structure depends on implementation)
+                        # Note: assets are cleaned up after execution, but the build instructions remain
+                        assert len(builder.build_instructions["actions"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_workflow_with_mixed_actions(self, valid_client_options):
+        """Test workflow with mix of regular actions and file-input actions."""
+        with patch(
+            "nutrient_dws.builder.builder.validate_file_input", return_value=True
+        ):
+            with patch(
+                "nutrient_dws.builder.builder.is_remote_file_input", return_value=False
+            ):
+                with patch(
+                    "nutrient_dws.builder.builder.process_file_input"
+                ) as mock_process:
+                    mock_process.return_value = ("test-content", "application/pdf")
+
+                    async def mock_request(endpoint, data):
+                        return b"processed-pdf"
+
+                    with patch(
+                        "nutrient_dws.builder.base_builder.BaseBuilder._send_request",
+                        side_effect=mock_request,
+                    ):
+                        builder = StagedWorkflowBuilder(valid_client_options)
+
+                        # Mix of regular actions and actions requiring file registration
+                        actions = [
+                            BuildActions.ocr("english"),  # Regular action
+                            BuildActions.watermark_image(
+                                "watermark.png"
+                            ),  # File input action
+                            BuildActions.flatten(),  # Regular action
+                            BuildActions.apply_instant_json(
+                                "annotations.json"
+                            ),  # File input action
+                        ]
+
+                        result = await (
+                            builder.add_file_part("document.pdf")
+                            .apply_actions(actions)
+                            .output_pdf()
+                            .execute()
+                        )
+
+                        assert result["success"] is True
+
+                        # Verify actions were applied (the specific structure depends on implementation)
+                        # Note: assets are cleaned up after execution, but the build instructions remain
+                        processed_actions = builder.build_instructions["actions"]
+                        assert len(processed_actions) == 4

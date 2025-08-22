@@ -8,9 +8,17 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+nutrient_dws = [
+    "py.typed",
+    "../../docs/WORKFLOW.md",
+    "../../docs/METHODS.md",
+    "../../LLM_DOC.md",
+]
+
 [project]
 name = "nutrient-dws"
-version = "1.0.2"
+version = "2.0.0"
 description = "Python client library for Nutrient Document Web Services API"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,37 +40,40 @@ classifiers = [
     "Topic :: Multimedia :: Graphics :: Graphics Conversion",
 ]
 dependencies = [
-    "requests>=2.25.0,<3.0.0",
+    "httpx>=0.24.0,<1.0.0",
+    "aiofiles>=23.0.0,<25.0.0",
+    "typing_extensions>=4.9.0"
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
-    "types-requests>=2.25.0",
-    "build>=1.0.0",
-    "twine>=4.0.0",
-]
-docs = [
-    "sphinx>=5.0.0",
-    "sphinx-rtd-theme>=1.2.0",
-    "sphinx-autodoc-typehints>=1.22.0",
+    "types-aiofiles>=24.1.0",
+    "build>=1.2.2.post1,<2",
+    "twine>=6.1.0,<7",
+    "python-dotenv>=1.1.1"
 ]
 
 [project.urls]
 Homepage = "https://github.com/PSPDFKit/nutrient-dws-client-python"
-Documentation = "https://nutrient-dws-client-python.readthedocs.io"
+Documentation = "https://github.com/PSPDFKit/nutrient-dws-client-python/blob/main/README.md"
 Repository = "https://github.com/PSPDFKit/nutrient-dws-client-python"
 "Bug Tracker" = "https://github.com/PSPDFKit/nutrient-dws-client-python/issues"
 
-[tool.setuptools.package-data]
-nutrient_dws = ["py.typed"]
+[project.scripts]
+dws-add-claude-code-rule = "scripts.add_claude_code_rule:main"
+dws-add-cursor-rule = "scripts.add_cursor_rule:main"
+dws-add-github-copilot-rule = "scripts.add_github_copilot_rule:main"
+dws-add-junie-rule = "scripts.add_junie_rule:main"
+dws-add-windsurf-rule = "scripts.add_windsurf_rule:main"
 
 [tool.ruff]
 target-version = "py310"
-line-length = 100
+
 
 [tool.ruff.lint]
 select = [
@@ -80,17 +91,28 @@ select = [
     "RUF",  # Ruff-specific rules
 ]
 ignore = [
+    "E501",  # Line too long
+    "B904",  # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D103",  # Missing docstring in public function
     "D104",  # Missing docstring in public package
     "D107",  # Missing docstring in __init__
+    "D205",  # 1 blank line required between summary line and description
+    "UP007", # Use `X | Y` for type annotations
     "UP038", # Use `X | Y` in `isinstance` call instead of `(X, Y)` - not supported in Python 3.10 runtime
+    "UP045", # Use `X | None` for type annotations
+    "N802",  # Function name should be lowercase
+    "N803",  # Argument name should be lowercase
+    "N815",  # Variable in class scope should not be mixedCase
+    "N811",  # Constant imported as non-constant
 ]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "S101"]  # Don't require docstrings in tests, allow asserts
+"tests/*" = []  # Don't require docstrings in tests, allow asserts
 
 [tool.mypy]
 python_version = "3.10"

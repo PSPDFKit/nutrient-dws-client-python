@@ -1,0 +1,952 @@
+# Nutrient DWS Python Client Workflow
+
+This document provides detailed information about the workflow system in the Nutrient DWS Python Client.
+
+## Workflow Architecture
+
+The Nutrient DWS Python Client uses a fluent builder pattern with staged interfaces to create document processing workflows. This architecture provides several benefits:
+
+1. **Type Safety**: The staged interface ensures that methods are only available at appropriate stages
+2. **Readability**: Method chaining creates readable, declarative code
+3. **Discoverability**: IDE auto-completion guides you through the workflow stages
+4. **Flexibility**: Complex workflows can be built with simple, composable pieces
+
+## Workflow Stages
+
+The workflow builder follows a staged approach:
+
+### Stage 0: Create Workflow
+
+You have several ways of creating a workflow
+
+```python
+# Creating Workflow from a client
+workflow = client.workflow()
+
+# Override the client timeout
+workflow = client.workflow(60000)
+
+# Create a workflow without a client
+from nutrient_dws.builder.builder import StagedWorkflowBuilder
+workflow = StagedWorkflowBuilder({
+    'apiKey': 'your-api-key'
+})
+```
+
+### Stage 1: Add Parts
+
+In this stage, you add document parts to the workflow:
+
+```python
+workflow = (client.workflow()
+    .add_file_part('document.pdf')
+    .add_file_part('appendix.pdf'))
+```
+
+Available methods:
+
+#### `add_file_part(file, options?, actions?)`
+Adds a file part to the workflow.
+
+**Parameters:**
+- `file: FileInput` - The file to add to the workflow. Can be a local file path, bytes, or file-like object.
+- `options: FilePartOptions | None` - Additional options for the file part (optional)
+- `actions: list[BuildAction] | None` - Actions to apply to the file part (optional)
+
+**Returns:** `WorkflowWithPartsStage` - The workflow builder instance for method chaining.
+
+**Example:**
+
+```python
+# Add a PDF file from a local path
+workflow.add_file_part('/path/to/document.pdf')
+
+# Add a file with options and actions
+workflow.add_file_part(
+  '/path/to/document.pdf',
+  {'pages': {'start': 1, 'end': 3}},
+  [BuildActions.watermark_text('CONFIDENTIAL')]
+)
+```
+
+#### `add_html_part(html, assets?, options?, actions?)`
+Adds an HTML part to the workflow.
+
+**Parameters:**
+- `html: FileInput` - The HTML content to add. Can be a file path, bytes, or file-like object.
+- `assets: list[FileInput] | None` - Optional list of assets (CSS, images, etc.) to include with the HTML. Only local files or bytes are supported (optional)
+- `options: HTMLPartOptions | None` - Additional options for the HTML part (optional)
+- `actions: list[BuildAction] | None` - Actions to apply to the HTML part (optional)
+
+**Returns:** `WorkflowWithPartsStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Add HTML content from a file
+workflow.add_html_part('/path/to/content.html')
+
+# Add HTML with assets and options
+workflow.add_html_part(
+    '/path/to/content.html',
+    ['/path/to/style.css', '/path/to/image.png'],
+    {'layout': {'size': 'A4'}}
+)
+```
+
+#### `add_new_page(options?, actions?)`
+Adds a new blank page to the workflow.
+
+**Parameters:**
+- `options: NewPagePartOptions | None` - Additional options for the new page, such as page size, orientation, etc. (optional)
+- `actions: list[BuildAction] | None` - Actions to apply to the new page (optional)
+
+**Returns:** `WorkflowWithPartsStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Add a simple blank page
+workflow.add_new_page()
+
+# Add a new page with specific options
+workflow.add_new_page({
+    'layout': {'size': 'A4', 'orientation': 'portrait'}
+})
+```
+
+#### `add_document_part(document_id, options?, actions?)`
+Adds a document part to the workflow by referencing an existing document by ID.
+
+**Parameters:**
+- `document_id: str` - The ID of the document to add to the workflow.
+- `options: DocumentPartOptions | None` - Additional options for the document part (optional)
+  - `options['layer']: str` - Optional layer name to select a specific layer from the document.
+- `actions: list[BuildAction] | None` - Actions to apply to the document part (optional)
+
+**Returns:** `WorkflowWithPartsStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Add a document by ID
+workflow.add_document_part('doc_12345abcde')
+
+# Add a document with a specific layer and options
+workflow.add_document_part(
+    'doc_12345abcde',
+    {
+        'layer': 'content',
+        'pages': {'start': 0, 'end': 3}
+    }
+)
+```
+
+### Stage 2: Apply Actions (Optional)
+
+In this stage, you can apply actions to the document:
+
+```python
+workflow.apply_action(BuildActions.watermark_text('CONFIDENTIAL', {
+  'opacity': 0.5,
+  'fontSize': 48
+}))
+```
+
+Available methods:
+
+#### `apply_action(action)`
+Applies a single action to the workflow.
+
+**Parameters:**
+- `action: BuildAction` - The action to apply to the workflow.
+
+**Returns:** `WorkflowWithActionsStage` - The workflow builder instance for method chaining.
+
+**Example:**
+
+```python
+# Apply a watermark action
+workflow.apply_action(
+  BuildActions.watermark_text('CONFIDENTIAL', {
+    'opacity': 0.3,
+    'rotation': 45
+  })
+)
+
+# Apply an OCR action
+workflow.apply_action(BuildActions.ocr('english'))
+```
+
+#### `apply_actions(actions)`
+Applies multiple actions to the workflow.
+
+**Parameters:**
+- `actions: list[BuildAction]` - A list of actions to apply to the workflow.
+
+**Returns:** `WorkflowWithActionsStage` - The workflow builder instance for method chaining.
+
+**Example:**
+
+```python
+# Apply multiple actions to the workflow
+workflow.apply_actions([
+  BuildActions.watermark_text('DRAFT', {'opacity': 0.5}),
+  BuildActions.ocr('english'),
+  BuildActions.flatten()
+])
+```
+
+#### Action Types:
+
+#### Document Processing
+
+##### `BuildActions.ocr(language)`
+Creates an OCR (Optical Character Recognition) action to extract text from images or scanned documents.
+
+**Parameters:**
+- `language: str | list[str]` - Language(s) for OCR. Can be a single language or a list of languages.
+
+**Example:**
+```python
+# Basic OCR with English language
+workflow.apply_action(BuildActions.ocr('english'))
+
+# OCR with multiple languages
+workflow.apply_action(BuildActions.ocr(['english', 'french', 'german']))
+
+# OCR with options (via dict syntax)
+workflow.apply_action(BuildActions.ocr({
+    'language': 'english',
+    'enhanceResolution': True
+}))
+```
+
+##### `BuildActions.rotate(rotate_by)`
+Creates an action to rotate pages in the document.
+
+**Parameters:**
+- `rotate_by: Literal[90, 180, 270]` - Rotation angle in degrees (must be 90, 180, or 270).
+
+**Example:**
+```python
+# Rotate pages by 90 degrees
+workflow.apply_action(BuildActions.rotate(90))
+
+# Rotate pages by 180 degrees
+workflow.apply_action(BuildActions.rotate(180))
+```
+
+##### `BuildActions.flatten(annotation_ids?)`
+Creates an action to flatten annotations into the document content, making them non-interactive but permanently visible.
+
+**Parameters:**
+- `annotation_ids: list[str | int] | None` - Optional list of annotation IDs to flatten. If not specified, all annotations will be flattened (optional)
+
+**Example:**
+```python
+# Flatten all annotations
+workflow.apply_action(BuildActions.flatten())
+
+# Flatten specific annotations
+workflow.apply_action(BuildActions.flatten(['annotation1', 'annotation2']))
+```
+
+#### Watermarking
+
+##### `BuildActions.watermark_text(text, options?)`
+Creates an action to add a text watermark to the document.
+
+**Parameters:**
+- `text: str` - Watermark text content.
+- `options: TextWatermarkActionOptions | None` - Watermark options (optional):
+  - `width`: Width dimension of the watermark (dict with 'value' and 'unit', e.g. `{'value': 100, 'unit': '%'}`)
+  - `height`: Height dimension of the watermark (dict with 'value' and 'unit')
+  - `top`, `right`, `bottom`, `left`: Position of the watermark (dict with 'value' and 'unit')
+  - `rotation`: Rotation of the watermark in counterclockwise degrees (default: 0)
+  - `opacity`: Watermark opacity (0 is fully transparent, 1 is fully opaque)
+  - `fontFamily`: Font family for the text (e.g. 'Helvetica')
+  - `fontSize`: Size of the text in points
+  - `fontColor`: Foreground color of the text (e.g. '#ffffff')
+  - `fontStyle`: Text style list (['bold'], ['italic'], or ['bold', 'italic'])
+
+**Example:**
+
+```python
+# Simple text watermark
+workflow.apply_action(BuildActions.watermark_text('CONFIDENTIAL'))
+
+# Customized text watermark
+workflow.apply_action(BuildActions.watermark_text('DRAFT', {
+  'opacity': 0.5,
+  'rotation': 45,
+  'fontSize': 36,
+  'fontColor': '#FF0000',
+  'fontStyle': ['bold', 'italic']
+}))
+```
+
+##### `BuildActions.watermark_image(image, options?)`
+Creates an action to add an image watermark to the document.
+
+**Parameters:**
+- `image: FileInput` - Watermark image (file path, bytes, or file-like object).
+- `options: ImageWatermarkActionOptions | None` - Watermark options (optional):
+  - `width`: Width dimension of the watermark (dict with 'value' and 'unit', e.g. `{'value': 100, 'unit': '%'}`)
+  - `height`: Height dimension of the watermark (dict with 'value' and 'unit')
+  - `top`, `right`, `bottom`, `left`: Position of the watermark (dict with 'value' and 'unit')
+  - `rotation`: Rotation of the watermark in counterclockwise degrees (default: 0)
+  - `opacity`: Watermark opacity (0 is fully transparent, 1 is fully opaque)
+
+**Example:**
+
+```python
+# Simple image watermark
+workflow.apply_action(BuildActions.watermark_image('/path/to/logo.png'))
+
+# Customized image watermark
+workflow.apply_action(BuildActions.watermark_image('/path/to/logo.png', {
+  'opacity': 0.3,
+  'width': {'value': 50, 'unit': '%'},
+  'height': {'value': 50, 'unit': '%'},
+  'top': {'value': 10, 'unit': 'px'},
+  'left': {'value': 10, 'unit': 'px'},
+  'rotation': 0
+}))
+```
+
+#### Annotations
+
+##### `BuildActions.apply_instant_json(file)`
+Creates an action to apply annotations from an Instant JSON file to the document.
+
+**Parameters:**
+- `file: FileInput` - Instant JSON file input (file path, bytes, or file-like object).
+
+**Example:**
+
+```python
+# Apply annotations from Instant JSON file
+workflow.apply_action(BuildActions.apply_instant_json('/path/to/annotations.json'))
+```
+
+##### `BuildActions.apply_xfdf(file, options?)`
+Creates an action to apply annotations from an XFDF file to the document.
+
+**Parameters:**
+- `file: FileInput` - XFDF file input (file path, bytes, or file-like object).
+- `options: ApplyXfdfActionOptions | None` - Apply XFDF options (optional):
+  - `ignorePageRotation: bool` - If True, ignores page rotation when applying XFDF data (default: False)
+  - `richTextEnabled: bool` - If True, plain text annotations will be converted to rich text annotations. If False, all text annotations will be plain text annotations (default: True)
+
+**Example:**
+
+```python
+# Apply annotations from XFDF file with default options
+workflow.apply_action(BuildActions.apply_xfdf('/path/to/annotations.xfdf'))
+
+# Apply annotations with specific options
+workflow.apply_action(BuildActions.apply_xfdf('/path/to/annotations.xfdf', {
+  'ignorePageRotation': True,
+  'richTextEnabled': False
+}))
+```
+
+#### Redactions
+
+##### `BuildActions.create_redactions_text(text, options?, strategy_options?)`
+Creates an action to add redaction annotations based on text search.
+
+**Parameters:**
+- `text: str` - Text to search and redact.
+- `options: BaseCreateRedactionsOptions | None` - Redaction options (optional):
+  - `content: RedactionAnnotation` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
+- `strategy_options: CreateRedactionsStrategyOptionsText | None` - Redaction strategy options (optional):
+  - `includeAnnotations: bool` - If True, redaction annotations are created on top of annotations whose content match the provided text (default: True)
+  - `caseSensitive: bool` - If True, the search will be case sensitive (default: False)
+  - `start: int` - The index of the page from where to start the search (default: 0)
+  - `limit: int` - Starting from start, the number of pages to search (default: to the end of the document)
+
+**Example:**
+
+```python
+# Create redactions for all occurrences of "Confidential"
+workflow.apply_action(BuildActions.create_redactions_text('Confidential'))
+
+# Create redactions with custom appearance and search options
+workflow.apply_action(BuildActions.create_redactions_text('Confidential',
+                                                          {
+                                                            'content': {
+                                                              'backgroundColor': '#000000',
+                                                              'overlayText': 'REDACTED',
+                                                              'textColor': '#FFFFFF'
+                                                            }
+                                                          },
+                                                          {
+                                                            'caseSensitive': True,
+                                                            'start': 2,
+                                                            'limit': 5
+                                                          }
+                                                          ))
+```
+
+##### `BuildActions.create_redactions_regex(regex, options?, strategy_options?)`
+Creates an action to add redaction annotations based on regex pattern matching.
+
+**Parameters:**
+- `regex: str` - Regex pattern to search and redact.
+- `options: BaseCreateRedactionsOptions | None` - Redaction options (optional):
+  - `content: RedactionAnnotation` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
+- `strategy_options: CreateRedactionsStrategyOptionsRegex | None` - Redaction strategy options (optional):
+  - `includeAnnotations: bool` - If True, redaction annotations are created on top of annotations whose content match the provided regex (default: True)
+  - `caseSensitive: bool` - If True, the search will be case sensitive (default: True)
+  - `start: int` - The index of the page from where to start the search (default: 0)
+  - `limit: int` - Starting from start, the number of pages to search (default: to the end of the document)
+
+**Example:**
+
+```python
+# Create redactions for email addresses
+workflow.apply_action(BuildActions.create_redactions_regex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'))
+
+# Create redactions with custom appearance and search options
+workflow.apply_action(BuildActions.create_redactions_regex(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+                                                           {
+                                                             'content': {
+                                                               'backgroundColor': '#FF0000',
+                                                               'overlayText': 'EMAIL REDACTED'
+                                                             }
+                                                           },
+                                                           {
+                                                             'caseSensitive': False,
+                                                             'start': 0,
+                                                             'limit': 10
+                                                           }
+                                                           ))
+```
+
+##### `BuildActions.create_redactions_preset(preset, options?, strategy_options?)`
+Creates an action to add redaction annotations based on a preset pattern.
+
+**Parameters:**
+- `preset: str` - Preset pattern to search and redact (e.g. 'email-address', 'credit-card-number', 'social-security-number', etc.)
+- `options: BaseCreateRedactionsOptions | None` - Redaction options (optional):
+  - `content: RedactionAnnotation` - Visual aspects of the redaction annotation (background color, overlay text, etc.)
+- `strategy_options: CreateRedactionsStrategyOptionsPreset | None` - Redaction strategy options (optional):
+  - `includeAnnotations: bool` - If True, redaction annotations are created on top of annotations whose content match the provided preset (default: True)
+  - `start: int` - The index of the page from where to start the search (default: 0)
+  - `limit: int` - Starting from start, the number of pages to search (default: to the end of the document)
+
+**Example:**
+
+```python
+# Create redactions for email addresses using preset
+workflow.apply_action(BuildActions.create_redactions_preset('email-address'))
+
+# Create redactions for credit card numbers with custom appearance
+workflow.apply_action(BuildActions.create_redactions_preset('credit-card-number',
+                                                            {
+                                                              'content': {
+                                                                'backgroundColor': '#000000',
+                                                                'overlayText': 'FINANCIAL DATA'
+                                                              }
+                                                            },
+                                                            {
+                                                              'start': 0,
+                                                              'limit': 5
+                                                            }
+                                                            ))
+```
+
+##### `BuildActions.apply_redactions()`
+Creates an action to apply previously created redaction annotations, permanently removing the redacted content.
+
+**Example:**
+
+```python
+# First create redactions
+workflow.apply_action(BuildActions.create_redactions_preset('email-address'))
+
+# Then apply them
+workflow.apply_action(BuildActions.apply_redactions())
+```
+
+### Stage 3: Set Output Format
+
+In this stage, you specify the desired output format:
+
+```python
+workflow.output_pdf({
+    'optimize': {
+        'mrcCompression': True,
+        'imageOptimizationQuality': 2
+    }
+})
+```
+
+Available methods:
+
+#### `output_pdf(options?)`
+Sets the output format to PDF.
+
+**Parameters:**
+- `options: dict[str, Any] | None` - Additional options for PDF output, such as compression, encryption, etc. (optional)
+  - `options['metadata']: dict[str, Any]` - Document metadata properties like title, author.
+  - `options['labels']: list[dict[str, Any]]` - Custom labels to add to the document for organization and categorization.
+  - `options['user_password']: str` - Password required to open the document. When set, the PDF will be encrypted.
+  - `options['owner_password']: str` - Password required to modify the document. Provides additional security beyond the user password.
+  - `options['user_permissions']: list[str]` - List of permissions granted to users who open the document with the user password.
+    Options include: "printing", "modification", "content-copying", "annotation", "form-filling", etc.
+  - `options['optimize']: dict[str, Any]` - PDF optimization settings to reduce file size and improve performance.
+    - `options['optimize']['mrcCompression']: bool` - When True, applies Mixed Raster Content compression to reduce file size.
+    - `options['optimize']['imageOptimizationQuality']: int` - Controls the quality of image optimization (1-5, where 1 is highest quality).
+
+**Returns:** `WorkflowWithOutputStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Set output format to PDF with default options
+workflow.output_pdf()
+
+# Set output format to PDF with specific options
+workflow.output_pdf({
+    'user_password': 'secret',
+    'user_permissions': ["printing"],
+    'metadata': {
+        'title': 'Important Document',
+        'author': 'Document System'
+    },
+    'optimize': {
+        'mrcCompression': True,
+        'imageOptimizationQuality': 3
+    }
+})
+```
+
+#### `output_pdfa(options?)`
+Sets the output format to PDF/A (archival PDF).
+
+**Parameters:**
+- `options: dict[str, Any] | None` - Additional options for PDF/A output (optional):
+  - `options['conformance']: str` - The PDF/A conformance level to target. Options include 'pdfa-1b', 'pdfa-1a', 'pdfa-2b', 'pdfa-2a', 'pdfa-3b', 'pdfa-3a'.
+    Different levels have different requirements for long-term archiving.
+  - `options['vectorization']: bool` - When True, attempts to convert raster content to vector graphics where possible, improving quality and reducing file size.
+  - `options['rasterization']: bool` - When True, converts vector graphics to raster images, which can help with compatibility in some cases.
+  - `options['metadata']: dict[str, Any]` - Document metadata properties like title, author.
+  - `options['labels']: list[dict[str, Any]]` - Custom labels to add to the document for organization and categorization.
+  - `options['user_password']: str` - Password required to open the document. When set, the PDF will be encrypted.
+  - `options['owner_password']: str` - Password required to modify the document. Provides additional security beyond the user password.
+  - `options['user_permissions']: list[str]` - List of permissions granted to users who open the document with the user password.
+    Options include: "printing", "modification", "content-copying", "annotation", "form-filling", etc.
+  - `options['optimize']: dict[str, Any]` - PDF optimization settings to reduce file size and improve performance.
+    - `options['optimize']['mrcCompression']: bool` - When True, applies Mixed Raster Content compression to reduce file size.
+    - `options['optimize']['imageOptimizationQuality']: int` - Controls the quality of image optimization (1-5, where 1 is highest quality).
+
+**Returns:** `WorkflowWithOutputStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Set output format to PDF/A with default options
+workflow.output_pdfa()
+
+# Set output format to PDF/A with specific options
+workflow.output_pdfa({
+    'conformance': 'pdfa-2b',
+    'vectorization': True,
+    'metadata': {
+        'title': 'Archive Document',
+        'author': 'Document System'
+    },
+    'optimize': {
+        'mrcCompression': True
+    }
+})
+```
+
+#### `output_pdfua(options?)`
+Sets the output format to PDF/UA (Universal Accessibility).
+
+**Parameters:**
+- `options: dict[str, Any] | None` - Additional options for PDF/UA output (optional):
+  - `options['metadata']: dict[str, Any]` - Document metadata properties like title, author.
+  - `options['labels']: list[dict[str, Any]]` - Custom labels to add to the document for organization and categorization.
+  - `options['user_password']: str` - Password required to open the document. When set, the PDF will be encrypted.
+  - `options['owner_password']: str` - Password required to modify the document. Provides additional security beyond the user password.
+  - `options['user_permissions']: list[str]` - List of permissions granted to users who open the document with the user password.
+    Options include: "printing", "modification", "content-copying", "annotation", "form-filling", etc.
+  - `options['optimize']: dict[str, Any]` - PDF optimization settings to reduce file size and improve performance.
+    - `options['optimize']['mrcCompression']: bool` - When True, applies Mixed Raster Content compression to reduce file size.
+    - `options['optimize']['imageOptimizationQuality']: int` - Controls the quality of image optimization (1-5, where 1 is highest quality).
+
+**Returns:** `WorkflowWithOutputStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Set output format to PDF/UA with default options
+workflow.output_pdfua()
+
+# Set output format to PDF/UA with specific options
+workflow.output_pdfua({
+    'metadata': {
+        'title': 'Accessible Document',
+        'author': 'Document System'
+    },
+    'optimize': {
+        'mrcCompression': True,
+        'imageOptimizationQuality': 3
+    }
+})
+```
+
+#### `output_image(format, options?)`
+Sets the output format to an image format (PNG, JPEG, WEBP).
+
+**Parameters:**
+- `format: Literal['png', 'jpeg', 'jpg', 'webp']` - The image format to output.
+  - PNG: Lossless compression, supports transparency, best for graphics and screenshots
+  - JPEG/JPG: Lossy compression, smaller file size, best for photographs
+  - WEBP: Modern format with both lossy and lossless compression, good for web use
+- `options: dict[str, Any] | None` - Additional options for image output, such as resolution, quality, etc. (optional)
+  **Note: At least one of options['width'], options['height'], or options['dpi'] must be specified.**
+  - `options['pages']: dict[str, int]` - Specifies which pages to convert to images. If omitted, all pages are converted.
+    - `options['pages']['start']: int` - The first page to convert (0-based index).
+    - `options['pages']['end']: int` - The last page to convert (0-based index).
+  - `options['width']: int` - The width of the output image in pixels. If specified without height, aspect ratio is maintained.
+  - `options['height']: int` - The height of the output image in pixels. If specified without width, aspect ratio is maintained.
+  - `options['dpi']: int` - The resolution in dots per inch. Higher values create larger, more detailed images.
+    Common values: 72 (web), 150 (standard), 300 (print quality), 600 (high quality).
+
+**Returns:** `WorkflowWithOutputStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Set output format to PNG with dpi specified
+workflow.output_image('png', {'dpi': 300})
+
+# Set output format to JPEG with specific options
+workflow.output_image('jpeg', {
+    'dpi': 300,
+    'pages': {'start': 1, 'end': 3}
+})
+
+# Set output format to WEBP with specific dimensions
+workflow.output_image('webp', {
+    'width': 1200,
+    'height': 800,
+    'dpi': 150
+})
+```
+
+#### `output_office(format)`
+Sets the output format to an Office document format (DOCX, XLSX, PPTX).
+
+**Parameters:**
+- `format: Literal['docx', 'xlsx', 'pptx']` - The Office format to output ('docx' for Word, 'xlsx' for Excel, or 'pptx' for PowerPoint).
+
+**Returns:** `WorkflowWithOutputStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Set output format to Word document (DOCX)
+workflow.output_office('docx')
+
+# Set output format to Excel spreadsheet (XLSX)
+workflow.output_office('xlsx')
+
+# Set output format to PowerPoint presentation (PPTX)
+workflow.output_office('pptx')
+```
+
+#### `output_html(layout)`
+Sets the output format to HTML.
+
+**Parameters:**
+- `layout: Literal['page', 'reflow']` - The layout type to use for conversion to HTML:
+  - 'page' layout keeps the original structure of the document, segmented by page.
+  - 'reflow' layout converts the document into a continuous flow of text, without page breaks.
+
+**Returns:** `WorkflowWithOutputStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Set output format to HTML
+workflow.output_html('page')
+```
+
+#### `output_markdown()`
+Sets the output format to Markdown.
+
+**Returns:** `WorkflowWithOutputStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Set output format to Markdown with default options
+workflow.output_markdown()
+```
+
+#### `output_json(options?)`
+Sets the output format to JSON content.
+
+**Parameters:**
+- `options: dict[str, Any] | None` - Additional options for JSON output (optional):
+  - `options['plainText']: bool` - When True, extracts plain text content from the document and includes it in the JSON output.
+    This provides the raw text without structural information.
+  - `options['structuredText']: bool` - When True, extracts text with structural information (paragraphs, headings, etc.)
+    and includes it in the JSON output.
+  - `options['keyValuePairs']: bool` - When True, attempts to identify and extract key-value pairs from the document
+    (like form fields, labeled data, etc.) and includes them in the JSON output.
+  - `options['tables']: bool` - When True, attempts to identify and extract tabular data from the document
+    and includes it in the JSON output as structured table objects.
+  - `options['language']: str | list[str]` - Specifies the language(s) of the document content for better text extraction.
+    Can be a single language code or a list of language codes for multi-language documents.
+    Examples: "english", "french", "german", or ["english", "spanish"].
+
+**Returns:** `WorkflowWithOutputStage` - The workflow builder instance for method chaining.
+
+**Example:**
+```python
+# Set output format to JSON with default options
+workflow.output_json()
+
+# Set output format to JSON with specific options
+workflow.output_json({
+    'plainText': True,
+    'structuredText': True,
+    'keyValuePairs': True,
+    'tables': True,
+    'language': "english"
+})
+
+# Set output format to JSON with multiple languages
+workflow.output_json({
+    'plainText': True,
+    'tables': True,
+    'language': ["english", "french", "german"]
+})
+```
+
+### Stage 4: Execute or Dry Run
+
+In this final stage, you execute the workflow or perform a dry run:
+
+```python
+result = await workflow.execute()
+```
+
+Available methods:
+
+#### `execute(options?)`
+Executes the workflow and returns the result.
+
+**Parameters:**
+- `on_progress: Callable[[int, int], None] | None` - Callback for progress updates (optional).
+
+**Returns:** `TypedWorkflowResult` - The workflow result.
+
+**Example:**
+```python
+# Execute the workflow with default options
+result = await workflow.execute()
+
+# Execute with progress tracking
+def progress_callback(current: int, total: int) -> None:
+    print(f'Processing step {current} of {total}')
+
+result = await workflow.execute(on_progress=progress_callback)
+```
+
+#### `dry_run(options?)`
+Performs a dry run of the workflow without generating the final output. This is useful for validating the workflow configuration and estimating processing time.
+
+**Returns:** `WorkflowDryRunResult` - The dry run result, containing validation information and estimated processing time.
+
+**Example:**
+```python
+# Perform a dry run with default options
+dry_run_result = await (workflow
+    .add_file_part('/path/to/document.pdf')
+    .output_pdf()
+    .dry_run())
+```
+
+## Workflow Examples
+
+### Basic Document Conversion
+
+```python
+result = await (client
+    .workflow()
+    .add_file_part('document.docx')
+    .output_pdf()
+    .execute())
+```
+
+### Document Merging with Watermark
+
+```python
+result = await (client
+                .workflow()
+                .add_file_part('document1.pdf')
+                .add_file_part('document2.pdf')
+                .apply_action(BuildActions.watermark_text('CONFIDENTIAL', {
+  'opacity': 0.5,
+  'fontSize': 48
+}))
+                .output_pdf()
+                .execute())
+```
+
+### OCR with Language Selection
+
+```python
+result = await (client
+    .workflow()
+    .add_file_part('scanned-document.pdf')
+    .apply_action(BuildActions.ocr({
+        'language': 'english',
+        'enhanceResolution': True
+    }))
+    .output_pdf()
+    .execute())
+```
+
+### HTML to PDF Conversion
+
+```python
+result = await (client
+    .workflow()
+    .add_html_part('index.html', None, {
+        'layout': {
+            'size': 'A4',
+            'margin': {
+                'top': 50,
+                'bottom': 50,
+                'left': 50,
+                'right': 50
+            }
+        }
+    })
+    .output_pdf()
+    .execute())
+```
+
+### Complex Multi-step Workflow
+
+```python
+def progress_callback(current: int, total: int) -> None:
+  print(f'Processing step {current} of {total}')
+
+
+result = await (client
+                .workflow()
+                .add_file_part('document.pdf', {'pages': {'start': 0, 'end': 5}})
+                .add_file_part('appendix.pdf')
+                .apply_actions([
+  BuildActions.ocr({'language': 'english'}),
+  BuildActions.watermark_text('CONFIDENTIAL'),
+  BuildActions.create_redactions_preset('email-address', 'apply')
+])
+                .output_pdfa({
+  'level': 'pdfa-2b',
+  'optimize': {
+    'mrcCompression': True
+  }
+})
+                .execute(on_progress=progress_callback))
+```
+
+## Staged Workflow Builder
+
+For more complex scenarios where you need to build workflows dynamically, you can use the staged workflow builder:
+
+```python
+# Create a staged workflow
+workflow = client.workflow()
+
+# Add parts
+workflow.add_file_part('document.pdf')
+
+# Conditionally add more parts
+if include_appendix:
+  workflow.add_file_part('appendix.pdf')
+
+# Conditionally apply actions
+if needs_watermark:
+  workflow.apply_action(BuildActions.watermark_text('CONFIDENTIAL'))
+
+# Set output format based on user preference
+if output_format == 'pdf':
+  workflow.output_pdf()
+elif output_format == 'docx':
+  workflow.output_office('docx')
+else:
+  workflow.output_image('png')
+
+# Execute the workflow
+result = await workflow.execute()
+```
+
+## Error Handling in Workflows
+
+Workflows provide detailed error information:
+
+```python
+try:
+    result = await (client
+        .workflow()
+        .add_file_part('document.pdf')
+        .output_pdf()
+        .execute())
+
+    if not result['success']:
+        # Handle workflow errors
+        for error in result.get('errors', []):
+            print(f"Step {error['step']}: {error['error']['message']}")
+except Exception as error:
+    # Handle unexpected errors
+    print(f'Workflow execution failed: {error}')
+```
+
+## Workflow Result Structure
+
+The result of a workflow execution includes:
+
+```python
+from typing import TypedDict, Any, List, Optional, Union
+
+class WorkflowError(TypedDict):
+    step: str
+    error: dict[str, Any]
+
+class BufferOutput(TypedDict):
+    mimeType: str
+    filename: str
+    buffer: bytes
+
+class ContentOutput(TypedDict):
+    mimeType: str
+    filename: str
+    content: str
+
+class JsonContentOutput(TypedDict):
+    mimeType: str
+    filename: str
+    data: Any
+
+class WorkflowResult(TypedDict):
+    # Overall success status
+    success: bool
+
+    # Output data (if successful)
+    output: Optional[Union[BufferOutput, ContentOutput, JsonContentOutput]]
+
+    # Error information (if failed)
+    errors: Optional[List[WorkflowError]]
+```
+
+## Performance Considerations
+
+For optimal performance with workflows:
+
+1. **Minimize the number of parts**: Combine related files when possible
+2. **Use appropriate output formats**: Choose formats based on your needs
+3. **Consider dry runs**: Use `dry_run()` to estimate resource usage
+4. **Monitor progress**: Use the `on_progress` callback for long-running workflows
+5. **Handle large files**: For very large files, consider splitting into smaller workflows
