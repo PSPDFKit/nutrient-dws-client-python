@@ -4,19 +4,20 @@ import sys
 
 def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_path = os.path.join(script_dir, "..", "..", "LLM_DOC.md")
+    doc_path = os.path.join(script_dir, "LLM_DOC.md")
     with open(doc_path, encoding="utf-8") as file:
         documentation = file.read()
 
     user_project_root = os.getcwd()
-    output_directory = os.path.join(user_project_root, ".windsurf/rules")
+    output_directory = os.path.join(user_project_root, ".cursor/rules")
     output_file = os.path.join(output_directory, "nutrient-dws-doc.mdc")
 
     try:
         rule = f"""
 ---
 description: This rule explains how to use the Nutrient DWS Python Client (`nutrient-dws`) for operations with document processing operations including conversion, merging, compression, watermarking, signage, and text extraction.
-trigger: model_decision
+globs:
+alwaysApply: false
 ---
 
 {documentation}
@@ -27,8 +28,8 @@ trigger: model_decision
             f.write(rule)
 
         print(
-            f"📄 Updated Windsurf Rules to point to Nutrient DWS documentation at {output_file}."
+            f"📄 Updated Cursor Rules to point to Nutrient DWS documentation at {output_file}."
         )
     except Exception as err:
-        print(f"Failed to update Windsurf Rule: {err}", file=sys.stderr)
+        print(f"Failed to update Cursor Rule: {err}", file=sys.stderr)
         sys.exit(1)

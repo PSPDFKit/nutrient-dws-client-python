@@ -4,7 +4,7 @@ import sys
 
 def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_path = os.path.join(script_dir, "..", "..", "LLM_DOC.md")
+    doc_path = os.path.join(script_dir, "LLM_DOC.md")
 
     user_project_root = os.getcwd()
     output_file = os.path.join(user_project_root, "CLAUDE.md")

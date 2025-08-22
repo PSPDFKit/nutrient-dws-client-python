@@ -4,11 +4,11 @@ import sys
 
 def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_path = os.path.join(script_dir, "..", "..", "LLM_DOC.md")
+    doc_path = os.path.join(script_dir, "LLM_DOC.md")
 
     user_project_root = os.getcwd()
-    output_directory = os.path.join(user_project_root, ".github")
-    output_file = os.path.join(output_directory, "copilot-instructions.md")
+    output_directory = os.path.join(user_project_root, ".junie")
+    output_file = os.path.join(output_directory, "guidelines.md")
 
     relative_doc_path = os.path.relpath(doc_path, user_project_root)
 
@@ -24,11 +24,8 @@ def main() -> None:
             f.write(rule)
 
         print(
-            f"📄 Updated GitHub Copilot Rules to point to Nutrient DWS documentation at {relative_doc_path}."
+            f"📄 Updated Junie Code Rules to point to Nutrient DWS documentation at {relative_doc_path}."
         )
     except Exception as err:
-        print(
-            f"Failed to update .github/copilot-instructions.md file: {err}",
-            file=sys.stderr,
-        )
+        print(f"Failed to update .junie/guidelines.md file: {err}", file=sys.stderr)
         sys.exit(1)

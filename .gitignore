@@ -156,3 +156,4 @@ openapi_spec.yml
 
 # Example output
 examples/output
+/examples/example_venv/

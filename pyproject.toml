@@ -11,9 +11,9 @@ where = ["src"]
 [tool.setuptools.package-data]
 nutrient_dws = [
     "py.typed",
-    "../../docs/WORKFLOW.md",
-    "../../docs/METHODS.md",
-    "../../LLM_DOC.md",
+]
+nutrient_dws_scripts = [
+    "LLM_DOC.md"
 ]
 
 [project]
@@ -65,11 +65,11 @@ Repository = "https://github.com/PSPDFKit/nutrient-dws-client-python"
 "Bug Tracker" = "https://github.com/PSPDFKit/nutrient-dws-client-python/issues"
 
 [project.scripts]
-dws-add-claude-code-rule = "scripts.add_claude_code_rule:main"
-dws-add-cursor-rule = "scripts.add_cursor_rule:main"
-dws-add-github-copilot-rule = "scripts.add_github_copilot_rule:main"
-dws-add-junie-rule = "scripts.add_junie_rule:main"
-dws-add-windsurf-rule = "scripts.add_windsurf_rule:main"
+dws-add-claude-code-rule = "nutrient_dws_scripts.add_claude_code_rule:main"
+dws-add-cursor-rule = "nutrient_dws_scripts.add_cursor_rule:main"
+dws-add-github-copilot-rule = "nutrient_dws_scripts.add_github_copilot_rule:main"
+dws-add-junie-rule = "nutrient_dws_scripts.add_junie_rule:main"
+dws-add-windsurf-rule = "nutrient_dws_scripts.add_windsurf_rule:main"
 
 [tool.ruff]
 target-version = "py310"
