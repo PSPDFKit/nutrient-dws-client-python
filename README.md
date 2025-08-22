@@ -234,7 +234,7 @@ src/
 │   ├── inputs.py       # Input handling
 │   ├── workflow.py     # Workflow factory
 │   └── __init__.py     # Public exports
-├── scripts/            # CLI scripts for coding agents
+├── nutrient_dws_scripts/            # CLI scripts for coding agents
 └── tests/              # Test files
 ```
 
