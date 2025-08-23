@@ -8,6 +8,8 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
 
+    environment: "pspdfkit github"
+
     permissions:
       id-token: write
       contents: read
