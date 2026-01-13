@@ -440,7 +440,8 @@ class NutrientClient:
 
         Args:
             file: The input file to watermark
-            image: The watermark image
+            image: The watermark image. Can be a file path (string or Path),
+                bytes, file-like object, or a URL to a remote image.
             options: Watermark options
 
         Returns:
@@ -448,9 +449,25 @@ class NutrientClient:
 
         Example:
             ```python
-            result = await client.watermark_image('document.pdf', 'watermark.jpg', {
+            # Using a local file path
+            result = await client.watermark_image('document.pdf', 'watermark.png', {
                 'opacity': 0.5
             })
+
+            # Using a Path object
+            from pathlib import Path
+            result = await client.watermark_image('document.pdf', Path('logo.png'))
+
+            # Using bytes (e.g., from a database or API)
+            with open('logo.png', 'rb') as f:
+                image_bytes = f.read()
+            result = await client.watermark_image('document.pdf', image_bytes)
+
+            # Using a remote URL
+            result = await client.watermark_image(
+                'document.pdf',
+                'https://example.com/logo.png'
+            )
 
             # Access the watermarked PDF buffer
             pdf_buffer = result['buffer']
@@ -531,14 +548,19 @@ class NutrientClient:
 
         Args:
             file: The input file to perform OCR on
-            language: The language(s) to use for OCR
+            language: The language(s) to use for OCR. Can be a single language
+                or a list of languages for multi-language documents.
 
         Returns:
             The OCR result
 
         Example:
             ```python
+            # Single language OCR
             result = await client.ocr('scanned-document.pdf', 'english')
+
+            # Multi-language OCR for documents with mixed content
+            result = await client.ocr('multilang-document.pdf', ['english', 'german', 'french'])
 
             # Access the OCR-processed PDF buffer
             pdf_buffer = result['buffer']
@@ -952,7 +974,9 @@ class NutrientClient:
 
         Args:
             pdf: The PDF file to flatten
-            annotation_ids: Optional specific annotation IDs to flatten
+            annotation_ids: Optional list of specific annotation IDs to flatten.
+                If not provided, all annotations are flattened. IDs can be
+                strings or integers.
 
         Returns:
             The flattened document
@@ -962,8 +986,14 @@ class NutrientClient:
             # Flatten all annotations
             result = await client.flatten('annotated-document.pdf')
 
-            # Flatten specific annotations by ID
+            # Flatten specific annotations by string ID
             result = await client.flatten('annotated-document.pdf', ['annotation1', 'annotation2'])
+
+            # Flatten specific annotations by integer ID
+            result = await client.flatten('annotated-document.pdf', [1, 2, 3])
+
+            # Mix of string and integer IDs
+            result = await client.flatten('annotated-document.pdf', ['note1', 2, 'highlight3'])
             ```
         """
         # Validate PDF

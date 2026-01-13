@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from nutrient_dws import NutrientClient
-from nutrient_dws.errors import ValidationError, NutrientError
+from nutrient_dws.errors import NutrientError, ValidationError
 
 
 class TestNutrientClientConstructor:
@@ -865,4 +865,372 @@ class TestNutrientClientDeleteToken:
                 "headers": None,
             },
             valid_client_options,
+        )
+
+
+class TestNutrientClientFlatten:
+    """Tests for NutrientClient flatten functionality."""
+
+    @patch("nutrient_dws.client.is_remote_file_input", return_value=False)
+    @patch("nutrient_dws.client.process_file_input")
+    @patch("nutrient_dws.client.is_valid_pdf", return_value=True)
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_flatten_all_annotations(
+        self,
+        mock_staged_workflow_builder,
+        mock_is_valid_pdf,
+        mock_process_file_input,
+        mock_is_remote,
+        unit_client,
+    ):
+        """Test flattening all annotations (no annotation_ids specified)."""
+        mock_process_file_input.return_value = (b"%PDF-test", "test.pdf")
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "annotated-document.pdf"
+
+        result = await unit_client.flatten(file)
+
+        # Verify the workflow was called correctly
+        call_args = mock_workflow_instance.add_file_part.call_args
+        assert call_args[0][0] == file
+        assert call_args[0][1] is None
+
+        # Check the flatten action structure
+        actions = call_args[0][2]
+        assert len(actions) == 1
+        flatten_action = actions[0]
+        assert flatten_action["type"] == "flatten"
+        assert "annotationIds" not in flatten_action
+
+        mock_workflow_instance.output_pdf.assert_called_once()
+
+        # Verify the result
+        assert result["buffer"] == b"test-buffer"
+        assert result["mimeType"] == "application/pdf"
+
+    @patch("nutrient_dws.client.is_remote_file_input", return_value=False)
+    @patch("nutrient_dws.client.process_file_input")
+    @patch("nutrient_dws.client.is_valid_pdf", return_value=True)
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_flatten_specific_annotations_by_string_ids(
+        self,
+        mock_staged_workflow_builder,
+        mock_is_valid_pdf,
+        mock_process_file_input,
+        mock_is_remote,
+        unit_client,
+    ):
+        """Test flattening specific annotations by string IDs."""
+        mock_process_file_input.return_value = (b"%PDF-test", "test.pdf")
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "annotated-document.pdf"
+        annotation_ids = ["annotation1", "annotation2", "annotation3"]
+
+        result = await unit_client.flatten(file, annotation_ids)
+
+        # Verify the workflow was called correctly
+        call_args = mock_workflow_instance.add_file_part.call_args
+        actions = call_args[0][2]
+        assert len(actions) == 1
+        flatten_action = actions[0]
+        assert flatten_action["type"] == "flatten"
+        assert flatten_action["annotationIds"] == ["annotation1", "annotation2", "annotation3"]
+
+        # Verify the result
+        assert result["buffer"] == b"test-buffer"
+
+    @patch("nutrient_dws.client.is_remote_file_input", return_value=False)
+    @patch("nutrient_dws.client.process_file_input")
+    @patch("nutrient_dws.client.is_valid_pdf", return_value=True)
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_flatten_specific_annotations_by_integer_ids(
+        self,
+        mock_staged_workflow_builder,
+        mock_is_valid_pdf,
+        mock_process_file_input,
+        mock_is_remote,
+        unit_client,
+    ):
+        """Test flattening specific annotations by integer IDs."""
+        mock_process_file_input.return_value = (b"%PDF-test", "test.pdf")
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "annotated-document.pdf"
+        annotation_ids = [1, 2, 3]
+
+        result = await unit_client.flatten(file, annotation_ids)
+
+        # Verify the workflow was called correctly
+        call_args = mock_workflow_instance.add_file_part.call_args
+        actions = call_args[0][2]
+        assert len(actions) == 1
+        flatten_action = actions[0]
+        assert flatten_action["type"] == "flatten"
+        assert flatten_action["annotationIds"] == [1, 2, 3]
+
+        # Verify the result
+        assert result["buffer"] == b"test-buffer"
+
+    @patch("nutrient_dws.client.is_remote_file_input", return_value=False)
+    @patch("nutrient_dws.client.process_file_input")
+    @patch("nutrient_dws.client.is_valid_pdf", return_value=True)
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_flatten_specific_annotations_by_mixed_ids(
+        self,
+        mock_staged_workflow_builder,
+        mock_is_valid_pdf,
+        mock_process_file_input,
+        mock_is_remote,
+        unit_client,
+    ):
+        """Test flattening specific annotations with mixed string and integer IDs."""
+        mock_process_file_input.return_value = (b"%PDF-test", "test.pdf")
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "annotated-document.pdf"
+        annotation_ids = ["annotation1", 2, "annotation3", 4]
+
+        result = await unit_client.flatten(file, annotation_ids)
+
+        # Verify the workflow was called correctly
+        call_args = mock_workflow_instance.add_file_part.call_args
+        actions = call_args[0][2]
+        assert len(actions) == 1
+        flatten_action = actions[0]
+        assert flatten_action["type"] == "flatten"
+        assert flatten_action["annotationIds"] == ["annotation1", 2, "annotation3", 4]
+
+        # Verify the result
+        assert result["buffer"] == b"test-buffer"
+
+
+class TestNutrientClientWatermarkImageWithFileInputTypes:
+    """Tests for NutrientClient watermark_image with various file input types."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_watermark_image_with_bytes_input(
+        self, mock_staged_workflow_builder, unit_client
+    ):
+        """Test adding image watermark with bytes input."""
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+        image_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR..."  # Fake PNG header
+
+        await unit_client.watermark_image(file, image_bytes)
+
+        # Check that add_file_part was called with the watermark action
+        call_args = mock_workflow_instance.add_file_part.call_args
+        actions = call_args[0][2]
+        assert len(actions) == 1
+        watermark_action = actions[0]
+
+        # Check that it's an action that needs file registration with bytes input
+        assert hasattr(watermark_action, "fileInput")
+        assert hasattr(watermark_action, "createAction")
+        assert watermark_action.fileInput == image_bytes
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_watermark_image_with_path_object(
+        self, mock_staged_workflow_builder, unit_client
+    ):
+        """Test adding image watermark with Path object input."""
+        from pathlib import Path
+
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "test-file.pdf"
+        image_path = Path("/path/to/watermark.png")
+
+        await unit_client.watermark_image(file, image_path)
+
+        # Check that add_file_part was called with the watermark action
+        call_args = mock_workflow_instance.add_file_part.call_args
+        actions = call_args[0][2]
+        assert len(actions) == 1
+        watermark_action = actions[0]
+
+        # Check that it's an action that needs file registration with Path input
+        assert hasattr(watermark_action, "fileInput")
+        assert hasattr(watermark_action, "createAction")
+        assert watermark_action.fileInput == image_path
+
+
+class TestNutrientClientOcrMultiLanguage:
+    """Tests for NutrientClient OCR with multiple languages."""
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_ocr_with_three_languages(
+        self, mock_staged_workflow_builder, unit_client
+    ):
+        """Test OCR with three different languages."""
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "scanned-document.pdf"
+        languages = ["english", "german", "french"]
+
+        await unit_client.ocr(file, languages)
+
+        # Verify the workflow was called correctly with multiple languages
+        mock_workflow_instance.add_file_part.assert_called_once_with(
+            file, None, [{"type": "ocr", "language": ["english", "german", "french"]}]
+        )
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_ocr_with_iso_language_codes(
+        self, mock_staged_workflow_builder, unit_client
+    ):
+        """Test OCR with ISO language codes."""
+        # Setup mock workflow
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+
+        file = "scanned-document.pdf"
+        languages = ["eng", "deu", "fra"]  # ISO codes
+
+        await unit_client.ocr(file, languages)
+
+        # Verify the workflow was called correctly with ISO codes
+        mock_workflow_instance.add_file_part.assert_called_once_with(
+            file, None, [{"type": "ocr", "language": ["eng", "deu", "fra"]}]
         )
