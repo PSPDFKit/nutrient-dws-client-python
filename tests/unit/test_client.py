@@ -871,22 +871,14 @@ class TestNutrientClientDeleteToken:
 class TestNutrientClientFlatten:
     """Tests for NutrientClient flatten functionality."""
 
-    @patch("nutrient_dws.client.is_remote_file_input", return_value=False)
-    @patch("nutrient_dws.client.process_file_input")
-    @patch("nutrient_dws.client.is_valid_pdf", return_value=True)
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_flatten_all_annotations(
         self,
         mock_staged_workflow_builder,
-        mock_is_valid_pdf,
-        mock_process_file_input,
-        mock_is_remote,
         unit_client,
     ):
         """Test flattening all annotations (no annotation_ids specified)."""
-        mock_process_file_input.return_value = (b"%PDF-test", "test.pdf")
-
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
         mock_output_stage = MagicMock()
@@ -927,22 +919,14 @@ class TestNutrientClientFlatten:
         assert result["buffer"] == b"test-buffer"
         assert result["mimeType"] == "application/pdf"
 
-    @patch("nutrient_dws.client.is_remote_file_input", return_value=False)
-    @patch("nutrient_dws.client.process_file_input")
-    @patch("nutrient_dws.client.is_valid_pdf", return_value=True)
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_flatten_specific_annotations_by_string_ids(
         self,
         mock_staged_workflow_builder,
-        mock_is_valid_pdf,
-        mock_process_file_input,
-        mock_is_remote,
         unit_client,
     ):
         """Test flattening specific annotations by string IDs."""
-        mock_process_file_input.return_value = (b"%PDF-test", "test.pdf")
-
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
         mock_output_stage = MagicMock()
@@ -977,22 +961,14 @@ class TestNutrientClientFlatten:
         # Verify the result
         assert result["buffer"] == b"test-buffer"
 
-    @patch("nutrient_dws.client.is_remote_file_input", return_value=False)
-    @patch("nutrient_dws.client.process_file_input")
-    @patch("nutrient_dws.client.is_valid_pdf", return_value=True)
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_flatten_specific_annotations_by_integer_ids(
         self,
         mock_staged_workflow_builder,
-        mock_is_valid_pdf,
-        mock_process_file_input,
-        mock_is_remote,
         unit_client,
     ):
         """Test flattening specific annotations by integer IDs."""
-        mock_process_file_input.return_value = (b"%PDF-test", "test.pdf")
-
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
         mock_output_stage = MagicMock()
@@ -1027,22 +1003,14 @@ class TestNutrientClientFlatten:
         # Verify the result
         assert result["buffer"] == b"test-buffer"
 
-    @patch("nutrient_dws.client.is_remote_file_input", return_value=False)
-    @patch("nutrient_dws.client.process_file_input")
-    @patch("nutrient_dws.client.is_valid_pdf", return_value=True)
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     @pytest.mark.asyncio
     async def test_flatten_specific_annotations_by_mixed_ids(
         self,
         mock_staged_workflow_builder,
-        mock_is_valid_pdf,
-        mock_process_file_input,
-        mock_is_remote,
         unit_client,
     ):
         """Test flattening specific annotations with mixed string and integer IDs."""
-        mock_process_file_input.return_value = (b"%PDF-test", "test.pdf")
-
         # Setup mock workflow
         mock_workflow_instance = MagicMock()
         mock_output_stage = MagicMock()

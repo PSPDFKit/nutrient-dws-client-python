@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any, Literal, Protocol, TypeVar, cast
 
-from nutrient_dws.inputs import FileInput
+from nutrient_dws.inputs import FileInputWithUrl
 from nutrient_dws.types.build_actions import (
     ApplyInstantJsonAction,
     ApplyRedactionsAction,
@@ -53,7 +53,7 @@ class ActionWithFileInput(Protocol):
     """Internal action type that holds FileInput for deferred registration."""
 
     __needsFileRegistration: bool
-    fileInput: FileInput
+    fileInput: FileInputWithUrl
     createAction: Callable[[FileHandle], BuildAction]
 
 
@@ -133,7 +133,7 @@ class BuildActions:
 
     @staticmethod
     def watermark_image(
-        image: FileInput, options: ImageWatermarkActionOptions | None = None
+        image: FileInputWithUrl, options: ImageWatermarkActionOptions | None = None
     ) -> ActionWithFileInput:
         """Create an image watermark action.
 
@@ -163,7 +163,7 @@ class BuildActions:
             __needsFileRegistration = True
 
             def __init__(
-                self, file_input: FileInput, opts: ImageWatermarkActionOptions
+                self, file_input: FileInputWithUrl, opts: ImageWatermarkActionOptions
             ):
                 self.fileInput = file_input
                 self.options = opts
@@ -196,7 +196,7 @@ class BuildActions:
         return result
 
     @staticmethod
-    def apply_instant_json(file: FileInput) -> ActionWithFileInput:
+    def apply_instant_json(file: FileInputWithUrl) -> ActionWithFileInput:
         """Create an apply Instant JSON action.
 
         Args:
@@ -209,7 +209,7 @@ class BuildActions:
         class ApplyInstantJsonActionWithFileInput(ActionWithFileInput):
             __needsFileRegistration = True
 
-            def __init__(self, file_input: FileInput):
+            def __init__(self, file_input: FileInputWithUrl):
                 self.fileInput = file_input
 
             def createAction(self, fileHandle: FileHandle) -> ApplyInstantJsonAction:
@@ -222,7 +222,7 @@ class BuildActions:
 
     @staticmethod
     def apply_xfdf(
-        file: FileInput, options: ApplyXfdfActionOptions | None = None
+        file: FileInputWithUrl, options: ApplyXfdfActionOptions | None = None
     ) -> ActionWithFileInput:
         """Create an apply XFDF action.
 
@@ -240,7 +240,7 @@ class BuildActions:
             __needsFileRegistration = True
 
             def __init__(
-                self, file_input: FileInput, opts: ApplyXfdfActionOptions | None
+                self, file_input: FileInputWithUrl, opts: ApplyXfdfActionOptions | None
             ):
                 self.fileInput = file_input
                 self.options = opts or {}

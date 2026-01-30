@@ -306,7 +306,8 @@ class TestIntegrationErrorHandling:
     @pytest.mark.asyncio
     async def test_network_timeout(self):
         """Test handling of network timeouts."""
-        timeout_client = NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", ""), timeout=1)
+        # Use an extremely short timeout (1ms) to guarantee a timeout error
+        timeout_client = NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", ""), timeout=0.001)
 
         with pytest.raises(NutrientError):
             await timeout_client.convert(sample_docx, "pdf")

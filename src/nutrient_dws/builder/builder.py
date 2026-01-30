@@ -26,7 +26,7 @@ from nutrient_dws.http import (
     NutrientClientOptions,
 )
 from nutrient_dws.inputs import (
-    FileInput,
+    FileInputWithUrl,
     NormalizedFileData,
     is_remote_file_input,
     process_file_input,
@@ -76,16 +76,16 @@ class StagedWorkflowBuilder(
         """
         super().__init__(client_options)
         self.build_instructions: BuildInstructions = {"parts": []}
-        self.assets: dict[str, FileInput] = {}
+        self.assets: dict[str, FileInputWithUrl] = {}
         self.asset_index = 0
         self.current_step = 0
         self.is_executed = False
 
-    def _register_asset(self, asset: FileInput) -> str:
+    def _register_asset(self, asset: FileInputWithUrl) -> str:
         """Register an asset in the workflow and return its key for use in actions.
 
         Args:
-            asset: The asset to register
+            asset: The asset to register (must be local, not URL)
 
         Returns:
             The asset key that can be used in BuildActions
@@ -188,7 +188,7 @@ class StagedWorkflowBuilder(
 
     def add_file_part(
         self,
-        file: FileInput,
+        file: FileInputWithUrl,
         options: FilePartOptions | None = None,
         actions: list[ApplicableAction] | None = None,
     ) -> WorkflowWithPartsStage:
@@ -229,8 +229,8 @@ class StagedWorkflowBuilder(
 
     def add_html_part(
         self,
-        html: FileInput,
-        assets: list[FileInput] | None = None,
+        html: FileInputWithUrl,
+        assets: list[FileInputWithUrl] | None = None,
         options: HTMLPartOptions | None = None,
         actions: list[ApplicableAction] | None = None,
     ) -> WorkflowWithPartsStage:

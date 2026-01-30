@@ -1,15 +1,17 @@
 import contextlib
 import io
 import os
-import re
 from pathlib import Path
 from typing import BinaryIO, TypeGuard
 from urllib.parse import urlparse
 
 import aiofiles
-import httpx
 
-FileInput = str | Path | bytes | BinaryIO
+# Type definitions for file inputs
+# Breaking change in v3.0.0: FileInput no longer includes URL strings
+LocalFileInput = Path | bytes | BinaryIO
+FileInputWithUrl = str | Path | bytes | BinaryIO
+FileInput = LocalFileInput  # Breaking change: no longer accepts URL strings
 
 NormalizedFileData = tuple[bytes, str]
 
@@ -36,7 +38,7 @@ def is_valid_pdf(file_bytes: bytes) -> bool:
     return file_bytes.startswith(b"%PDF-")
 
 
-def is_remote_file_input(file_input: FileInput) -> TypeGuard[str]:
+def is_remote_file_input(file_input: FileInputWithUrl) -> TypeGuard[str]:
     """Check if the file input is a remote URL.
 
     Args:
@@ -48,7 +50,9 @@ def is_remote_file_input(file_input: FileInput) -> TypeGuard[str]:
     return isinstance(file_input, str) and is_url(file_input)
 
 
-async def process_file_input(file_input: FileInput) -> NormalizedFileData:
+async def process_file_input(
+    file_input: LocalFileInput | FileInputWithUrl,
+) -> NormalizedFileData:
     """Convert various file input types to bytes.
 
     Args:
@@ -140,28 +144,12 @@ async def process_file_input(file_input: FileInput) -> NormalizedFileData:
             raise ValueError(f"Unsupported file input type: {type(file_input)}")
 
 
-async def process_remote_file_input(url: str) -> NormalizedFileData:
-    """Convert various file input types to bytes."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        # This will raise an exception for bad responses (4xx or 5xx status codes)
-        response.raise_for_status()
-        # The .content attribute holds the raw bytes of the response
-        file_bytes = response.content
-
-    filename = "downloaded_file"
-    # Try to get filename from 'Content-Disposition' header first
-    header = response.headers.get("content-disposition")
-    if header:
-        # Use regex to find a filename in the header
-        match = re.search(r'filename="?([^"]+)"?', header)
-        if match:
-            filename = match.group(1)
-
-    return file_bytes, filename
+# process_remote_file_input() has been removed in v3.0.0
+# URLs are now passed to the server for secure server-side fetching
+# This function was removed to prevent SSRF vulnerabilities
 
 
-def validate_file_input(file_input: FileInput) -> bool:
+def validate_file_input(file_input: LocalFileInput | FileInputWithUrl) -> bool:
     """Validate that the file input is in a supported format.
 
     Args:
@@ -179,45 +167,7 @@ def validate_file_input(file_input: FileInput) -> bool:
     return False
 
 
-def get_pdf_page_count(pdf_bytes: bytes) -> int:
-    """Zero dependency way to get the number of pages in a PDF.
-
-    Args:
-        pdf_bytes: PDF file bytes
-
-    Returns:
-        Number of pages in a PDF.
-    """
-    # Find all PDF objects
-    objects = re.findall(rb"(\d+)\s+(\d+)\s+obj(.*?)endobj", pdf_bytes, re.DOTALL)
-
-    # Get the Catalog Object
-    catalog_obj = None
-    for _obj_num, _gen_num, obj_data in objects:
-        if b"/Type" in obj_data and b"/Catalog" in obj_data:
-            catalog_obj = obj_data
-            break
-
-    if not catalog_obj:
-        raise ValueError("Could not find /Catalog object in PDF.")
-
-    # Extract /Pages reference (e.g. 3 0 R)
-    pages_ref_match = re.search(rb"/Pages\s+(\d+)\s+(\d+)\s+R", catalog_obj)
-    if not pages_ref_match:
-        raise ValueError("Could not find /Pages reference in /Catalog.")
-    pages_obj_num = pages_ref_match.group(1).decode()
-    pages_obj_gen = pages_ref_match.group(2).decode()
-
-    # Step 3: Find the referenced /Pages object
-    pages_obj_pattern = rf"{pages_obj_num}\s+{pages_obj_gen}\s+obj(.*?)endobj".encode()
-    pages_obj_match = re.search(pages_obj_pattern, pdf_bytes, re.DOTALL)
-    if not pages_obj_match:
-        raise ValueError("Could not find root /Pages object.")
-    pages_obj_data = pages_obj_match.group(1)
-
-    # Step 4: Extract /Count
-    count_match = re.search(rb"/Count\s+(\d+)", pages_obj_data)
-    if not count_match:
-        raise ValueError("Could not find /Count in root /Pages object.")
-
-    return int(count_match.group(1))
+# get_pdf_page_count() has been removed in v3.0.0
+# The API natively supports negative indices (-1 = last page)
+# Client-side PDF parsing is no longer needed
+# This removes ~40 lines of code and improves security
