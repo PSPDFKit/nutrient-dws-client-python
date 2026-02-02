@@ -33,7 +33,7 @@ result = await client.sign(pdf_bytes, {...})
 
 ### 2. Most Methods Now Accept URLs (Passed directly to DWS)
 
-Good news! These methods now support URLs passed securely to the server:
+Good news! These methods now support URLs passed securely to the DWS:
 - `rotate()`, `split()`, `add_page()`, `duplicate_pages()`, `delete_pages()`
 - `set_page_labels()`, `set_metadata()`, `optimize()`
 - `flatten()`, `apply_instant_json()`, `apply_xfdf()`
