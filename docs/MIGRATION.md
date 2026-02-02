@@ -31,7 +31,7 @@ async with httpx.AsyncClient() as http:
 result = await client.sign(pdf_bytes, {...})
 ```
 
-### 2. Most Methods Now Accept URLs (Passed to Server)
+### 2. Most Methods Now Accept URLs (Passed directly to DWS)
 
 Good news! These methods now support URLs passed securely to the server:
 - `rotate()`, `split()`, `add_page()`, `duplicate_pages()`, `delete_pages()`
