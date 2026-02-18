@@ -14,7 +14,7 @@ from nutrient_dws.errors import (
     NutrientError,
     ValidationError,
 )
-from nutrient_dws.inputs import FileInput, NormalizedFileData
+from nutrient_dws.inputs import LocalFileInput, NormalizedFileData
 from nutrient_dws.types.account_info import AccountInfo
 from nutrient_dws.types.analyze_response import AnalyzeBuildResponse
 from nutrient_dws.types.build_instruction import BuildInstructions
@@ -38,8 +38,8 @@ class AnalyzeBuildRequestData(TypedDict):
 
 
 class SignRequestOptions(TypedDict):
-    image: NotRequired[FileInput]
-    graphicImage: NotRequired[FileInput]
+    image: NotRequired[LocalFileInput]
+    graphicImage: NotRequired[LocalFileInput]
 
 
 class SignRequestData(TypedDict):

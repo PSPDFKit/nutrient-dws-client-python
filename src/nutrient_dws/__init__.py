@@ -12,9 +12,11 @@ from nutrient_dws.errors import (
     ValidationError,
 )
 from nutrient_dws.inputs import (
+    FileInput,
+    LocalFileInput,
+    UrlFileInput,
     is_remote_file_input,
     process_file_input,
-    process_remote_file_input,
     validate_file_input,
 )
 from nutrient_dws.utils import get_library_version, get_user_agent
@@ -22,14 +24,16 @@ from nutrient_dws.utils import get_library_version, get_user_agent
 __all__ = [
     "APIError",
     "AuthenticationError",
+    "FileInput",
+    "LocalFileInput",
     "NetworkError",
     "NutrientClient",
     "NutrientError",
+    "UrlFileInput",
     "ValidationError",
     "get_library_version",
     "get_user_agent",
     "is_remote_file_input",
     "process_file_input",
-    "process_remote_file_input",
     "validate_file_input",
 ]

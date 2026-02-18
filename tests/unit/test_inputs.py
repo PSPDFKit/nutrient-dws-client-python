@@ -5,13 +5,12 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from nutrient_dws.inputs import (
-    get_pdf_page_count,
-    is_remote_file_input,
-    is_valid_pdf,
+    is_remote_file_input,  # Still used internally
     process_file_input,
-    process_remote_file_input,
     validate_file_input,
     FileInput,
+    LocalFileInput,
+    UrlFileInput,
 )
 from tests.helpers import sample_pdf, TestDocumentGenerator
 
@@ -170,126 +169,6 @@ class TestProcessFileInputInvalidInputs:
             await process_file_input(None)
 
 
-class TestProcessRemoteFileInput:
-    @pytest.mark.asyncio
-    async def test_process_url_string_input(self):
-        mock_response_data = b"test pdf content"
-
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
-            mock_response.content = mock_response_data
-            mock_response.headers = {}
-            mock_response.raise_for_status = Mock(return_value=None)
-            mock_client.return_value.__aenter__.return_value.get.return_value = (
-                mock_response
-            )
-
-            result = await process_remote_file_input("https://example.com/test.pdf")
-
-            assert result[0] == mock_response_data
-            assert result[1] == "downloaded_file"
-
-    @pytest.mark.asyncio
-    async def test_process_url_with_content_disposition_header(self):
-        mock_response_data = b"test pdf content"
-
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
-            mock_response.content = mock_response_data
-            mock_response.headers = {
-                "content-disposition": 'attachment; filename="document.pdf"'
-            }
-            mock_response.raise_for_status = Mock(return_value=None)
-            mock_client.return_value.__aenter__.return_value.get.return_value = (
-                mock_response
-            )
-
-            result = await process_remote_file_input("https://example.com/test.pdf")
-
-            assert result[0] == mock_response_data
-            assert result[1] == "document.pdf"
-
-    @pytest.mark.asyncio
-    async def test_throw_error_for_http_error(self):
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_response = AsyncMock()
-            mock_response.raise_for_status = Mock(side_effect=Exception("HTTP 404"))
-            mock_client.return_value.__aenter__.return_value.get.return_value = (
-                mock_response
-            )
-
-            with pytest.raises(Exception):
-                await process_remote_file_input("https://example.com/test.pdf")
-
-
-class TestGetPdfPageCount:
-    def test_pdf_with_1_page(self):
-        pdf_bytes = TestDocumentGenerator.generate_simple_pdf_content("Text")
-        result = get_pdf_page_count(pdf_bytes)
-        assert result == 1
-
-    def test_pdf_with_6_pages(self):
-        result = get_pdf_page_count(sample_pdf)
-        assert result == 6
-
-    def test_throw_for_invalid_pdf_no_objects(self):
-        invalid_pdf = b"%PDF-1.4\n%%EOF"
-
-        with pytest.raises(ValueError, match="Could not find /Catalog object"):
-            get_pdf_page_count(invalid_pdf)
-
-    def test_throw_for_invalid_pdf_no_catalog(self):
-        invalid_pdf = b"%PDF-1.4\n1 0 obj\n<< /Type /NotCatalog >>\nendobj\n%%EOF"
-
-        with pytest.raises(ValueError, match="Could not find /Catalog object"):
-            get_pdf_page_count(invalid_pdf)
-
-    def test_throw_for_catalog_without_pages_reference(self):
-        invalid_pdf = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF"
-
-        with pytest.raises(ValueError, match="Could not find /Pages reference"):
-            get_pdf_page_count(invalid_pdf)
-
-    def test_throw_for_missing_pages_object(self):
-        invalid_pdf = (
-            b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n%%EOF"
-        )
-
-        with pytest.raises(ValueError, match="Could not find root /Pages object"):
-            get_pdf_page_count(invalid_pdf)
-
-    def test_throw_for_pages_object_without_count(self):
-        invalid_pdf = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages >>\nendobj\n%%EOF"
-
-        with pytest.raises(ValueError, match="Could not find /Count"):
-            get_pdf_page_count(invalid_pdf)
-
-
-class TestIsValidPdf:
-    def test_return_true_for_valid_pdf_files(self):
-        # Test with generated PDF
-        valid_pdf_bytes = TestDocumentGenerator.generate_simple_pdf_content(
-            "Test content"
-        )
-        result = is_valid_pdf(valid_pdf_bytes)
-        assert result is True
-
-        # Test with sample PDF
-        result = is_valid_pdf(sample_pdf)
-        assert result is True
-
-    def test_return_false_for_non_pdf_files(self):
-        # Test with non-PDF bytes
-        non_pdf_bytes = b"This is not a PDF file"
-        result = is_valid_pdf(non_pdf_bytes)
-        assert result is False
-
-    def test_return_false_for_partial_pdf_header(self):
-        # Test with partial PDF header
-        partial_pdf = b"%PD"
-        result = is_valid_pdf(partial_pdf)
-        assert result is False
-
-    def test_return_false_for_empty_bytes(self):
-        result = is_valid_pdf(b"")
-        assert result is False
+# Tests for process_remote_file_input, get_pdf_page_count, and is_valid_pdf removed in v3.0.0
+# These functions were removed from the public API for security reasons (SSRF protection)
+# and to eliminate client-side PDF parsing (leveraging server-side negative index support)

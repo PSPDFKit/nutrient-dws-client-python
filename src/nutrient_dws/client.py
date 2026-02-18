@@ -26,11 +26,9 @@ from nutrient_dws.http import (
 )
 from nutrient_dws.inputs import (
     FileInput,
-    get_pdf_page_count,
-    is_remote_file_input,
+    LocalFileInput,
     is_valid_pdf,
     process_file_input,
-    process_remote_file_input,
 )
 from nutrient_dws.types.account_info import AccountInfo
 from nutrient_dws.types.build_actions import (
@@ -299,14 +297,18 @@ class NutrientClient:
 
     async def sign(
         self,
-        pdf: FileInput,
+        pdf: LocalFileInput,
         data: CreateDigitalSignature | None = None,
         options: SignRequestOptions | None = None,
     ) -> BufferOutput:
         """Sign a PDF document.
 
+        **Security Note**: This method only accepts local files (paths, bytes, file objects)
+        due to an API limitation. URLs are not supported. For remote files, fetch them first
+        with proper URL validation.
+
         Args:
-            pdf: The PDF file to sign
+            pdf: The local PDF file to sign (no URLs)
             data: Signature data
             options: Additional options (image, graphicImage)
 
@@ -315,10 +317,27 @@ class NutrientClient:
 
         Example:
             ```python
+            # Example 1: Sign a local file
             result = await client.sign('document.pdf', {
                 'signatureType': 'cms',
                 'flatten': False,
                 'cadesLevel': 'b-lt'
+            })
+
+            # Example 2: Sign a remote file (fetch first)
+            import httpx
+            async with httpx.AsyncClient() as http:
+                # Validate URL before fetching
+                url = 'https://trusted-domain.com/document.pdf'
+                if not url.startswith('https://trusted-domain.com/'):
+                    raise ValueError('URL not from trusted domain')
+
+                response = await http.get(url, timeout=10.0)
+                response.raise_for_status()
+                pdf_bytes = response.content
+
+            result = await client.sign(pdf_bytes, {
+                'signatureType': 'cms'
             })
 
             # Access the signed PDF buffer
@@ -332,35 +351,24 @@ class NutrientClient:
                 f.write(pdf_buffer)
             ```
         """
-        # Normalize the file input
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
+        # Process as local file only (no URL support)
+        normalized_file = await process_file_input(pdf)
 
         if not is_valid_pdf(normalized_file[0]):
             raise ValidationError("Invalid pdf file", {"input": pdf})
 
-        # Prepare optional files
+        # Prepare optional files (local files only)
         normalized_image = None
         normalized_graphic_image = None
 
         if options:
             if "image" in options:
                 image = options["image"]
-                if is_remote_file_input(image):
-                    normalized_image = await process_remote_file_input(str(image))
-                else:
-                    normalized_image = await process_file_input(image)
+                normalized_image = await process_file_input(image)
 
             if "graphicImage" in options:
                 graphic_image = options["graphicImage"]
-                if is_remote_file_input(graphic_image):
-                    normalized_graphic_image = await process_remote_file_input(
-                        str(graphic_image)
-                    )
-                else:
-                    normalized_graphic_image = await process_file_input(graphic_image)
+                normalized_graphic_image = await process_file_input(graphic_image)
 
         request_data = {
             "file": normalized_file,
@@ -399,8 +407,10 @@ class NutrientClient:
         """Add a text watermark to a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            file: The input file to watermark
+            file: The input file to watermark (URLs supported)
             text: The watermark text
             options: Watermark options
 
@@ -413,6 +423,9 @@ class NutrientClient:
                 'opacity': 0.5,
                 'fontSize': 24
             })
+
+            # Works with URLs too
+            result = await client.watermark_text('https://example.com/doc.pdf', 'CONFIDENTIAL')
 
             # Access the watermarked PDF buffer
             pdf_buffer = result['buffer']
@@ -438,8 +451,10 @@ class NutrientClient:
         """Add an image watermark to a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            file: The input file to watermark
+            file: The input file to watermark (URLs supported)
             image: The watermark image. Can be a file path (string or Path),
                 bytes, file-like object, or a URL to a remote image.
             options: Watermark options
@@ -488,8 +503,10 @@ class NutrientClient:
         """Convert a document to a different format.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            file: The input file to convert
+            file: The input file to convert (URLs supported)
             target_format: The target format to convert to
 
         Returns:
@@ -508,6 +525,9 @@ class NutrientClient:
             # Convert to HTML
             html_result = await client.convert('document.pdf', 'html')
             html_content = html_result['content']
+
+            # Works with URLs
+            pdf_result = await client.convert('https://example.com/document.docx', 'pdf')
             ```
         """
         builder = self.workflow().add_file_part(file)
@@ -546,6 +566,8 @@ class NutrientClient:
         """Perform OCR (Optical Character Recognition) on a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
             file: The input file to perform OCR on
             language: The language(s) to use for OCR. Can be a single language
@@ -581,8 +603,10 @@ class NutrientClient:
         """Extract text content from a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            file: The file to extract text from
+            file: The file to extract text from (URLs supported)
             pages: Optional page range to extract text from
 
         Returns:
@@ -595,6 +619,9 @@ class NutrientClient:
 
             # Extract text from specific pages
             result = await client.extract_text('document.pdf', {'start': 0, 'end': 2})
+
+            # Works with URLs
+            result = await client.extract_text('https://example.com/doc.pdf')
 
             # Access the extracted text content
             text_content = result['data']['pages'][0]['plainText']
@@ -627,8 +654,10 @@ class NutrientClient:
         """Extract table content from a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            file: The file to extract table from
+            file: The file to extract table from (URLs supported)
             pages: Optional page range to extract tables from
 
         Returns:
@@ -637,6 +666,9 @@ class NutrientClient:
         Example:
             ```python
             result = await client.extract_table('document.pdf')
+
+            # Works with URLs
+            result = await client.extract_table('https://example.com/doc.pdf')
 
             # Access the extracted tables
             tables = result['data']['pages'][0]['tables']
@@ -674,8 +706,10 @@ class NutrientClient:
         """Extract key value pair content from a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            file: The file to extract KVPs from
+            file: The file to extract KVPs from (URLs supported)
             pages: Optional page range to extract KVPs from
 
         Returns:
@@ -684,6 +718,9 @@ class NutrientClient:
         Example:
             ```python
             result = await client.extract_key_value_pairs('document.pdf')
+
+            # Works with URLs
+            result = await client.extract_key_value_pairs('https://example.com/doc.pdf')
 
             # Access the extracted key-value pairs
             kvps = result['data']['pages'][0]['keyValuePairs']
@@ -724,8 +761,11 @@ class NutrientClient:
         """Set page labels for a PDF document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        PDF validation is performed server-side.
+
         Args:
-            pdf: The PDF file to modify
+            pdf: The PDF file to modify (URLs supported)
             labels: Array of label objects with pages and label properties
 
         Returns:
@@ -737,17 +777,12 @@ class NutrientClient:
                 {'pages': [0, 1, 2], 'label': 'Cover'},
                 {'pages': [3, 4, 5], 'label': 'Chapter 1'}
             ])
+
+            # Works with URLs
+            result = await client.set_page_labels('https://example.com/doc.pdf', labels)
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
+        # No client-side PDF validation - let server handle it
         result = (
             await self.workflow()
             .add_file_part(pdf)
@@ -767,8 +802,10 @@ class NutrientClient:
         """Password protect a PDF document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            file: The file to protect
+            file: The file to protect (URLs supported)
             user_password: Password required to open the document
             owner_password: Password required to modify the document
             permissions: Optional array of permissions granted when opened with user password
@@ -811,8 +848,11 @@ class NutrientClient:
         """Set metadata for a PDF document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        PDF validation is performed server-side.
+
         Args:
-            pdf: The PDF file to modify
+            pdf: The PDF file to modify (URLs supported)
             metadata: The metadata to set (title and/or author)
 
         Returns:
@@ -824,17 +864,12 @@ class NutrientClient:
                 'title': 'My Document',
                 'author': 'John Doe'
             })
+
+            # Works with URLs
+            result = await client.set_metadata('https://example.com/doc.pdf', metadata)
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
+        # No client-side PDF validation - let server handle it
         result = (
             await self.workflow()
             .add_file_part(pdf)
@@ -852,9 +887,12 @@ class NutrientClient:
         """Apply Instant JSON to a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        PDF validation is performed server-side.
+
         Args:
-            pdf: The PDF file to modify
-            instant_json_file: The Instant JSON file to apply
+            pdf: The PDF file to modify (URLs supported)
+            instant_json_file: The Instant JSON file to apply (URLs supported)
 
         Returns:
             The modified document
@@ -862,17 +900,15 @@ class NutrientClient:
         Example:
             ```python
             result = await client.apply_instant_json('document.pdf', 'annotations.json')
+
+            # Works with URLs
+            result = await client.apply_instant_json(
+                'https://example.com/doc.pdf',
+                'https://example.com/annotations.json'
+            )
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
+        # No client-side PDF validation - let server handle it
         apply_json_action = BuildActions.apply_instant_json(instant_json_file)
 
         result = (
@@ -893,9 +929,12 @@ class NutrientClient:
         """Apply XFDF to a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        PDF validation is performed server-side.
+
         Args:
-            pdf: The PDF file to modify
-            xfdf_file: The XFDF file to apply
+            pdf: The PDF file to modify (URLs supported)
+            xfdf_file: The XFDF file to apply (URLs supported)
             options: Optional settings for applying XFDF
 
         Returns:
@@ -904,22 +943,21 @@ class NutrientClient:
         Example:
             ```python
             result = await client.apply_xfdf('document.pdf', 'annotations.xfdf')
-            # Or with options:
+
+            # With options:
             result = await client.apply_xfdf(
                 'document.pdf', 'annotations.xfdf',
                 {'ignorePageRotation': True, 'richTextEnabled': False}
             )
+
+            # Works with URLs
+            result = await client.apply_xfdf(
+                'https://example.com/doc.pdf',
+                'https://example.com/annotations.xfdf'
+            )
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
+        # No client-side PDF validation - let server handle it
         apply_xfdf_action = BuildActions.apply_xfdf(xfdf_file, options)
 
         result = (
@@ -935,8 +973,10 @@ class NutrientClient:
         """Merge multiple documents into a single document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            files: The files to merge
+            files: The files to merge (URLs supported)
 
         Returns:
             The merged document
@@ -944,6 +984,13 @@ class NutrientClient:
         Example:
             ```python
             result = await client.merge(['doc1.pdf', 'doc2.pdf', 'doc3.pdf'])
+
+            # Works with URLs
+            result = await client.merge([
+                'https://example.com/doc1.pdf',
+                'doc2.pdf',
+                'https://example.com/doc3.pdf'
+            ])
 
             # Access the merged PDF buffer
             pdf_buffer = result['buffer']
@@ -972,6 +1019,9 @@ class NutrientClient:
         """Flatten annotations in a PDF document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        PDF validation is performed server-side.
+
         Args:
             pdf: The PDF file to flatten
             annotation_ids: Optional list of specific annotation IDs to flatten.
@@ -996,15 +1046,7 @@ class NutrientClient:
             result = await client.flatten('annotated-document.pdf', ['note1', 2, 'highlight3'])
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
+        # No client-side PDF validation - let server handle it
         flatten_action = BuildActions.flatten(annotation_ids)
 
         result = (
@@ -1018,7 +1060,7 @@ class NutrientClient:
 
     async def create_redactions_ai(
         self,
-        pdf: FileInput,
+        pdf: LocalFileInput,
         criteria: str,
         redaction_state: Literal["stage", "apply"] = "stage",
         pages: PageRange | None = None,
@@ -1026,8 +1068,11 @@ class NutrientClient:
     ) -> BufferOutput:
         """Use AI to redact sensitive information in a document.
 
+        **Security Note**: This method only accepts local files (direct API call).
+        For remote files, fetch them first with proper validation.
+
         Args:
-            pdf: The PDF file to redact
+            pdf: The PDF file to redact (local files only, no URLs)
             criteria: AI redaction criteria
             redaction_state: Whether to stage or apply redactions (default: 'stage')
             pages: Optional pages to redact
@@ -1052,17 +1097,11 @@ class NutrientClient:
             )
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
+        # Process local files only
+        normalized_file = await process_file_input(pdf)
 
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
-        page_count = get_pdf_page_count(normalized_file[0])
-        normalized_pages = normalize_page_params(pages, page_count) if pages else None
+        # Use pages directly - no page count computation needed
+        normalized_pages = normalize_page_params(pages) if pages else None
 
         document_data: dict[str, Any] = {
             "file": "file",
@@ -1118,11 +1157,14 @@ class NutrientClient:
         """Create redaction annotations based on a preset pattern.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        Supports negative page indices (-1 = last page).
+
         Args:
-            pdf: The PDF file to create redactions in
+            pdf: The PDF file to create redactions in (URLs supported)
             preset: The preset pattern to search for (e.g., 'email-address', 'social-security-number')
             redaction_state: Whether to stage or apply redactions (default: 'stage')
-            pages: Optional page range to create redactions in
+            pages: Optional page range to create redactions in (supports negative indices)
             preset_options: Optional settings for the preset strategy
             options: Optional settings for creating redactions
 
@@ -1132,29 +1174,25 @@ class NutrientClient:
         Example:
             ```python
             result = await client.create_redactions_preset('document.pdf', 'email-address')
+
+            # Works with URLs
+            result = await client.create_redactions_preset(
+                'https://example.com/doc.pdf',
+                'social-security-number'
+            )
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
-        # Get page count for handling negative indices
-        page_count = get_pdf_page_count(normalized_file[0])
-        normalized_pages = normalize_page_params(pages, page_count) if pages else None
+        # No client-side PDF validation - let server handle it
+        # Use negative indices: -1 means "to end", calculate limit accordingly
+        start = pages.get("start", 0) if pages else 0
+        end = pages.get("end", -1) if pages else -1
 
         # Prepare strategy options with pages
         strategy_options = preset_options.copy() if preset_options else {}
-        if normalized_pages:
-            strategy_options["start"] = normalized_pages["start"]
-            if normalized_pages["end"] >= 0:
-                strategy_options["limit"] = (
-                    normalized_pages["end"] - normalized_pages["start"] + 1
-                )
+        strategy_options["start"] = start
+        # If end is -1, omit limit (search to end); otherwise calculate count
+        if end != -1:
+            strategy_options["limit"] = end - start + 1
 
         create_redactions_action = BuildActions.create_redactions_preset(
             preset, options, strategy_options
@@ -1185,11 +1223,14 @@ class NutrientClient:
         r"""Create redaction annotations based on a regular expression.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        Supports negative page indices (-1 = last page).
+
         Args:
-            pdf: The PDF file to create redactions in
+            pdf: The PDF file to create redactions in (URLs supported)
             regex: The regular expression to search for
             redaction_state: Whether to stage or apply redactions (default: 'stage')
-            pages: Optional page range to create redactions in
+            pages: Optional page range to create redactions in (supports negative indices)
             regex_options: Optional settings for the regex strategy
             options: Optional settings for creating redactions
 
@@ -1199,29 +1240,25 @@ class NutrientClient:
         Example:
             ```python
             result = await client.create_redactions_regex('document.pdf', r'Account:\s*\d{8,12}')
+
+            # Works with URLs
+            result = await client.create_redactions_regex(
+                'https://example.com/doc.pdf',
+                r'\b\d{3}-\d{2}-\d{4}\b'
+            )
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
-        # Get page count for handling negative indices
-        page_count = get_pdf_page_count(normalized_file[0])
-        normalized_pages = normalize_page_params(pages, page_count) if pages else None
+        # No client-side PDF validation - let server handle it
+        # Use negative indices: -1 means "to end", calculate limit accordingly
+        start = pages.get("start", 0) if pages else 0
+        end = pages.get("end", -1) if pages else -1
 
         # Prepare strategy options with pages
         strategy_options = regex_options.copy() if regex_options else {}
-        if normalized_pages:
-            strategy_options["start"] = normalized_pages["start"]
-            if normalized_pages["end"] >= 0:
-                strategy_options["limit"] = (
-                    normalized_pages["end"] - normalized_pages["start"] + 1
-                )
+        strategy_options["start"] = start
+        # If end is -1, omit limit (search to end); otherwise calculate count
+        if end != -1:
+            strategy_options["limit"] = end - start + 1
 
         create_redactions_action = BuildActions.create_redactions_regex(
             regex, options, strategy_options
@@ -1252,11 +1289,14 @@ class NutrientClient:
         """Create redaction annotations based on text.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        Supports negative page indices (-1 = last page).
+
         Args:
-            pdf: The PDF file to create redactions in
+            pdf: The PDF file to create redactions in (URLs supported)
             text: The text to search for
             redaction_state: Whether to stage or apply redactions (default: 'stage')
-            pages: Optional page range to create redactions in
+            pages: Optional page range to create redactions in (supports negative indices)
             text_options: Optional settings for the text strategy
             options: Optional settings for creating redactions
 
@@ -1266,29 +1306,25 @@ class NutrientClient:
         Example:
             ```python
             result = await client.create_redactions_text('document.pdf', 'email@example.com')
+
+            # Works with URLs
+            result = await client.create_redactions_text(
+                'https://example.com/doc.pdf',
+                'CONFIDENTIAL'
+            )
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
-        # Get page count for handling negative indices
-        page_count = get_pdf_page_count(normalized_file[0])
-        normalized_pages = normalize_page_params(pages, page_count) if pages else None
+        # No client-side PDF validation - let server handle it
+        # Use negative indices: -1 means "to end", calculate limit accordingly
+        start = pages.get("start", 0) if pages else 0
+        end = pages.get("end", -1) if pages else -1
 
         # Prepare strategy options with pages
         strategy_options = text_options.copy() if text_options else {}
-        if normalized_pages:
-            strategy_options["start"] = normalized_pages["start"]
-            if normalized_pages["end"] >= 0:
-                strategy_options["limit"] = (
-                    normalized_pages["end"] - normalized_pages["start"] + 1
-                )
+        strategy_options["start"] = start
+        # If end is -1, omit limit (search to end); otherwise calculate count
+        if end != -1:
+            strategy_options["limit"] = end - start + 1
 
         create_redactions_action = BuildActions.create_redactions_text(
             text, options, strategy_options
@@ -1310,8 +1346,10 @@ class NutrientClient:
     async def apply_redactions(self, pdf: FileInput) -> BufferOutput:
         """Apply staged redaction into the PDF.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+
         Args:
-            pdf: The PDF file with redaction annotations to apply
+            pdf: The PDF file with redaction annotations to apply (URLs supported)
 
         Returns:
             The document with applied redactions
@@ -1330,15 +1368,7 @@ class NutrientClient:
         """
         apply_redactions_action = BuildActions.apply_redactions()
 
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
+        # No client-side PDF validation - let server handle it
         result = (
             await self.workflow()
             .add_file_part(pdf, None, [apply_redactions_action])
@@ -1357,61 +1387,60 @@ class NutrientClient:
         """Rotate pages in a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        Supports negative page indices (-1 = last page, -2 = second-to-last, etc.).
+
         Args:
-            pdf: The PDF file to rotate
+            pdf: The PDF file to rotate (URLs supported)
             angle: Rotation angle (90, 180, or 270 degrees)
-            pages: Optional page range to rotate
+            pages: Optional page range to rotate (supports negative indices)
 
         Returns:
             The entire document with specified pages rotated
 
         Example:
             ```python
+            # Rotate entire document
             result = await client.rotate('document.pdf', 90)
 
-            # Rotate specific pages:
+            # Rotate specific pages
             result = await client.rotate('document.pdf', 90, {'start': 1, 'end': 3})
+
+            # Rotate with URL
+            result = await client.rotate('https://example.com/doc.pdf', 90)
+
+            # Rotate last 3 pages using negative indices
+            result = await client.rotate('document.pdf', 90, {'start': -3, 'end': -1})
             ```
         """
         rotate_action = BuildActions.rotate(angle)
-
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
         workflow = self.workflow()
 
         if pages:
-            page_count = get_pdf_page_count(normalized_file[0])
-            normalized_pages = normalize_page_params(pages, page_count)
+            # Use negative index support (-1 = last page)
+            # No need for client-side PDF parsing
+            start = pages.get("start", 0)
+            end = pages.get("end", -1)
 
-            # Add pages before the range to rotate
-            if normalized_pages["start"] > 0:
+            # Add pages before the rotation range
+            if start != 0:
                 part_options = cast(
                     "FilePartOptions",
-                    {"pages": {"start": 0, "end": normalized_pages["start"] - 1}},
+                    {"pages": {"start": 0, "end": start - 1}},
                 )
                 workflow = workflow.add_file_part(pdf, part_options)
 
-            # Add the specific pages with rotation action
-            part_options = cast("FilePartOptions", {"pages": normalized_pages})
+            # Add the rotation range
+            part_options = cast(
+                "FilePartOptions", {"pages": {"start": start, "end": end}}
+            )
             workflow = workflow.add_file_part(pdf, part_options, [rotate_action])
 
-            # Add pages after the range to rotate
-            if normalized_pages["end"] < page_count - 1:
+            # Add pages after the rotation range (unless end is -1)
+            if end != -1:
                 part_options = cast(
                     "FilePartOptions",
-                    {
-                        "pages": {
-                            "start": normalized_pages["end"] + 1,
-                            "end": page_count - 1,
-                        }
-                    },
+                    {"pages": {"start": end + 1, "end": -1}},
                 )
                 workflow = workflow.add_file_part(pdf, part_options)
         else:
@@ -1427,10 +1456,15 @@ class NutrientClient:
         """Add blank pages to a document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        Index must be non-negative. If the index exceeds the document's page count,
+        the server will return an error.
+
         Args:
-            pdf: The PDF file to add pages to
+            pdf: The PDF file to add pages to (URLs supported)
             count: The number of blank pages to add
             index: Optional index where to add the blank pages (0-based). If not provided, pages are added at the end.
+                   Must be non-negative.
 
         Returns:
             The document with added pages
@@ -1442,57 +1476,38 @@ class NutrientClient:
 
             # Add 1 blank page after the first page (at index 1)
             result = await client.add_page('document.pdf', 1, 1)
+
+            # Works with URLs
+            result = await client.add_page('https://example.com/doc.pdf', 3)
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
-        # If no index is provided or it's the end of the document, simply add pages at the end
+        # No client-side PDF validation - let server handle it
+        # If no index is provided, simply add pages at the end
         if index is None:
             builder = self.workflow()
-
             builder.add_file_part(pdf)
-
-            # Add the specified number of blank pages
             builder = builder.add_new_page({"pageCount": count})
-
             result = await builder.output_pdf().execute()
         else:
-            # Get the actual page count of the PDF
-            page_count = get_pdf_page_count(normalized_file[0])
-
-            # Validate that the index is within range
-            if index < 0 or index > page_count:
-                raise ValidationError(
-                    f"Index {index} is out of range (document has {page_count} pages)"
-                )
+            # Validate index is non-negative
+            if index < 0:
+                raise ValidationError(f"Index must be non-negative, got: {index}")
 
             builder = self.workflow()
 
             # Add pages before the specified index
             if index > 0:
-                before_pages = normalize_page_params(
-                    {"start": 0, "end": index - 1}, page_count
-                )
+                before_pages = normalize_page_params({"start": 0, "end": index - 1})
                 part_options = cast("FilePartOptions", {"pages": before_pages})
                 builder = builder.add_file_part(pdf, part_options)
 
             # Add the blank pages
             builder = builder.add_new_page({"pageCount": count})
 
-            # Add pages after the specified index
-            if index < page_count:
-                after_pages = normalize_page_params(
-                    {"start": index, "end": page_count - 1}, page_count
-                )
-                part_options = cast("FilePartOptions", {"pages": after_pages})
-                builder = builder.add_file_part(pdf, part_options)
+            # Add pages after the specified index (use -1 for "to end")
+            after_pages = normalize_page_params({"start": index, "end": -1})
+            part_options = cast("FilePartOptions", {"pages": after_pages})
+            builder = builder.add_file_part(pdf, part_options)
 
             result = await builder.output_pdf().execute()
 
@@ -1504,9 +1519,12 @@ class NutrientClient:
         """Split a PDF document into multiple parts based on page ranges.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        Supports negative page indices (-1 = last page).
+
         Args:
-            pdf: The PDF file to split
-            page_ranges: Array of page ranges to extract
+            pdf: The PDF file to split (URLs supported)
+            page_ranges: Array of page ranges to extract (supports negative indices)
 
         Returns:
             An array of PDF documents, one for each page range
@@ -1517,42 +1535,27 @@ class NutrientClient:
                 {'start': 0, 'end': 2},  # Pages 0, 1, 2
                 {'start': 3, 'end': 5}   # Pages 3, 4, 5
             ])
+
+            # Works with URLs and negative indices
+            results = await client.split('https://example.com/doc.pdf', [
+                {'start': 0, 'end': 4},    # First 5 pages
+                {'start': 5, 'end': -1}    # Remaining pages to end
+            ])
             ```
         """
         if not page_ranges or len(page_ranges) == 0:
             raise ValidationError("At least one page range is required for splitting")
 
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
-        # Get the actual page count of the PDF
-        page_count = get_pdf_page_count(normalized_file[0])
-
-        # Normalize and validate all page ranges
-        normalized_ranges = [
-            normalize_page_params(page_range, page_count) for page_range in page_ranges
-        ]
-
-        # Validate that all page ranges are within bounds
-        for page_range in normalized_ranges:
-            if page_range["start"] > page_range["end"]:
-                raise ValidationError(
-                    f"Page range {page_range} is invalid (start > end)"
-                )
-
-        # Create a separate workflow for each page range
+        # No client-side PDF validation - server handles it
+        # Use negative indices directly - no page count needed
         import asyncio
         from typing import cast as typing_cast
 
-        async def create_split_pdf(page_range: Pages) -> BufferOutput:
+        async def create_split_pdf(page_range: PageRange) -> BufferOutput:
             builder = self.workflow()
-            part_options = cast("FilePartOptions", {"pages": page_range})
+            # Normalize pages to ensure we have start/end
+            normalized = normalize_page_params(page_range)
+            part_options = cast("FilePartOptions", {"pages": normalized})
             builder = builder.add_file_part(pdf, part_options)
             result = await builder.output_pdf().execute()
             return typing_cast(
@@ -1560,7 +1563,7 @@ class NutrientClient:
             )
 
         # Execute all workflows in parallel and process the results
-        tasks = [create_split_pdf(page_range) for page_range in normalized_ranges]
+        tasks = [create_split_pdf(page_range) for page_range in page_ranges]
         results = await asyncio.gather(*tasks)
 
         return results
@@ -1571,8 +1574,11 @@ class NutrientClient:
         """Create a new PDF containing only the specified pages in the order provided.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        Supports negative page indices (-1 = last page, -2 = second-to-last, etc.).
+
         Args:
-            pdf: The PDF file to extract pages from
+            pdf: The PDF file to extract pages from (URLs supported)
             page_indices: Array of page indices to include in the new PDF (0-based)
                          Negative indices count from the end of the document (e.g., -1 is the last page)
 
@@ -1592,45 +1598,20 @@ class NutrientClient:
 
             # Create a new PDF with the first and last pages
             result = await client.duplicate_pages('document.pdf', [0, -1])
+
+            # Works with URLs
+            result = await client.duplicate_pages('https://example.com/doc.pdf', [0, -1])
             ```
         """
         if not page_indices or len(page_indices) == 0:
             raise ValidationError("At least one page index is required for duplication")
 
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
-        # Get the actual page count of the PDF
-        page_count = get_pdf_page_count(normalized_file[0])
-
-        # Normalize negative indices
-        normalized_indices = []
-        for index in page_indices:
-            if index < 0:
-                # Handle negative indices (e.g., -1 is the last page)
-                normalized_indices.append(page_count + index)
-            else:
-                normalized_indices.append(index)
-
-        # Validate that all page indices are within range
-        for i, original_index in enumerate(page_indices):
-            normalized_index = normalized_indices[i]
-            if normalized_index < 0 or normalized_index >= page_count:
-                raise ValidationError(
-                    f"Page index {original_index} is out of range (document has {page_count} pages)"
-                )
-
+        # No client-side PDF validation - let server handle it
+        # Use negative indices directly - server interprets them
         builder = self.workflow()
 
         # Add each page in the order specified
-        for page_index in normalized_indices:
-            # Use normalize_page_params to ensure consistent handling
+        for page_index in page_indices:
             page_range = normalize_page_params({"start": page_index, "end": page_index})
             part_options = cast("FilePartOptions", {"pages": page_range})
             builder = builder.add_file_part(pdf, part_options)
@@ -1644,8 +1625,11 @@ class NutrientClient:
         """Delete pages from a PDF document.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        Supports negative page indices (-1 = last page, -2 = second-to-last, etc.).
+
         Args:
-            pdf: The PDF file to modify
+            pdf: The PDF file to modify (URLs supported)
             page_indices: Array of page indices to delete (0-based)
                          Negative indices count from the end of the document (e.g., -1 is the last page)
 
@@ -1662,54 +1646,29 @@ class NutrientClient:
 
             # Delete the first and last two pages
             result = await client.delete_pages('document.pdf', [0, -1, -2])
+
+            # Works with URLs
+            result = await client.delete_pages('https://example.com/doc.pdf', [0, -1])
             ```
         """
         if not page_indices or len(page_indices) == 0:
             raise ValidationError("At least one page index is required for deletion")
 
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
-        # Get the actual page count of the PDF
-        page_count = get_pdf_page_count(normalized_file[0])
-
-        # Normalize negative indices
-        normalized_indices = []
-        for index in page_indices:
-            if index < 0:
-                # Handle negative indices (e.g., -1 is the last page)
-                normalized_indices.append(page_count + index)
-            else:
-                normalized_indices.append(index)
-
-        # Remove duplicates and sort the deleteIndices
-        delete_indices = sorted(set(normalized_indices))
-
-        # Validate that all page indices are within range
-        for original_index in page_indices:
-            if original_index >= 0:
-                normalized_index = original_index
-            else:
-                normalized_index = page_count + original_index
-
-            if normalized_index < 0 or normalized_index >= page_count:
-                raise ValidationError(
-                    f"Page index {original_index} is out of range (document has {page_count} pages)"
-                )
+        # No client-side PDF validation or page count computation
+        # Use negative indices directly - server interprets them
+        # Remove duplicates and sort the delete indices
+        delete_indices = sorted(set(page_indices))
 
         builder = self.workflow()
 
-        # Group consecutive pages that should be kept into ranges
-        current_page = 0
-        page_ranges = []
+        positive_deletes = [i for i in delete_indices if i >= 0]
+        negative_deletes = [i for i in delete_indices if i < 0]
 
-        for delete_index in delete_indices:
+        page_ranges = []
+        current_page = 0
+
+        # Build keep ranges for positive delete indices
+        for delete_index in positive_deletes:
             if current_page < delete_index:
                 page_ranges.append(
                     normalize_page_params(
@@ -1718,11 +1677,33 @@ class NutrientClient:
                 )
             current_page = delete_index + 1
 
-        if (
-            current_page > 0 or (current_page == 0 and len(delete_indices) == 0)
-        ) and current_page < page_count:
+        if negative_deletes:
+            # Add keep range from current position up to just before the first negative delete
+            trailing_end = negative_deletes[0] - 1  # e.g. -1 -> -2, -2 -> -3
             page_ranges.append(
-                normalize_page_params({"start": current_page, "end": page_count - 1})
+                normalize_page_params({"start": current_page, "end": trailing_end})
+            )
+            # Add keep ranges between consecutive negative delete indices
+            for i in range(len(negative_deletes) - 1):
+                between_start = negative_deletes[i] + 1
+                between_end = negative_deletes[i + 1] - 1
+                if between_start <= between_end:
+                    page_ranges.append(
+                        normalize_page_params(
+                            {"start": between_start, "end": between_end}
+                        )
+                    )
+            # Add keep range after the last negative delete, if it isn't the last page
+            if negative_deletes[-1] != -1:
+                page_ranges.append(
+                    normalize_page_params(
+                        {"start": negative_deletes[-1] + 1, "end": -1}
+                    )
+                )
+        else:
+            # All deletes are positive: keep remaining pages to end of document
+            page_ranges.append(
+                normalize_page_params({"start": current_page, "end": -1})
             )
 
         if len(page_ranges) == 0:
@@ -1743,8 +1724,11 @@ class NutrientClient:
         """Optimize a PDF document for size reduction.
         This is a convenience method that uses the workflow builder.
 
+        **Note**: URLs are passed to the server for secure server-side fetching.
+        PDF validation is performed server-side.
+
         Args:
-            pdf: The PDF file to optimize
+            pdf: The PDF file to optimize (URLs supported)
             options: Optimization options
 
         Returns:
@@ -1757,17 +1741,12 @@ class NutrientClient:
                 'mrcCompression': True,
                 'imageOptimizationQuality': 2
             })
+
+            # Works with URLs
+            result = await client.optimize('https://example.com/large.pdf')
             ```
         """
-        # Validate PDF
-        if is_remote_file_input(pdf):
-            normalized_file = await process_remote_file_input(str(pdf))
-        else:
-            normalized_file = await process_file_input(pdf)
-
-        if not is_valid_pdf(normalized_file[0]):
-            raise ValidationError("Invalid pdf file", {"input": pdf})
-
+        # No client-side PDF validation - let server handle it
         if options is None:
             options = {"imageOptimizationQuality": 2}
 

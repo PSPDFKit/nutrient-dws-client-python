@@ -85,7 +85,7 @@ class StagedWorkflowBuilder(
         """Register an asset in the workflow and return its key for use in actions.
 
         Args:
-            asset: The asset to register
+            asset: The asset to register (must be local, not URL)
 
         Returns:
             The asset key that can be used in BuildActions
