@@ -112,7 +112,7 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = []  # Don't require docstrings in tests, allow asserts
+"tests/*" = ["D102"]  # Don't require docstrings in tests
 
 [tool.mypy]
 python_version = "3.10"

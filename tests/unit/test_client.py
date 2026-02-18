@@ -737,7 +737,7 @@ class TestNutrientClientPasswordProtect:
         owner_password = "owner456"
         permissions = ["printing", "extract_accessibility"]
 
-        result = await unit_client.password_protect(
+        await unit_client.password_protect(
             file, user_password, owner_password, permissions
         )
 
