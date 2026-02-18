@@ -1202,3 +1202,111 @@ class TestNutrientClientOcrMultiLanguage:
         mock_workflow_instance.add_file_part.assert_called_once_with(
             file, None, [{"type": "ocr", "language": ["eng", "deu", "fra"]}]
         )
+
+
+class TestNutrientClientRotate:
+    """Tests for NutrientClient rotate functionality."""
+
+    def _make_mock_workflow(self, mock_staged_workflow_builder):
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+        return mock_workflow_instance
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_rotate_with_negative_start_includes_prefix_pages(
+        self, mock_staged_workflow_builder, unit_client
+    ):
+        """Rotating last N pages with negative start must keep all preceding pages."""
+        mock_workflow = self._make_mock_workflow(mock_staged_workflow_builder)
+
+        await unit_client.rotate("document.pdf", 90, {"start": -3, "end": -1})
+
+        # Expect 2 add_file_part calls: prefix pages then rotated pages
+        assert mock_workflow.add_file_part.call_count == 2
+        # First call: prefix pages before the rotation range (pages 0 to -4)
+        first_call_pages = mock_workflow.add_file_part.call_args_list[0][0][1]
+        assert first_call_pages == {"pages": {"start": 0, "end": -4}}
+        # Second call: the rotated range with the rotate action
+        second_call_pages = mock_workflow.add_file_part.call_args_list[1][0][1]
+        assert second_call_pages == {"pages": {"start": -3, "end": -1}}
+
+
+class TestNutrientClientDeletePages:
+    """Tests for NutrientClient delete_pages functionality."""
+
+    def _make_mock_workflow(self, mock_staged_workflow_builder):
+        mock_workflow_instance = MagicMock()
+        mock_output_stage = MagicMock()
+        mock_output_stage.execute = AsyncMock(
+            return_value={
+                "success": True,
+                "output": {
+                    "buffer": b"test-buffer",
+                    "mimeType": "application/pdf",
+                    "filename": "output.pdf",
+                },
+            }
+        )
+        mock_workflow_instance.add_file_part.return_value = mock_workflow_instance
+        mock_workflow_instance.output_pdf.return_value = mock_output_stage
+        mock_staged_workflow_builder.return_value = mock_workflow_instance
+        return mock_workflow_instance
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_delete_last_page_using_negative_index(
+        self, mock_staged_workflow_builder, unit_client
+    ):
+        """delete_pages([-1]) must keep all pages except the last, not raise an error."""
+        mock_workflow = self._make_mock_workflow(mock_staged_workflow_builder)
+
+        result = await unit_client.delete_pages("document.pdf", [-1])
+
+        assert result["buffer"] == b"test-buffer"
+        assert mock_workflow.add_file_part.call_count == 1
+        kept_pages = mock_workflow.add_file_part.call_args_list[0][0][1]
+        assert kept_pages == {"pages": {"start": 0, "end": -2}}
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_delete_multiple_pages_using_only_negative_indices(
+        self, mock_staged_workflow_builder, unit_client
+    ):
+        """delete_pages([-2, -1]) must keep all pages except the last two."""
+        mock_workflow = self._make_mock_workflow(mock_staged_workflow_builder)
+
+        result = await unit_client.delete_pages("document.pdf", [-2, -1])
+
+        assert result["buffer"] == b"test-buffer"
+        assert mock_workflow.add_file_part.call_count == 1
+        kept_pages = mock_workflow.add_file_part.call_args_list[0][0][1]
+        assert kept_pages == {"pages": {"start": 0, "end": -3}}
+
+    @patch("nutrient_dws.client.StagedWorkflowBuilder")
+    @pytest.mark.asyncio
+    async def test_delete_pages_with_mixed_positive_and_negative_indices(
+        self, mock_staged_workflow_builder, unit_client
+    ):
+        """delete_pages([0, -1]) must keep middle pages, not include the deleted last page."""
+        mock_workflow = self._make_mock_workflow(mock_staged_workflow_builder)
+
+        result = await unit_client.delete_pages("document.pdf", [0, -1])
+
+        assert result["buffer"] == b"test-buffer"
+        assert mock_workflow.add_file_part.call_count == 1
+        kept_pages = mock_workflow.add_file_part.call_args_list[0][0][1]
+        assert kept_pages == {"pages": {"start": 1, "end": -2}}

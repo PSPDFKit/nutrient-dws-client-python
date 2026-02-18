@@ -1423,7 +1423,7 @@ class NutrientClient:
             end = pages.get("end", -1)
 
             # Add pages before the rotation range
-            if start > 0:
+            if start != 0:
                 part_options = cast(
                     "FilePartOptions",
                     {"pages": {"start": 0, "end": start - 1}},
@@ -1661,28 +1661,47 @@ class NutrientClient:
 
         builder = self.workflow()
 
-        # Build "keep ranges" by finding gaps between deleted indices
-        # This algorithm works with negative indices - server handles them
-        current_page = 0
-        page_ranges = []
+        positive_deletes = [i for i in delete_indices if i >= 0]
+        negative_deletes = [i for i in delete_indices if i < 0]
 
-        for delete_index in delete_indices:
-            # Skip negative indices in this calculation - they represent "from end"
-            if delete_index >= 0:
-                if current_page < delete_index:
+        page_ranges = []
+        current_page = 0
+
+        # Build keep ranges for positive delete indices
+        for delete_index in positive_deletes:
+            if current_page < delete_index:
+                page_ranges.append(
+                    normalize_page_params(
+                        {"start": current_page, "end": delete_index - 1}
+                    )
+                )
+            current_page = delete_index + 1
+
+        if negative_deletes:
+            # Add keep range from current position up to just before the first negative delete
+            trailing_end = negative_deletes[0] - 1  # e.g. -1 -> -2, -2 -> -3
+            page_ranges.append(
+                normalize_page_params({"start": current_page, "end": trailing_end})
+            )
+            # Add keep ranges between consecutive negative delete indices
+            for i in range(len(negative_deletes) - 1):
+                between_start = negative_deletes[i] + 1
+                between_end = negative_deletes[i + 1] - 1
+                if between_start <= between_end:
                     page_ranges.append(
                         normalize_page_params(
-                            {"start": current_page, "end": delete_index - 1}
+                            {"start": between_start, "end": between_end}
                         )
                     )
-                current_page = delete_index + 1
-
-        # Add remaining pages to end (use -1 for last page) add if we have positive indices processed
-        if (
-            current_page >= 0
-            and len(delete_indices) > 0
-            and any(i >= 0 for i in delete_indices)
-        ):
+            # Add keep range after the last negative delete, if it isn't the last page
+            if negative_deletes[-1] != -1:
+                page_ranges.append(
+                    normalize_page_params(
+                        {"start": negative_deletes[-1] + 1, "end": -1}
+                    )
+                )
+        else:
+            # All deletes are positive: keep remaining pages to end of document
             page_ranges.append(
                 normalize_page_params({"start": current_page, "end": -1})
             )
