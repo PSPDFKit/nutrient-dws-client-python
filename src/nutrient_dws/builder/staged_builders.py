@@ -10,7 +10,7 @@ from nutrient_dws.builder.constant import ActionWithFileInput
 from nutrient_dws.types.build_actions import BuildAction
 
 if TYPE_CHECKING:
-    from nutrient_dws.inputs import FileInputWithUrl
+    from nutrient_dws.inputs import FileInput
     from nutrient_dws.types.analyze_response import AnalyzeBuildResponse
     from nutrient_dws.types.build_output import (
         ImageOutputOptions,
@@ -114,7 +114,7 @@ class WorkflowInitialStage(ABC):
     @abstractmethod
     def add_file_part(
         self,
-        file: FileInputWithUrl,
+        file: FileInput,
         options: FilePartOptions | None = None,
         actions: list[ApplicableAction] | None = None,
     ) -> WorkflowWithPartsStage:
@@ -124,8 +124,8 @@ class WorkflowInitialStage(ABC):
     @abstractmethod
     def add_html_part(
         self,
-        html: FileInputWithUrl,
-        assets: list[FileInputWithUrl] | None = None,
+        html: FileInput,
+        assets: list[FileInput] | None = None,
         options: HTMLPartOptions | None = None,
         actions: list[ApplicableAction] | None = None,
     ) -> WorkflowWithPartsStage:

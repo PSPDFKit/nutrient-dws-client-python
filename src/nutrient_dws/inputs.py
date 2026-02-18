@@ -7,11 +7,9 @@ from urllib.parse import urlparse
 
 import aiofiles
 
-# Type definitions for file inputs
-# Breaking change in v3.0.0: FileInput no longer includes URL strings
 LocalFileInput = Path | bytes | BinaryIO
-FileInputWithUrl = str | Path | bytes | BinaryIO
-FileInput = LocalFileInput  # Breaking change: no longer accepts URL strings
+UrlFileInput = str
+FileInput = UrlFileInput | LocalFileInput
 
 NormalizedFileData = tuple[bytes, str]
 
@@ -38,7 +36,7 @@ def is_valid_pdf(file_bytes: bytes) -> bool:
     return file_bytes.startswith(b"%PDF-")
 
 
-def is_remote_file_input(file_input: FileInputWithUrl) -> TypeGuard[str]:
+def is_remote_file_input(file_input: FileInput) -> TypeGuard[str]:
     """Check if the file input is a remote URL.
 
     Args:
@@ -51,7 +49,7 @@ def is_remote_file_input(file_input: FileInputWithUrl) -> TypeGuard[str]:
 
 
 async def process_file_input(
-    file_input: LocalFileInput | FileInputWithUrl,
+    file_input: FileInput,
 ) -> NormalizedFileData:
     """Convert various file input types to bytes.
 
@@ -149,7 +147,7 @@ async def process_file_input(
 # This function was removed to prevent SSRF vulnerabilities
 
 
-def validate_file_input(file_input: LocalFileInput | FileInputWithUrl) -> bool:
+def validate_file_input(file_input: FileInput) -> bool:
     """Validate that the file input is in a supported format.
 
     Args:

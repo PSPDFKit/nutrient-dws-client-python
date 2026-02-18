@@ -25,7 +25,7 @@ from nutrient_dws.http import (
     send_request,
 )
 from nutrient_dws.inputs import (
-    FileInputWithUrl,
+    FileInput,
     LocalFileInput,
     is_valid_pdf,
     process_file_input,
@@ -400,7 +400,7 @@ class NutrientClient:
 
     async def watermark_text(
         self,
-        file: FileInputWithUrl,
+        file: FileInput,
         text: str,
         options: TextWatermarkActionOptions | None = None,
     ) -> BufferOutput:
@@ -444,8 +444,8 @@ class NutrientClient:
 
     async def watermark_image(
         self,
-        file: FileInputWithUrl,
-        image: FileInputWithUrl,
+        file: FileInput,
+        image: FileInput,
         options: ImageWatermarkActionOptions | None = None,
     ) -> BufferOutput:
         """Add an image watermark to a document.
@@ -497,7 +497,7 @@ class NutrientClient:
 
     async def convert(
         self,
-        file: FileInputWithUrl,
+        file: FileInput,
         target_format: OutputFormat,
     ) -> BufferOutput | ContentOutput | JsonContentOutput:
         """Convert a document to a different format.
@@ -560,7 +560,7 @@ class NutrientClient:
 
     async def ocr(
         self,
-        file: FileInputWithUrl,
+        file: FileInput,
         language: OcrLanguage | list[OcrLanguage],
     ) -> BufferOutput:
         """Perform OCR (Optical Character Recognition) on a document.
@@ -597,7 +597,7 @@ class NutrientClient:
 
     async def extract_text(
         self,
-        file: FileInputWithUrl,
+        file: FileInput,
         pages: PageRange | None = None,
     ) -> JsonContentOutput:
         """Extract text content from a document.
@@ -648,7 +648,7 @@ class NutrientClient:
 
     async def extract_table(
         self,
-        file: FileInputWithUrl,
+        file: FileInput,
         pages: PageRange | None = None,
     ) -> JsonContentOutput:
         """Extract table content from a document.
@@ -700,7 +700,7 @@ class NutrientClient:
 
     async def extract_key_value_pairs(
         self,
-        file: FileInputWithUrl,
+        file: FileInput,
         pages: PageRange | None = None,
     ) -> JsonContentOutput:
         """Extract key value pair content from a document.
@@ -755,7 +755,7 @@ class NutrientClient:
 
     async def set_page_labels(
         self,
-        pdf: FileInputWithUrl,
+        pdf: FileInput,
         labels: list[Label],
     ) -> BufferOutput:
         """Set page labels for a PDF document.
@@ -794,7 +794,7 @@ class NutrientClient:
 
     async def password_protect(
         self,
-        file: FileInputWithUrl,
+        file: FileInput,
         user_password: str,
         owner_password: str,
         permissions: list[PDFUserPermission] | None = None,
@@ -842,7 +842,7 @@ class NutrientClient:
 
     async def set_metadata(
         self,
-        pdf: FileInputWithUrl,
+        pdf: FileInput,
         metadata: Metadata,
     ) -> BufferOutput:
         """Set metadata for a PDF document.
@@ -881,8 +881,8 @@ class NutrientClient:
 
     async def apply_instant_json(
         self,
-        pdf: FileInputWithUrl,
-        instant_json_file: FileInputWithUrl,
+        pdf: FileInput,
+        instant_json_file: FileInput,
     ) -> BufferOutput:
         """Apply Instant JSON to a document.
         This is a convenience method that uses the workflow builder.
@@ -922,8 +922,8 @@ class NutrientClient:
 
     async def apply_xfdf(
         self,
-        pdf: FileInputWithUrl,
-        xfdf_file: FileInputWithUrl,
+        pdf: FileInput,
+        xfdf_file: FileInput,
         options: ApplyXfdfActionOptions | None = None,
     ) -> BufferOutput:
         """Apply XFDF to a document.
@@ -969,7 +969,7 @@ class NutrientClient:
 
         return cast("BufferOutput", self._process_typed_workflow_result(result))
 
-    async def merge(self, files: list[FileInputWithUrl]) -> BufferOutput:
+    async def merge(self, files: list[FileInput]) -> BufferOutput:
         """Merge multiple documents into a single document.
         This is a convenience method that uses the workflow builder.
 
@@ -1013,7 +1013,7 @@ class NutrientClient:
 
     async def flatten(
         self,
-        pdf: FileInputWithUrl,
+        pdf: FileInput,
         annotation_ids: list[str | int] | None = None,
     ) -> BufferOutput:
         """Flatten annotations in a PDF document.
@@ -1147,7 +1147,7 @@ class NutrientClient:
 
     async def create_redactions_preset(
         self,
-        pdf: FileInputWithUrl,
+        pdf: FileInput,
         preset: SearchPreset,
         redaction_state: Literal["stage", "apply"] = "stage",
         pages: PageRange | None = None,
@@ -1213,7 +1213,7 @@ class NutrientClient:
 
     async def create_redactions_regex(
         self,
-        pdf: FileInputWithUrl,
+        pdf: FileInput,
         regex: str,
         redaction_state: Literal["stage", "apply"] = "stage",
         pages: PageRange | None = None,
@@ -1279,7 +1279,7 @@ class NutrientClient:
 
     async def create_redactions_text(
         self,
-        pdf: FileInputWithUrl,
+        pdf: FileInput,
         text: str,
         redaction_state: Literal["stage", "apply"] = "stage",
         pages: PageRange | None = None,
@@ -1343,7 +1343,7 @@ class NutrientClient:
 
         return cast("BufferOutput", self._process_typed_workflow_result(result))
 
-    async def apply_redactions(self, pdf: FileInputWithUrl) -> BufferOutput:
+    async def apply_redactions(self, pdf: FileInput) -> BufferOutput:
         """Apply staged redaction into the PDF.
 
         **Note**: URLs are passed to the server for secure server-side fetching.
@@ -1380,7 +1380,7 @@ class NutrientClient:
 
     async def rotate(
         self,
-        pdf: FileInputWithUrl,
+        pdf: FileInput,
         angle: Literal[90, 180, 270],
         pages: PageRange | None = None,
     ) -> BufferOutput:
@@ -1451,7 +1451,7 @@ class NutrientClient:
         return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def add_page(
-        self, pdf: FileInputWithUrl, count: int = 1, index: int | None = None
+        self, pdf: FileInput, count: int = 1, index: int | None = None
     ) -> BufferOutput:
         """Add blank pages to a document.
         This is a convenience method that uses the workflow builder.
@@ -1514,7 +1514,7 @@ class NutrientClient:
         return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def split(
-        self, pdf: FileInputWithUrl, page_ranges: list[PageRange]
+        self, pdf: FileInput, page_ranges: list[PageRange]
     ) -> list[BufferOutput]:
         """Split a PDF document into multiple parts based on page ranges.
         This is a convenience method that uses the workflow builder.
@@ -1569,7 +1569,7 @@ class NutrientClient:
         return results
 
     async def duplicate_pages(
-        self, pdf: FileInputWithUrl, page_indices: list[int]
+        self, pdf: FileInput, page_indices: list[int]
     ) -> BufferOutput:
         """Create a new PDF containing only the specified pages in the order provided.
         This is a convenience method that uses the workflow builder.
@@ -1620,7 +1620,7 @@ class NutrientClient:
         return cast("BufferOutput", self._process_typed_workflow_result(result))
 
     async def delete_pages(
-        self, pdf: FileInputWithUrl, page_indices: list[int]
+        self, pdf: FileInput, page_indices: list[int]
     ) -> BufferOutput:
         """Delete pages from a PDF document.
         This is a convenience method that uses the workflow builder.
@@ -1699,7 +1699,7 @@ class NutrientClient:
 
     async def optimize(
         self,
-        pdf: FileInputWithUrl,
+        pdf: FileInput,
         options: OptimizePdf | None = None,
     ) -> BufferOutput:
         """Optimize a PDF document for size reduction.

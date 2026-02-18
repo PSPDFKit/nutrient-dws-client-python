@@ -8,8 +8,9 @@ from nutrient_dws.inputs import (
     is_remote_file_input,  # Still used internally
     process_file_input,
     validate_file_input,
+    FileInput,
     LocalFileInput,
-    FileInputWithUrl,
+    UrlFileInput,
 )
 from tests.helpers import sample_pdf, TestDocumentGenerator
 
