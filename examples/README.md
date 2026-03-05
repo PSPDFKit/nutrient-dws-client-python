@@ -8,6 +8,9 @@ This example project demonstrates how to use the Nutrient DWS Python Client for 
 - `src/` - Contains Python source files
   - `direct_method.py` - Examples using direct method calls
   - `workflow.py` - Examples using the workflow builder pattern
+  - `framework_openai_agents.py` - OpenAI Agents SDK integration sketch
+  - `framework_langchain.py` - LangChain/LangGraph integration sketch
+  - `framework_crewai.py` - CrewAI integration sketch
 - `output/` - Directory where processed files will be saved
 - `.env.example` - Example environment variables file
 
@@ -121,6 +124,30 @@ This will:
 2. Create a document merging with watermark workflow
 3. Extract text with JSON output
 4. Execute a complex multi-step workflow
+
+### Framework Examples
+
+These examples are intentionally minimal and focus on framework wiring:
+
+Install optional framework dependencies first:
+
+```bash
+pip install openai-agents langchain langchain-openai langgraph crewai
+```
+
+```bash
+python src/framework_openai_agents.py
+python src/framework_langchain.py
+python src/framework_crewai.py
+```
+
+Syntax-check only:
+
+```bash
+python -m py_compile src/framework_openai_agents.py
+python -m py_compile src/framework_langchain.py
+python -m py_compile src/framework_crewai.py
+```
 
 ## Output
 
