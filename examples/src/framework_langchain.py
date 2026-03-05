@@ -7,7 +7,7 @@ from langgraph.prebuilt import create_react_agent
 from nutrient_dws import NutrientClient
 
 
-client = NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", "nutr_sk_placeholder"))
+client = NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", "api_key_placeholder"))
 
 
 async def redact_emails(path: str) -> str:

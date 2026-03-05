@@ -5,7 +5,7 @@ from agents import Agent, Runner, function_tool
 from nutrient_dws import NutrientClient
 
 
-client = NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", "nutr_sk_placeholder"))
+client = NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", "api_key_placeholder"))
 
 
 @function_tool

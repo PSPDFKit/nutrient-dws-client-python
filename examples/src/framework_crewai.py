@@ -4,7 +4,7 @@ from crewai import Agent, Crew, Task
 from nutrient_dws import NutrientClient
 
 
-client = NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", "nutr_sk_placeholder"))
+client = NutrientClient(api_key=os.getenv("NUTRIENT_API_KEY", "api_key_placeholder"))
 
 
 document_planner = Agent(
