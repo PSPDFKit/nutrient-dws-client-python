@@ -94,6 +94,15 @@ For a complete list of available methods with examples, see the [Methods Documen
 **content-extraction workflows** where you need to feed document content into a
 downstream pipeline rather than render or transform the document itself:
 
+> **Heads up — separate API key.** DWS Extract is a different product from
+> DWS Processor and has its own API key. Pass it as
+> `NutrientClient(api_key=..., extract_api_key=...)`; the Extract key is
+> used only for `parse()`, while every other method continues to use the
+> Processor key. Using the Processor key against `/extraction/parse`
+> returns `403`. If `extract_api_key` is omitted, `parse()` falls back to
+> the main `api_key` — that path works once your tenant moves to global
+> DWS API keys.
+
 - **RAG (retrieval-augmented generation) pipelines** — pull a clean Markdown
   representation of a document for chunking, embedding, and indexing in a
   vector store.
@@ -114,6 +123,10 @@ downstream pipeline rather than render or transform the document itself:
 | `markdown`        | RAG, search indexing, content migration — anywhere structured text beats spatial data | One whole-document Markdown string at `response['output']['markdown']` |
 | `spatial` (default) | Form/invoice extraction, layout reconstruction, flows that need per-element confidence | Flat list of typed elements at `response['output']['elements']`        |
 
+Spatial output requires an OCR-capable mode (`structure`, `understand`, or
+`agentic`); `mode='text'` is markdown-only and the client rejects the
+`text` + `spatial` combination before the request goes out.
+
 ### Quick start
 
 ```python
@@ -121,7 +134,10 @@ import asyncio
 from nutrient_dws import NutrientClient
 
 async def main():
-    client = NutrientClient(api_key='your_api_key')
+    client = NutrientClient(
+        api_key='your_processor_key',
+        extract_api_key='your_extract_key',
+    )
 
     # Spatial elements (default) — paragraphs, tables, formulas, pictures, etc.
     response = await client.parse('contract.pdf', mode='understand')

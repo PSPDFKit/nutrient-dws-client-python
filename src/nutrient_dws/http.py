@@ -190,6 +190,9 @@ class NutrientClientOptions(TypedDict):
     apiKey: str | Callable[[], str | Awaitable[str]]
     baseUrl: str | None
     timeout: int | None
+    # DWS Extract is a separate product with its own API key; parse() prefers
+    # this when set, otherwise falls back to apiKey.
+    extractApiKey: NotRequired[str | Callable[[], str | Awaitable[str]] | None]
 
 
 async def resolve_api_key(api_key: str | Callable[[], str | Awaitable[str]]) -> str:

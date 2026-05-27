@@ -117,6 +117,16 @@ class NutrientClient:
 
         client = NutrientClient(api_key=get_token)
         ```
+
+        Data Extraction requires a separate DWS Extract API key — supply it
+        alongside the Processor key:
+
+        ```python
+        client = NutrientClient(
+            api_key='your_processor_key',
+            extract_api_key='your_extract_key',
+        )
+        ```
     """
 
     def __init__(
@@ -124,19 +134,30 @@ class NutrientClient:
         api_key: str | Callable[[], str | Awaitable[str]],
         base_url: str | None = None,
         timeout: int | None = None,
+        extract_api_key: str | Callable[[], str | Awaitable[str]] | None = None,
     ) -> None:
         """Create a new NutrientClient instance.
 
         Args:
-            api_key: API key or API key getter
+            api_key: API key or API key getter for the DWS Processor product
+                (used by every method except `parse()`).
             base_url: DWS Base url
             timeout: DWS request timeout
+            extract_api_key: Optional API key or getter for the DWS Extract
+                product. Required by `parse()` because DWS Extract is a
+                separate product with its own credit pool and API key — using
+                the Processor key will return 403. If omitted, `parse()`
+                falls back to `api_key`, which works once DWS rolls out
+                global API keys.
 
         Raises:
             ValidationError: If options are invalid
         """
         options = NutrientClientOptions(
-            apiKey=api_key, baseUrl=base_url, timeout=timeout
+            apiKey=api_key,
+            baseUrl=base_url,
+            timeout=timeout,
+            extractApiKey=extract_api_key,
         )
         self._validate_options(options)
         self.options = options
@@ -165,6 +186,14 @@ class NutrientClient:
         base_url = options.get("baseUrl")
         if base_url is not None and not isinstance(base_url, str):
             raise ValidationError("Base URL must be a string")
+
+        extract_api_key = options.get("extractApiKey")
+        if extract_api_key is not None and not (
+            isinstance(extract_api_key, str) or callable(extract_api_key)
+        ):
+            raise ValidationError(
+                "Extract API key must be a string or a function that returns a string"
+            )
 
     async def get_account_info(self) -> AccountInfo:
         """Get account information for the current API key.
@@ -784,6 +813,11 @@ class NutrientClient:
         See the README's Data Extraction section for worked recipes (RAG
         ingestion, form extraction) and per-mode positioning.
 
+        DWS Extract is a separate product from DWS Processor and uses its own
+        API key. Pass it via `NutrientClient(extract_api_key=...)`. If omitted
+        the method falls back to the main `api_key`, which only succeeds when
+        the key is a global DWS key.
+
         The Data Extraction API is billed against **extraction credits**, which
         are a separate billing bucket from the **processor API credits**
         consumed by `/build`, `/sign`, OCR, and other Processor API endpoints.
@@ -803,7 +837,9 @@ class NutrientClient:
 
         - `spatial` (default): `output.elements` — typed elements (paragraph,
           table, formula, picture, keyValueRegion, handwriting) with bounds,
-          confidence, and reading order.
+          confidence, and reading order. Requires an OCR-capable mode
+          (`structure`, `understand`, or `agentic`); `text` mode does not
+          produce spatial output.
         - `markdown`: `output.markdown` — a whole-document Markdown string,
           well suited for RAG / search indexing pipelines.
 
@@ -822,11 +858,16 @@ class NutrientClient:
                 to `"structure"`.
             output_format: Output shape — `"spatial"` for typed elements or
                 `"markdown"` for a Markdown document. Defaults to
-                `"spatial"`.
+                `"spatial"`. `mode="text"` is incompatible with
+                `output_format="spatial"`.
 
         Returns:
             The full parse response envelope, including `output`, `metrics`,
             `usage` (the extraction-credit accounting), and `configuration`.
+
+        Raises:
+            ValidationError: If `mode="text"` is combined with
+                `output_format="spatial"`.
 
         Example:
             ```python
@@ -848,6 +889,13 @@ class NutrientClient:
                   f"(remaining: {usage['remainingCredits']})")
             ```
         """
+        if mode == "text" and output_format == "spatial":
+            raise ValidationError(
+                "mode='text' is not supported with output_format='spatial'. "
+                "Use output_format='markdown', or choose mode='structure' / "
+                "'understand' / 'agentic' for spatial elements."
+            )
+
         # Multipart-only endpoint; only local file inputs are supported.
         normalized_file = await process_file_input(file)
 
@@ -861,6 +909,14 @@ class NutrientClient:
             "instructions": instructions,
         }
 
+        # DWS Extract uses a separate API key. Route the request via a
+        # per-call options copy so the rest of the client (which talks to
+        # the Processor API) keeps using the main key.
+        parse_options = self.options.copy()
+        extract_key = parse_options.get("extractApiKey")
+        if extract_key is not None:
+            parse_options["apiKey"] = extract_key
+
         response: Any = await send_request(
             {
                 "method": "POST",
@@ -868,7 +924,7 @@ class NutrientClient:
                 "data": request_data,
                 "headers": None,
             },
-            self.options,
+            parse_options,
         )
         return cast("ParseResponse", response["data"])
 

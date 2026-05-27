@@ -167,6 +167,97 @@ class TestParseRequestShape:
         assert "data" not in prepared
 
 
+class TestParseClientSideValidation:
+    """Combinations rejected before any network round-trip."""
+
+    @pytest.mark.asyncio
+    async def test_text_mode_with_spatial_output_raises(
+        self, parse_client: NutrientClient
+    ) -> None:
+        with patch("nutrient_dws.client.send_request", new_callable=AsyncMock) as send:
+            with pytest.raises(ValidationError, match="mode='text'"):
+                await parse_client.parse(
+                    b"%PDF-1.7", mode="text", output_format="spatial"
+                )
+            send.assert_not_called()
+
+
+class TestParseApiKeyRouting:
+    """`/extraction/parse` is served by DWS Extract, which uses a separate
+    API key from DWS Processor. When `extract_api_key` is set we route via
+    that key; otherwise we fall back to the main `api_key`.
+    """
+
+    @pytest.mark.asyncio
+    async def test_parse_uses_extract_api_key_when_set(self) -> None:
+        client = NutrientClient(
+            api_key="processor-key",
+            extract_api_key="extract-key",
+        )
+        with patch("nutrient_dws.client.send_request", new_callable=AsyncMock) as send:
+            send.return_value = _make_response(
+                {"status": 200, "requestId": "r", "output": {"elements": []}}
+            )
+
+            await client.parse(b"%PDF-1.7", mode="structure")
+
+            sent_options = send.call_args[0][1]
+
+        assert sent_options["apiKey"] == "extract-key"
+        # The client's own options are untouched — other methods still see the
+        # processor key.
+        assert client.options["apiKey"] == "processor-key"
+
+    @pytest.mark.asyncio
+    async def test_parse_falls_back_to_main_api_key_when_extract_key_unset(
+        self, parse_client: NutrientClient
+    ) -> None:
+        with patch("nutrient_dws.client.send_request", new_callable=AsyncMock) as send:
+            send.return_value = _make_response(
+                {"status": 200, "requestId": "r", "output": {"elements": []}}
+            )
+
+            await parse_client.parse(b"%PDF-1.7", mode="structure")
+
+            sent_options = send.call_args[0][1]
+
+        assert sent_options["apiKey"] == "pdf_test_unit"
+
+    @pytest.mark.asyncio
+    async def test_non_parse_methods_keep_processor_key(self) -> None:
+        """A sibling endpoint (`/account/info`) must not see the Extract
+        key — only `parse()` swaps.
+        """
+        client = NutrientClient(
+            api_key="processor-key",
+            extract_api_key="extract-key",
+        )
+        with patch("nutrient_dws.client.send_request", new_callable=AsyncMock) as send:
+            send.return_value = _make_response({"subscriptionType": "live"})
+
+            await client.get_account_info()
+
+            sent_options = send.call_args[0][1]
+
+        assert sent_options["apiKey"] == "processor-key"
+
+    def test_invalid_extract_api_key_type_raises(self) -> None:
+        with pytest.raises(
+            ValidationError,
+            match="Extract API key must be a string or a function that returns a string",
+        ):
+            NutrientClient(api_key="processor-key", extract_api_key=123)  # type: ignore[arg-type]
+
+    def test_async_extract_api_key_callable_accepted(self) -> None:
+        async def get_extract_key() -> str:
+            return "async-extract-key"
+
+        client = NutrientClient(
+            api_key="processor-key", extract_api_key=get_extract_key
+        )
+        assert callable(client.options["extractApiKey"])
+
+
 class TestParseResponseHandling:
     """Verify the client returns the raw response envelope to the caller."""
 
@@ -315,7 +406,9 @@ class TestParseErrorPaths:
             )
 
             with pytest.raises(AuthenticationError) as exc_info:
-                await parse_client.parse(b"%PDF-1.7", mode="text")
+                await parse_client.parse(
+                    b"%PDF-1.7", mode="text", output_format="markdown"
+                )
 
         assert exc_info.value.status_code == 401
         assert (exc_info.value.details or {}).get("requestId") == "req_e_401"
@@ -342,7 +435,10 @@ class TestParseErrorPaths:
 
             with pytest.raises(ValidationError) as exc_info:
                 await parse_client.parse(
-                    b"%PDF-1.7", mode="text"  # mode is fine; server-side fail
+                    # client-side validation passes; failure is the mocked server response
+                    b"%PDF-1.7",
+                    mode="text",
+                    output_format="markdown",
                 )
 
         details = exc_info.value.details or {}
