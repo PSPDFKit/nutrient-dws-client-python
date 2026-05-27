@@ -18,7 +18,7 @@ nutrient_dws_scripts = [
 
 [project]
 name = "nutrient-dws"
-version = "3.0.0"
+version = "3.1.0"
 description = "Python client library for Nutrient Document Web Services API"
 readme = "README.md"
 requires-python = ">=3.10"

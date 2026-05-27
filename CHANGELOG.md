@@ -7,22 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+## [3.1.0] - 2026-05-27
 
-- `client.parse()` — first-class support for the Data Extraction API
-  (`/extraction/parse`). Supports all four processing modes (`text`,
-  `structure`, `understand`, `agentic`) and both output shapes (spatial
-  elements and whole-document Markdown). Typed response model with
-  discriminated element variants (paragraph, table, formula, picture,
-  keyValueRegion, handwriting). Billed against **extraction credits**, a
-  separate billing bucket from the **processor API credits** used by the
-  other endpoints.
-- New types exported from `nutrient_dws`: `ParseResponse`,
-  `ParseInstructions`, `ParseMode`, `ParseOutputFormat`, `ParseElement`,
-  `ParseOutputBody`, `ParseOutputElements`, `ParseOutputMarkdown`,
-  `ParagraphElement`, `TableElement`, `TableCell`, `FormulaElement`,
-  `PictureElement`, `KeyValueRegionElement`, `KeyValuePair`,
-  `HandwritingElement`.
+- Added `client.parse()` for the Data Extraction API (`/extraction/parse`)
+- Added `extract_api_key` constructor parameter — DWS Extract is a separate product with its own API key
 
 ## [3.0.0] - 2026-01-30
 
