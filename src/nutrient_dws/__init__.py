@@ -19,6 +19,7 @@ from nutrient_dws.inputs import (
     process_file_input,
     validate_file_input,
 )
+from nutrient_dws.types.extraction_credits import ExtractionCredits
 from nutrient_dws.types.parse import (
     FormulaElement,
     HandwritingElement,
@@ -42,6 +43,7 @@ from nutrient_dws.utils import get_library_version, get_user_agent
 __all__ = [
     "APIError",
     "AuthenticationError",
+    "ExtractionCredits",
     "FileInput",
     "FormulaElement",
     "HandwritingElement",

@@ -1,8 +1,7 @@
 """Unit tests for `NutrientClient.parse()`.
 
 These tests stub `send_request` so they exercise the request-shape and
-response-handling logic of `parse()` without making a real HTTP call. The
-live smoke check is `examples/src/smoke_parse.py`.
+response-handling logic of `parse()` without making a real HTTP call.
 """
 
 import json

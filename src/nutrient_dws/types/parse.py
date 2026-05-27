@@ -14,6 +14,8 @@ from typing import Literal
 
 from typing_extensions import TypedDict
 
+from nutrient_dws.types.extraction_credits import ExtractionCredits
+
 # ---- Request types --------------------------------------------------------
 
 ParseMode = Literal["text", "structure", "understand", "agentic"]
@@ -58,7 +60,14 @@ class ParseInstructions(TypedDict, total=False):
 
 
 class ParseBounds(TypedDict):
-    """Axis-aligned bounding box, in the page's coordinate space."""
+    """Axis-aligned bounding box on the page.
+
+    `(x, y)` is the **top-left corner** of the box. The page's coordinate
+    origin is the top-left, with `x` increasing to the right and `y`
+    increasing downward. Units are pixels in the same canvas described by
+    `ParsePageRef.width` and `ParsePageRef.height` (i.e. element bounds and
+    the page dimensions share one coordinate space).
+    """
 
     x: float
     y: float
@@ -285,26 +294,18 @@ class ParseConfiguration(TypedDict, total=False):
     outputFormat: ParseOutputFormat
 
 
-class ParseExtractionCredits(TypedDict, total=False):
-    """Credit accounting for this request.
-
-    `cost` is in **extraction credits** (NOT processor API credits) and
-    `remainingCredits` is the remaining balance in the same bucket.
-    """
-
-    cost: float
-    remainingCredits: float
-
-
 class ParseUsage(TypedDict, total=False):
     """Wraps the extraction-credit accounting under its wire key.
 
     The server uses the snake_case key `data_extraction_credits` here even
     though every other field in the response is camelCase; the TypedDict
-    mirrors the wire format verbatim.
+    mirrors the wire format verbatim. The inner `ExtractionCredits` type
+    lives in `nutrient_dws.types.extraction_credits` because the same
+    credit-accounting shape will surface on future endpoints that bill
+    against the extraction-credits bucket.
     """
 
-    data_extraction_credits: ParseExtractionCredits
+    data_extraction_credits: ExtractionCredits
 
 
 class ParseFailingPath(TypedDict, total=False):
