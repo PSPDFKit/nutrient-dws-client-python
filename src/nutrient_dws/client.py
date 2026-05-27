@@ -58,7 +58,6 @@ from nutrient_dws.types.misc import OcrLanguage, PageRange, Pages
 from nutrient_dws.types.parse import (
     ParseInstructions,
     ParseMode,
-    ParseOutput,
     ParseOutputFormat,
     ParseResponse,
 )
@@ -799,7 +798,10 @@ class NutrientClient:
 
         Args:
             file: The document to parse (local files only — paths, bytes, or
-                file-like objects).
+                file-like objects). The endpoint accepts a range of document
+                formats (PDF, Office documents, images); see the public
+                guide for the authoritative list. Unlike `sign()`, parsing
+                is not restricted to PDFs.
             mode: Processing mode. See per-mode credit costs above. Defaults
                 to `"structure"`.
             output_format: Output shape — `"spatial"` for typed elements or
@@ -835,7 +837,7 @@ class NutrientClient:
 
         instructions: ParseInstructions = {
             "mode": mode,
-            "output": cast("ParseOutput", {"format": output_format}),
+            "output": {"format": output_format},
         }
 
         request_data: ParseRequestData = {
@@ -843,14 +845,15 @@ class NutrientClient:
             "instructions": instructions,
         }
 
-        config = RequestConfig(
-            method="POST",
-            endpoint="/extraction/parse",
-            data=request_data,
-            headers=None,
+        response: Any = await send_request(
+            {
+                "method": "POST",
+                "endpoint": "/extraction/parse",
+                "data": request_data,
+                "headers": None,
+            },
+            self.options,
         )
-
-        response: Any = await send_request(config, self.options)
         return cast("ParseResponse", response["data"])
 
     async def set_page_labels(
