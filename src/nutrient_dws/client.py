@@ -768,6 +768,22 @@ class NutrientClient:
     ) -> ParseResponse:
         """Parse a document using the Data Extraction API (`/extraction/parse`).
 
+        Designed for content-extraction workflows where document content feeds
+        a downstream pipeline rather than being rendered or transformed:
+
+        - **RAG / search indexing / content migration** — use
+          `output_format="markdown"` for a whole-document Markdown string
+          suitable for chunking, embedding, and indexing.
+        - **Form / invoice extraction** — use `output_format="spatial"`
+          (default) for a typed element list (paragraphs, tables,
+          keyValueRegions, etc.) with bounds and confidence per element.
+        - **Layout-aware document understanding** — combine `mode="understand"`
+          or `mode="agentic"` with spatial output for layout reconstruction
+          and semantic classification.
+
+        See the README's Data Extraction section for worked recipes (RAG
+        ingestion, form extraction) and per-mode positioning.
+
         The Data Extraction API is billed against **extraction credits**, which
         are a separate billing bucket from the **processor API credits**
         consumed by `/build`, `/sign`, OCR, and other Processor API endpoints.
