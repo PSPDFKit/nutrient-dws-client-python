@@ -23,6 +23,7 @@ from nutrient_dws.types.create_auth_token import (
     CreateAuthTokenParameters,
     CreateAuthTokenResponse,
 )
+from nutrient_dws.types.parse import ParseInstructions, ParseResponse
 from nutrient_dws.types.redact_data import RedactData
 from nutrient_dws.types.sign_request import CreateDigitalSignature
 from nutrient_dws.utils import get_user_agent
@@ -35,6 +36,11 @@ class BuildRequestData(TypedDict):
 
 class AnalyzeBuildRequestData(TypedDict):
     instructions: BuildInstructions
+
+
+class ParseRequestData(TypedDict):
+    file: NormalizedFileData
+    instructions: NotRequired[ParseInstructions]
 
 
 class SignRequestOptions(TypedDict):
@@ -64,7 +70,13 @@ Method = TypeVar("Method", bound=Literal["GET", "POST", "DELETE"])
 Endpoint = TypeVar(
     "Endpoint",
     bound=Literal[
-        "/account/info", "/build", "/analyze_build", "/sign", "/ai/redact", "/tokens"
+        "/account/info",
+        "/build",
+        "/analyze_build",
+        "/sign",
+        "/ai/redact",
+        "/tokens",
+        "/extraction/parse",
     ],
 )
 
@@ -77,6 +89,7 @@ Input = TypeVar(
     | SignRequestData
     | RedactRequestData
     | DeleteTokenRequestData
+    | ParseRequestData
     | None,
 )
 Output = TypeVar(
@@ -87,6 +100,7 @@ Output = TypeVar(
     | BuildResponseJsonContents
     | AnalyzeBuildResponse
     | AccountInfo
+    | ParseResponse
     | None,
 )
 
@@ -149,6 +163,14 @@ def is_delete_tokens_request_config(
     RequestConfig[Literal["DELETE"], Literal["/tokens"], DeleteTokenRequestData]
 ]:
     return request["method"] == "DELETE" and request["endpoint"] == "/tokens"
+
+
+def is_post_extraction_parse_request_config(
+    request: RequestConfig[Method, Endpoint, Input],
+) -> TypeGuard[
+    RequestConfig[Literal["POST"], Literal["/extraction/parse"], ParseRequestData]
+]:
+    return request["method"] == "POST" and request["endpoint"] == "/extraction/parse"
 
 
 # API response
@@ -298,6 +320,19 @@ def prepare_request_body(
         else:
             # JSON only request
             request_config["json"] = config["data"]["data"]
+
+        return request_config
+
+    if is_post_extraction_parse_request_config(config):
+        # multipart/form-data: 'file' part + optional 'instructions' part (JSON string)
+        files = {}
+        append_file_to_form_data(files, "file", config["data"]["file"])
+        request_config["files"] = files
+
+        if "instructions" in config["data"]:
+            request_config["data"] = {
+                "instructions": json.dumps(config["data"]["instructions"])
+            }
 
         return request_config
 
@@ -555,6 +590,15 @@ async def send_request(
     ],
     client_options: NutrientClientOptions,
 ) -> ApiResponse[None]: ...
+
+
+@overload
+async def send_request(
+    config: RequestConfig[
+        Literal["POST"], Literal["/extraction/parse"], ParseRequestData
+    ],
+    client_options: NutrientClientOptions,
+) -> ApiResponse[ParseResponse]: ...
 
 
 async def send_request(

@@ -88,6 +88,56 @@ asyncio.run(main())
 
 For a complete list of available methods with examples, see the [Methods Documentation](docs/METHODS.md).
 
+## Data Extraction (`/extraction/parse`)
+
+`client.parse()` calls the Data Extraction API to extract structured content from
+a document. It supports four processing modes and two output shapes:
+
+```python
+import asyncio
+from nutrient_dws import NutrientClient
+
+async def main():
+    client = NutrientClient(api_key='your_api_key')
+
+    # Spatial elements (default) — paragraphs, tables, formulas, pictures, etc.
+    response = await client.parse('contract.pdf', mode='understand')
+    for element in response['output']['elements']:
+        if element['type'] == 'table':
+            print(element['rowCount'], element['columnCount'])
+
+    # Whole-document Markdown from a born-digital PDF
+    response = await client.parse(
+        'report.pdf', mode='text', output_format='markdown',
+    )
+    print(response['output']['markdown'])
+
+asyncio.run(main())
+```
+
+### Modes and credit cost
+
+| Mode         | Extraction credits / page | When to use                                                      |
+|--------------|---------------------------|------------------------------------------------------------------|
+| `text`       | 1                         | Fast Markdown from born-digital documents. No OCR or AI.         |
+| `structure`  | 1.5                       | OCR-based spatial extraction with bounding boxes.                |
+| `understand` | 9                         | AI-augmented layout analysis, tables, formulas, classification.  |
+| `agentic`    | 18                        | VLM-augmented; deepest visual understanding.                     |
+
+### Billing — extraction credits vs processor credits
+
+The Data Extraction API is billed against **extraction credits**, which are a
+separate billing bucket from the **processor API credits** consumed by
+`/build`, `/sign`, OCR, and the other Processor API endpoints used by this
+client (`convert`, `watermark_text`, `merge`, etc.). The response surfaces the
+extraction-credit accounting under `response['usage']['data_extraction_credits']`:
+
+```python
+usage = response['usage']['data_extraction_credits']
+print(f"Cost: {usage['cost']} extraction credits, "
+      f"remaining: {usage['remainingCredits']}")
+```
+
 ## Workflow System
 
 The client also provides a fluent builder pattern with staged interfaces to create document processing workflows:

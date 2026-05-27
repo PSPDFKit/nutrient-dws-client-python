@@ -18,6 +18,7 @@ from nutrient_dws.builder.staged_builders import (
 from nutrient_dws.errors import NutrientError, ValidationError
 from nutrient_dws.http import (
     NutrientClientOptions,
+    ParseRequestData,
     RedactRequestData,
     RequestConfig,
     SignRequestData,
@@ -54,6 +55,13 @@ from nutrient_dws.types.create_auth_token import (
     CreateAuthTokenResponse,
 )
 from nutrient_dws.types.misc import OcrLanguage, PageRange, Pages
+from nutrient_dws.types.parse import (
+    ParseInstructions,
+    ParseMode,
+    ParseOutput,
+    ParseOutputFormat,
+    ParseResponse,
+)
 from nutrient_dws.types.redact_data import RedactOptions
 from nutrient_dws.types.sign_request import CreateDigitalSignature
 
@@ -752,6 +760,98 @@ class NutrientClient:
         )
 
         return cast("JsonContentOutput", self._process_typed_workflow_result(result))
+
+    async def parse(
+        self,
+        file: LocalFileInput,
+        mode: ParseMode = "structure",
+        output_format: ParseOutputFormat = "spatial",
+    ) -> ParseResponse:
+        """Parse a document using the Data Extraction API (`/extraction/parse`).
+
+        The Data Extraction API is billed against **extraction credits**, which
+        are a separate billing bucket from the **processor API credits**
+        consumed by `/build`, `/sign`, OCR, and other Processor API endpoints.
+
+        Per-page extraction-credit costs by mode:
+
+        - `text`: 1 extraction credit / page — fast Markdown extraction from
+          born-digital documents (no OCR or AI).
+        - `structure`: 1.5 extraction credits / page — OCR-based spatial
+          extraction with bounding boxes (default).
+        - `understand`: 9 extraction credits / page — AI-augmented layout
+          analysis, table detection, and semantic classification.
+        - `agentic`: 18 extraction credits / page — VLM-augmented extraction
+          building on `understand` mode.
+
+        Output format selects the shape under `response.output`:
+
+        - `spatial` (default): `output.elements` — typed elements (paragraph,
+          table, formula, picture, keyValueRegion, handwriting) with bounds,
+          confidence, and reading order.
+        - `markdown`: `output.markdown` — a whole-document Markdown string,
+          well suited for RAG / search indexing pipelines.
+
+        **Security note**: this method only accepts local files (paths, bytes,
+        file objects) because the underlying API surface for this endpoint is
+        multipart-only. For remote inputs, fetch them client-side with
+        appropriate URL validation first.
+
+        Args:
+            file: The document to parse (local files only — paths, bytes, or
+                file-like objects).
+            mode: Processing mode. See per-mode credit costs above. Defaults
+                to `"structure"`.
+            output_format: Output shape — `"spatial"` for typed elements or
+                `"markdown"` for a Markdown document. Defaults to
+                `"spatial"`.
+
+        Returns:
+            The full parse response envelope, including `output`, `metrics`,
+            `usage` (the extraction-credit accounting), and `configuration`.
+
+        Example:
+            ```python
+            # Spatial elements with full layout analysis (9 extraction credits / page)
+            response = await client.parse('contract.pdf', mode='understand')
+            for element in response['output']['elements']:
+                if element['type'] == 'table':
+                    print(element['rowCount'], element['columnCount'])
+
+            # Whole-document Markdown from a born-digital PDF (1 extraction credit / page)
+            response = await client.parse(
+                'report.pdf', mode='text', output_format='markdown'
+            )
+            print(response['output']['markdown'])
+
+            # Inspect billing
+            usage = response['usage']['data_extraction_credits']
+            print(f"Cost: {usage['cost']} extraction credits "
+                  f"(remaining: {usage['remainingCredits']})")
+            ```
+        """
+        # Multipart-only endpoint; only local file inputs are supported.
+        normalized_file = await process_file_input(file)
+
+        instructions: ParseInstructions = {
+            "mode": mode,
+            "output": cast("ParseOutput", {"format": output_format}),
+        }
+
+        request_data: ParseRequestData = {
+            "file": normalized_file,
+            "instructions": instructions,
+        }
+
+        config = RequestConfig(
+            method="POST",
+            endpoint="/extraction/parse",
+            data=request_data,
+            headers=None,
+        )
+
+        response: Any = await send_request(config, self.options)
+        return cast("ParseResponse", response["data"])
 
     async def set_page_labels(
         self,
