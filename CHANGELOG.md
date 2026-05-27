@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-05-27
+
 ### Added
 
 - `client.parse()` — first-class support for the Data Extraction API
@@ -17,12 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keyValueRegion, handwriting). Billed against **extraction credits**, a
   separate billing bucket from the **processor API credits** used by the
   other endpoints.
-- New types exported from `nutrient_dws`: `ParseResponse`,
-  `ParseInstructions`, `ParseMode`, `ParseOutputFormat`, `ParseElement`,
-  `ParseOutputBody`, `ParseOutputElements`, `ParseOutputMarkdown`,
-  `ParagraphElement`, `TableElement`, `TableCell`, `FormulaElement`,
-  `PictureElement`, `KeyValueRegionElement`, `KeyValuePair`,
-  `HandwritingElement`.
+- `NutrientClient(extract_api_key=...)` — optional constructor parameter
+  for the DWS Extract API key. `parse()` uses it for `/extraction/parse`
+  requests; every other method continues to use `api_key`. Falls back to
+  `api_key` when omitted (the path that becomes the default once global
+  DWS API keys roll out). Passing only a Processor `api_key` against
+  `/extraction/parse` is rejected by the server with `403`.
+- New types exported from `nutrient_dws`: `ExtractionCredits`,
+  `ParseResponse`, `ParseInstructions`, `ParseMode`, `ParseOutputFormat`,
+  `ParseElement`, `ParseOutputBody`, `ParseOutputElements`,
+  `ParseOutputMarkdown`, `ParagraphElement`, `TableElement`, `TableCell`,
+  `FormulaElement`, `PictureElement`, `KeyValueRegionElement`,
+  `KeyValuePair`, `HandwritingElement`.
 
 ## [3.0.0] - 2026-01-30
 
