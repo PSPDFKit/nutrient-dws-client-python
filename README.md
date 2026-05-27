@@ -88,6 +88,133 @@ asyncio.run(main())
 
 For a complete list of available methods with examples, see the [Methods Documentation](docs/METHODS.md).
 
+## Data Extraction (`/extraction/parse`)
+
+`client.parse()` exposes Nutrient's Data Extraction API. It's designed for
+**content-extraction workflows** where you need to feed document content into a
+downstream pipeline rather than render or transform the document itself:
+
+> **Heads up — separate API key.** DWS Extract is a different product from
+> DWS Processor and has its own API key. Pass it as
+> `NutrientClient(api_key=..., extract_api_key=...)`; the Extract key is
+> used only for `parse()`, while every other method continues to use the
+> Processor key. Using the Processor key against `/extraction/parse`
+> returns `403`. If `extract_api_key` is omitted, `parse()` falls back to
+> the main `api_key` — that path works once your tenant moves to global
+> DWS API keys.
+
+- **RAG (retrieval-augmented generation) pipelines** — pull a clean Markdown
+  representation of a document for chunking, embedding, and indexing in a
+  vector store.
+- **Search indexing and content migration** — convert documents into Markdown
+  for full-text search or for migration into a new content management system.
+- **Form and invoice extraction** — pull structured fields (key/value pairs,
+  tables, semantic regions) out of business documents with bounding boxes and
+  confidence scores attached to every element.
+- **Layout-aware document understanding** — get a typed, page-anchored element
+  list (paragraphs with semantic roles, tables with cell spans, formulas in
+  LaTeX, pictures, handwriting) suitable for building document-comprehension
+  tooling, including agentic workflows.
+
+### Choosing an output format
+
+| Format            | Best for                                                                   | Shape                                                                |
+|-------------------|----------------------------------------------------------------------------|----------------------------------------------------------------------|
+| `markdown`        | RAG, search indexing, content migration — anywhere structured text beats spatial data | One whole-document Markdown string at `response['output']['markdown']` |
+| `spatial` (default) | Form/invoice extraction, layout reconstruction, flows that need per-element confidence | Flat list of typed elements at `response['output']['elements']`        |
+
+Spatial output requires an OCR-capable mode (`structure`, `understand`, or
+`agentic`); `mode='text'` is markdown-only and the client rejects the
+`text` + `spatial` combination before the request goes out.
+
+### Quick start
+
+```python
+import asyncio
+from nutrient_dws import NutrientClient
+
+async def main():
+    client = NutrientClient(
+        api_key='your_processor_key',
+        extract_api_key='your_extract_key',
+    )
+
+    # Spatial elements (default) — paragraphs, tables, formulas, pictures, etc.
+    response = await client.parse('contract.pdf', mode='understand')
+    for element in response['output']['elements']:
+        if element['type'] == 'table':
+            print(element['rowCount'], element['columnCount'])
+
+    # Whole-document Markdown from a born-digital PDF
+    response = await client.parse(
+        'report.pdf', mode='text', output_format='markdown',
+    )
+    print(response['output']['markdown'])
+
+asyncio.run(main())
+```
+
+### Modes — when to use which
+
+| Mode         | Credits / page | When to use                                                                                  |
+|--------------|----------------|----------------------------------------------------------------------------------------------|
+| `text`       | 1              | Born-digital documents only. No OCR, no AI. Fastest and cheapest path to Markdown.           |
+| `structure`  | 1.5            | OCR-based segmentation with bounding boxes. Handles scanned documents, images, and any input requiring OCR. |
+| `understand` | 9              | Full pipeline with AI augmentation on top of OCR. Most accurate for documents with tables, multi-column layouts, formulas, and form fields. |
+| `agentic`    | 18             | Builds on `understand` and adds a vision-language model. Best for image descriptions, complex visual layouts, and deeper semantic understanding. |
+
+### Recipes
+
+**RAG ingestion** — PDF → Markdown → chunks → embeddings → vector store:
+
+```python
+response = await client.parse('whitepaper.pdf', mode='text', output_format='markdown')
+markdown = response['output']['markdown']
+# Then: chunk on headings, embed, push to your vector store of choice.
+```
+
+For born-digital PDFs, `mode='text'` is the cheapest path (1 credit/page).
+For scanned PDFs or images, switch to `mode='structure'` so OCR runs.
+
+**Form/invoice extraction** — PDF → spatial elements → structured dict:
+
+```python
+response = await client.parse('invoice.pdf', mode='understand')
+elements = response['output']['elements']
+
+# Pull key/value pairs from form regions
+fields = {}
+for element in elements:
+    if element['type'] == 'keyValueRegion':
+        for pair in element['pairs']:
+            fields[pair['key']['value']] = pair['value']['value']
+
+# Walk tables — each cell carries row/col indices and span counts
+for element in elements:
+    if element['type'] == 'table':
+        print(f"Table: {element['rowCount']}×{element['columnCount']}")
+        for cell in element['cells']:
+            print(f"  [{cell['row']}][{cell['column']}] {cell['text']}")
+```
+
+For complex layouts that mix dense images with text, step up to
+`mode='agentic'` so the VLM can produce image descriptions and semantic
+classifications (18 credits/page).
+
+### Billing — extraction credits vs processor credits
+
+The Data Extraction API is billed against **extraction credits**, which are a
+separate billing bucket from the **processor API credits** consumed by
+`/build`, `/sign`, OCR, and the other Processor API endpoints used by this
+client (`convert`, `watermark_text`, `merge`, etc.). The response surfaces the
+extraction-credit accounting under `response['usage']['data_extraction_credits']`:
+
+```python
+usage = response['usage']['data_extraction_credits']
+print(f"Cost: {usage['cost']} extraction credits, "
+      f"remaining: {usage['remainingCredits']}")
+```
+
 ## Workflow System
 
 The client also provides a fluent builder pattern with staged interfaces to create document processing workflows:

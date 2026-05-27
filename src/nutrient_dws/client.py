@@ -18,6 +18,7 @@ from nutrient_dws.builder.staged_builders import (
 from nutrient_dws.errors import NutrientError, ValidationError
 from nutrient_dws.http import (
     NutrientClientOptions,
+    ParseRequestData,
     RedactRequestData,
     RequestConfig,
     SignRequestData,
@@ -54,6 +55,12 @@ from nutrient_dws.types.create_auth_token import (
     CreateAuthTokenResponse,
 )
 from nutrient_dws.types.misc import OcrLanguage, PageRange, Pages
+from nutrient_dws.types.parse import (
+    ParseInstructions,
+    ParseMode,
+    ParseOutputFormat,
+    ParseResponse,
+)
 from nutrient_dws.types.redact_data import RedactOptions
 from nutrient_dws.types.sign_request import CreateDigitalSignature
 
@@ -110,6 +117,16 @@ class NutrientClient:
 
         client = NutrientClient(api_key=get_token)
         ```
+
+        Data Extraction requires a separate DWS Extract API key — supply it
+        alongside the Processor key:
+
+        ```python
+        client = NutrientClient(
+            api_key='your_processor_key',
+            extract_api_key='your_extract_key',
+        )
+        ```
     """
 
     def __init__(
@@ -117,19 +134,30 @@ class NutrientClient:
         api_key: str | Callable[[], str | Awaitable[str]],
         base_url: str | None = None,
         timeout: int | None = None,
+        extract_api_key: str | Callable[[], str | Awaitable[str]] | None = None,
     ) -> None:
         """Create a new NutrientClient instance.
 
         Args:
-            api_key: API key or API key getter
+            api_key: API key or API key getter for the DWS Processor product
+                (used by every method except `parse()`).
             base_url: DWS Base url
             timeout: DWS request timeout
+            extract_api_key: Optional API key or getter for the DWS Extract
+                product. Required by `parse()` because DWS Extract is a
+                separate product with its own credit pool and API key — using
+                the Processor key will return 403. If omitted, `parse()`
+                falls back to `api_key`, which works once DWS rolls out
+                global API keys.
 
         Raises:
             ValidationError: If options are invalid
         """
         options = NutrientClientOptions(
-            apiKey=api_key, baseUrl=base_url, timeout=timeout
+            apiKey=api_key,
+            baseUrl=base_url,
+            timeout=timeout,
+            extractApiKey=extract_api_key,
         )
         self._validate_options(options)
         self.options = options
@@ -158,6 +186,14 @@ class NutrientClient:
         base_url = options.get("baseUrl")
         if base_url is not None and not isinstance(base_url, str):
             raise ValidationError("Base URL must be a string")
+
+        extract_api_key = options.get("extractApiKey")
+        if extract_api_key is not None and not (
+            isinstance(extract_api_key, str) or callable(extract_api_key)
+        ):
+            raise ValidationError(
+                "Extract API key must be a string or a function that returns a string"
+            )
 
     async def get_account_info(self) -> AccountInfo:
         """Get account information for the current API key.
@@ -752,6 +788,145 @@ class NutrientClient:
         )
 
         return cast("JsonContentOutput", self._process_typed_workflow_result(result))
+
+    async def parse(
+        self,
+        file: LocalFileInput,
+        mode: ParseMode = "structure",
+        output_format: ParseOutputFormat = "spatial",
+    ) -> ParseResponse:
+        """Parse a document using the Data Extraction API (`/extraction/parse`).
+
+        Designed for content-extraction workflows where document content feeds
+        a downstream pipeline rather than being rendered or transformed:
+
+        - **RAG / search indexing / content migration** — use
+          `output_format="markdown"` for a whole-document Markdown string
+          suitable for chunking, embedding, and indexing.
+        - **Form / invoice extraction** — use `output_format="spatial"`
+          (default) for a typed element list (paragraphs, tables,
+          keyValueRegions, etc.) with bounds and confidence per element.
+        - **Layout-aware document understanding** — combine `mode="understand"`
+          or `mode="agentic"` with spatial output for layout reconstruction
+          and semantic classification.
+
+        See the README's Data Extraction section for worked recipes (RAG
+        ingestion, form extraction) and per-mode positioning.
+
+        DWS Extract is a separate product from DWS Processor and uses its own
+        API key. Pass it via `NutrientClient(extract_api_key=...)`. If omitted
+        the method falls back to the main `api_key`, which only succeeds when
+        the key is a global DWS key.
+
+        The Data Extraction API is billed against **extraction credits**, which
+        are a separate billing bucket from the **processor API credits**
+        consumed by `/build`, `/sign`, OCR, and other Processor API endpoints.
+
+        Per-page extraction-credit costs by mode:
+
+        - `text`: 1 extraction credit / page — fast Markdown extraction from
+          born-digital documents (no OCR or AI).
+        - `structure`: 1.5 extraction credits / page — OCR-based spatial
+          extraction with bounding boxes (default).
+        - `understand`: 9 extraction credits / page — AI-augmented layout
+          analysis, table detection, and semantic classification.
+        - `agentic`: 18 extraction credits / page — VLM-augmented extraction
+          building on `understand` mode.
+
+        Output format selects the shape under `response.output`:
+
+        - `spatial` (default): `output.elements` — typed elements (paragraph,
+          table, formula, picture, keyValueRegion, handwriting) with bounds,
+          confidence, and reading order. Requires an OCR-capable mode
+          (`structure`, `understand`, or `agentic`); `text` mode does not
+          produce spatial output.
+        - `markdown`: `output.markdown` — a whole-document Markdown string,
+          well suited for RAG / search indexing pipelines.
+
+        **Security note**: this method only accepts local files (paths, bytes,
+        file objects) because the underlying API surface for this endpoint is
+        multipart-only. For remote inputs, fetch them client-side with
+        appropriate URL validation first.
+
+        Args:
+            file: The document to parse (local files only — paths, bytes, or
+                file-like objects). The endpoint accepts a range of document
+                formats (PDF, Office documents, images); see the public
+                guide for the authoritative list. Unlike `sign()`, parsing
+                is not restricted to PDFs.
+            mode: Processing mode. See per-mode credit costs above. Defaults
+                to `"structure"`.
+            output_format: Output shape — `"spatial"` for typed elements or
+                `"markdown"` for a Markdown document. Defaults to
+                `"spatial"`. `mode="text"` is incompatible with
+                `output_format="spatial"`.
+
+        Returns:
+            The full parse response envelope, including `output`, `metrics`,
+            `usage` (the extraction-credit accounting), and `configuration`.
+
+        Raises:
+            ValidationError: If `mode="text"` is combined with
+                `output_format="spatial"`.
+
+        Example:
+            ```python
+            # Spatial elements with full layout analysis (9 extraction credits / page)
+            response = await client.parse('contract.pdf', mode='understand')
+            for element in response['output']['elements']:
+                if element['type'] == 'table':
+                    print(element['rowCount'], element['columnCount'])
+
+            # Whole-document Markdown from a born-digital PDF (1 extraction credit / page)
+            response = await client.parse(
+                'report.pdf', mode='text', output_format='markdown'
+            )
+            print(response['output']['markdown'])
+
+            # Inspect billing
+            usage = response['usage']['data_extraction_credits']
+            print(f"Cost: {usage['cost']} extraction credits "
+                  f"(remaining: {usage['remainingCredits']})")
+            ```
+        """
+        if mode == "text" and output_format == "spatial":
+            raise ValidationError(
+                "mode='text' is not supported with output_format='spatial'. "
+                "Use output_format='markdown', or choose mode='structure' / "
+                "'understand' / 'agentic' for spatial elements."
+            )
+
+        # Multipart-only endpoint; only local file inputs are supported.
+        normalized_file = await process_file_input(file)
+
+        instructions: ParseInstructions = {
+            "mode": mode,
+            "output": {"format": output_format},
+        }
+
+        request_data: ParseRequestData = {
+            "file": normalized_file,
+            "instructions": instructions,
+        }
+
+        # DWS Extract uses a separate API key. Route the request via a
+        # per-call options copy so the rest of the client (which talks to
+        # the Processor API) keeps using the main key.
+        parse_options = self.options.copy()
+        extract_key = parse_options.get("extractApiKey")
+        if extract_key is not None:
+            parse_options["apiKey"] = extract_key
+
+        response: Any = await send_request(
+            {
+                "method": "POST",
+                "endpoint": "/extraction/parse",
+                "data": request_data,
+                "headers": None,
+            },
+            parse_options,
+        )
+        return cast("ParseResponse", response["data"])
 
     async def set_page_labels(
         self,
