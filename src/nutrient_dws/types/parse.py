@@ -12,7 +12,7 @@ below (1, 1.5, 9, 18 per page) are extraction credits.
 
 from typing import Literal
 
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 from nutrient_dws.types.extraction_credits import ExtractionCredits
 
@@ -75,7 +75,7 @@ class ParseBounds(TypedDict):
     height: float
 
 
-class ParsePageRef(TypedDict, total=False):
+class ParsePageRef(TypedDict):
     """Reference to the page an element was extracted from.
 
     `pageIndex` and dimensions are always populated; `pageNumber` carries the
@@ -84,9 +84,9 @@ class ParsePageRef(TypedDict, total=False):
     """
 
     pageIndex: int
-    pageNumber: str
     width: float
     height: float
+    pageNumber: NotRequired[str]
 
 
 class ParseWord(TypedDict, total=False):
