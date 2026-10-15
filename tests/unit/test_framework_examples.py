@@ -4,6 +4,7 @@ import asyncio
 import importlib.util
 import json
 import socket
+from ipaddress import ip_address
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -19,6 +20,30 @@ FRAMEWORKS = {
     "langchain": ("langchain_core", "langchain_openai", "langgraph"),
     "crewai": ("crewai",),
 }
+
+
+def is_local_socket_address(family, address):
+    if family == getattr(socket, "AF_UNIX", -1):
+        return True
+    if family not in (socket.AF_INET, socket.AF_INET6) or not isinstance(
+        address, tuple
+    ):
+        return False
+    try:
+        return ip_address(address[0]).is_loopback
+    except (IndexError, TypeError, ValueError):
+        return False
+
+
+def local_only_connect(original_connect):
+    def guarded_connect(connection, address):
+        if not is_local_socket_address(connection.family, address):
+            raise AssertionError(
+                "Framework smoke tests must not use nonlocal connections"
+            )
+        return original_connect(connection, address)
+
+    return guarded_connect
 
 
 @pytest.fixture
@@ -58,11 +83,51 @@ def example_environment(monkeypatch, tmp_path):
     constructor = Mock(return_value=client)
     monkeypatch.setattr(nutrient_dws, "NutrientClient", constructor)
 
-    def reject_network(*args, **kwargs):
-        raise AssertionError("Framework smoke tests must not use the network")
-
-    monkeypatch.setattr(socket.socket, "connect", reject_network)
+    monkeypatch.setattr(
+        socket.socket, "connect", local_only_connect(socket.socket.connect)
+    )
     return client, constructor
+
+
+def test_network_guard_allows_socketpair(example_environment):
+    left, right = socket.socketpair()
+    with left, right:
+        left.settimeout(2)
+        right.settimeout(2)
+        left.sendall(b"owned socketpair")
+        assert right.recv(32) == b"owned socketpair"
+
+
+def test_network_guard_allows_numeric_loopback_pair(example_environment):
+    # Exercise the TCP connection used by Windows' socketpair fallback on every OS.
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.settimeout(2)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+            client.settimeout(2)
+            client.connect(listener.getsockname())
+            peer, _ = listener.accept()
+            with peer:
+                peer.settimeout(2)
+                client.sendall(b"owned loopback")
+                assert peer.recv(32) == b"owned loopback"
+
+
+@pytest.mark.parametrize(
+    ("family", "address"),
+    [
+        (socket.AF_INET, ("192.0.2.1", 443)),
+        (socket.AF_INET, ("provider.example", 443)),
+        (socket.AF_INET6, ("2001:db8::1", 443, 0, 0)),
+    ],
+)
+def test_network_guard_rejects_nonlocal_without_connecting(family, address):
+    original_connect = Mock()
+    guarded_connect = local_only_connect(original_connect)
+    with pytest.raises(AssertionError, match="nonlocal"):
+        guarded_connect(SimpleNamespace(family=family), address)
+    original_connect.assert_not_called()
 
 
 def load_example(framework):
