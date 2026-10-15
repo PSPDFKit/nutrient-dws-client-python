@@ -1,8 +1,10 @@
 from unittest.mock import AsyncMock
 
 import pytest
+
 from nutrient_dws import NutrientClient
 from tests.helpers import TestDocumentGenerator
+
 
 @pytest.fixture
 def mock_workflow_instance():
@@ -40,7 +42,12 @@ def mock_workflow_instance():
 @pytest.fixture
 def valid_client_options():
     """Valid client options for testing."""
-    return {"apiKey": "test-api-key", "baseUrl": "https://api.test.com/v1", "timeout": None}
+    return {
+        "apiKey": "test-api-key",
+        "baseUrl": "https://api.test.com/v1",
+        "timeout": None,
+        "extractApiKey": None,
+    }
 
 @pytest.fixture
 def unit_client():

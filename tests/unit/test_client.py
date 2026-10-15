@@ -65,7 +65,12 @@ class TestNutrientClientWorkflow:
 
     @patch("nutrient_dws.client.StagedWorkflowBuilder")
     def test_pass_client_options_to_workflow(self, mock_staged_workflow_builder):
-        custom_options = {"apiKey": "custom-key", "baseUrl": "https://custom.api.com", "timeout": None}
+        custom_options = {
+            "apiKey": "custom-key",
+            "baseUrl": "https://custom.api.com",
+            "timeout": None,
+            "extractApiKey": None,
+        }
         client = NutrientClient(api_key=custom_options["apiKey"], base_url=custom_options["baseUrl"])
 
         client.workflow()

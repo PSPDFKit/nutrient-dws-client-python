@@ -449,6 +449,52 @@ if kvps and len(kvps) > 0:
     print(f'Total Amount: {dictionary.get("Total")}')
 ```
 
+##### parse(file, mode?, output_format?)
+Calls the Data Extraction API (`/extraction/parse`) to extract structured
+content from a document. Designed for **RAG ingestion**, **search indexing**,
+**content migration**, and **form/invoice extraction** workflows where the
+goal is to feed document content into a downstream pipeline rather than
+render or transform the document itself.
+
+Billed against **extraction credits** — a separate billing bucket from the
+processor API credits consumed by every other method on this client. See the
+[README's Data Extraction section](../README.md#data-extraction-extractionparse)
+for the full positioning, the per-mode comparison, and worked recipes.
+
+**Parameters**:
+- `file: LocalFileInput` - The document to parse. The endpoint accepts PDFs,
+  Office documents, and images. Only local inputs (paths, bytes, file-like
+  objects) are supported — URLs are not, because the underlying API surface is
+  multipart-only.
+- `mode: ParseMode` - `"text"` (1 credit/page, born-digital only, no OCR/AI),
+  `"structure"` (1.5 credits/page, OCR + spatial layout — default),
+  `"understand"` (9 credits/page, AI-augmented), or `"agentic"` (18 credits/page,
+  adds a vision-language model).
+- `output_format: ParseOutputFormat` - `"spatial"` (default — typed elements
+  with bounds and confidence at `response['output']['elements']`) or
+  `"markdown"` (whole-document Markdown string at `response['output']['markdown']`).
+
+**Returns**: `ParseResponse` - The full response envelope, including `output`,
+`metrics`, `configuration`, and `usage['data_extraction_credits']` (cost and
+remaining balance in the extraction-credits bucket).
+
+```python
+# RAG ingestion — born-digital PDF to Markdown, cheap and fast.
+response = await client.parse('whitepaper.pdf', mode='text', output_format='markdown')
+markdown = response['output']['markdown']
+
+# Form extraction — typed spatial elements with bounds and confidence.
+response = await client.parse('invoice.pdf', mode='understand')
+for element in response['output']['elements']:
+    if element['type'] == 'keyValueRegion':
+        for pair in element['pairs']:
+            print(pair['key']['value'], '→', pair['value']['value'])
+
+# Inspect billing — cost is in extraction credits, not processor credits.
+usage = response['usage']['data_extraction_credits']
+print(f"Cost: {usage['cost']} extraction credits, remaining: {usage['remainingCredits']}")
+```
+
 ##### flatten(file, annotation_ids?)
 Flattens annotations in a PDF document.
 

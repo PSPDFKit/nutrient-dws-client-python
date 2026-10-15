@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Load example credentials from `.env` before client creation, attach a working DWS extraction tool to CrewAI, and keep LangChain redaction results in `output/redacted.pdf` instead of returning PDF bytes to the model.
 
+## [3.1.0] - 2026-05-27
+
+- Added `client.parse()` for the Data Extraction API (`/extraction/parse`)
+- Added `extract_api_key` constructor parameter — DWS Extract is a separate product with its own API key
+
 ## [3.0.0] - 2026-01-30
 
 ### Security
