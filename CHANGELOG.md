@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Load example credentials from `.env` before client creation, attach a working DWS extraction tool to CrewAI, and keep LangChain redaction results in `output/redacted.pdf` instead of returning PDF bytes to the model.
+
 ## [3.0.0] - 2026-01-30
 
 ### Security

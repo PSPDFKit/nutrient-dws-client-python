@@ -550,7 +550,7 @@ class NutrientClient:
             result = await builder.output_markdown().execute()
         elif target_format in ["png", "jpeg", "jpg", "webp"]:
             result = await builder.output_image(
-                cast("Literal['png', 'jpeg', 'jpg', 'webp']", target_format),
+                target_format,
                 {"dpi": 300},
             ).execute()
         else:

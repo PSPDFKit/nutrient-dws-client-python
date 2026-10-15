@@ -129,15 +129,34 @@ This will:
 
 These examples are intentionally minimal and focus on framework wiring:
 
-Install optional framework dependencies first:
+Set both `NUTRIENT_API_KEY` and `OPENAI_API_KEY` in `examples/.env` before running them. Each example loads `.env` and fails clearly when either key is missing. The examples use `gpt-4.1-mini` and can make billable DWS and model calls when run normally. CrewAI attaches a real text-extraction tool before planning subsequent processing. The LangChain tool saves the redacted PDF to `output/redacted.pdf` and returns only its path and byte count to the model.
+
+Choose **one framework per fresh virtual environment**. Their OpenAI dependency ranges can differ, so installing all three together can cause lengthy dependency backtracking. From `examples/`, follow only the option you want; use Python 3.10–3.13 for CrewAI. Activation commands below are for macOS/Linux; on Windows use the environment's `Scripts\activate`.
+
+OpenAI Agents:
 
 ```bash
-pip install openai-agents langchain langchain-openai langgraph crewai
+python -m venv example_venv_agents
+source example_venv_agents/bin/activate
+pip install -e '..[dev]' openai-agents
+python src/framework_openai_agents.py
 ```
 
+LangChain/LangGraph, in a separate environment:
+
 ```bash
-python src/framework_openai_agents.py
+python -m venv example_venv_langchain
+source example_venv_langchain/bin/activate
+pip install -e '..[dev]' langchain langchain-openai langgraph
 python src/framework_langchain.py
+```
+
+CrewAI, in a separate environment:
+
+```bash
+python -m venv example_venv_crewai
+source example_venv_crewai/bin/activate
+pip install -e '..[dev]' crewai
 python src/framework_crewai.py
 ```
 
@@ -148,6 +167,14 @@ python -m py_compile src/framework_openai_agents.py
 python -m py_compile src/framework_langchain.py
 python -m py_compile src/framework_crewai.py
 ```
+
+From the repository root, after installing the optional frameworks and development dependencies, run the offline framework smoke tests:
+
+```bash
+python -m pytest tests/unit/test_framework_examples.py -v
+```
+
+These tests register and invoke the actual framework tools with a controlled Nutrient client. They block network connections and do not run an LLM or upload a document. Framework-specific cases skip if their optional dependency is absent.
 
 ## Output
 
