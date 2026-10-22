@@ -28,14 +28,14 @@ document_planner = Agent(
     goal="Design a robust Nutrient DWS processing pipeline for incoming files.",
     backstory="You optimize OCR, extraction, and redaction workflows for accuracy.",
     tools=[extract_document_text],
-    llm="gpt-4.1-mini",
+    llm="gpt-6-luna",
 )
 
 document_reviewer = Agent(
     role="Document QA Reviewer",
     goal="Review proposed workflow plans for failure modes and compliance risks.",
     backstory="You specialize in validating document automation quality.",
-    llm="gpt-4.1-mini",
+    llm="gpt-6-luna",
 )
 
 plan_task = Task(

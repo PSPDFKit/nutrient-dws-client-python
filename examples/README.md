@@ -129,7 +129,7 @@ This will:
 
 These examples are intentionally minimal and focus on framework wiring:
 
-Set both `NUTRIENT_API_KEY` and `OPENAI_API_KEY` in `examples/.env` before running them. Each example loads `.env` and fails clearly when either key is missing. The examples use `gpt-4.1-mini` and can make billable DWS and model calls when run normally. CrewAI attaches a real text-extraction tool before planning subsequent processing. The LangChain tool saves the redacted PDF to `output/redacted.pdf` and returns only its path and byte count to the model.
+Set both `NUTRIENT_API_KEY` and `OPENAI_API_KEY` in `examples/.env` before running them. Each example loads `.env` and fails clearly when either key is missing. The examples use `gpt-6-luna` and can make billable DWS and model calls when run normally. CrewAI attaches a real text-extraction tool before planning subsequent processing. The LangChain tool saves the redacted PDF to `output/redacted.pdf` and returns only its path and byte count to the model.
 
 Choose **one framework per fresh virtual environment**. Their OpenAI dependency ranges can differ, so installing all three together can cause lengthy dependency backtracking. From `examples/`, follow only the option you want; use Python 3.10–3.13 for CrewAI. Activation commands below are for macOS/Linux; on Windows use the environment's `Scripts\activate`.
 

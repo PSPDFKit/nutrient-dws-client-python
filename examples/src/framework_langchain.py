@@ -40,7 +40,7 @@ tool = StructuredTool.from_function(
 
 async def main() -> None:
     model = ChatOpenAI(
-        model="gpt-4.1-mini",
+        model="gpt-6-luna",
         api_key=os.environ["OPENAI_API_KEY"],
     )
     agent = create_react_agent(model, [tool])

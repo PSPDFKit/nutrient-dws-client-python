@@ -25,7 +25,7 @@ async def extract_text(input_path: str) -> str:
 
 assistant = Agent(
     name="nutrient-openai-agents-demo",
-    model="gpt-4.1-mini",
+    model="gpt-6-luna",
     instructions="Help users extract text and summarize document workflows.",
     tools=[extract_text],
 )
