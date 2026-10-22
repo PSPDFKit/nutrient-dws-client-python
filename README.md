@@ -60,6 +60,22 @@ from nutrient_dws import NutrientClient
 client = NutrientClient(api_key='your_api_key')
 ```
 
+## Framework Quickstarts
+
+Framework-oriented snippets are available in `examples/src/`:
+
+- `framework_openai_agents.py`
+- `framework_langchain.py`
+- `framework_crewai.py`
+
+Syntax-check commands:
+
+```bash
+python -m py_compile examples/src/framework_openai_agents.py
+python -m py_compile examples/src/framework_langchain.py
+python -m py_compile examples/src/framework_crewai.py
+```
+
 ## Direct Methods
 
 The client provides numerous async methods for document processing:
